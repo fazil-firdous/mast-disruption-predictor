@@ -1,0 +1,12 @@
+numpy
+pandas
+pyarrow
+xarray
+zarr<3
+fsspec
+aiohttp
+requests
+scikit-learn
+matplotlib
+pytest
+tqdm
