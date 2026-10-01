@@ -18,3 +18,25 @@ Network check from the cloud sandbox (what worked and what did not)
 
 Pending decisions (carried from the SPEC)
 - Whether to drop `shot_abort` / `shot_useful == False` shots: not decided, needs real data (SPEC 3.2).
+
+## 2026-10-02 — Phase 1: data layer (inspection NOT done)
+
+Status
+- `src/data.py`, `scripts/download.py`, `scripts/inspect_shots.py` and `tests/test_data.py` are written. The 5 data tests use fake in-memory shots and pass (cache hit on rerun, NaN columns for missing variables, retries, failures logged, empty group raises).
+- Real run from the sandbox: `python scripts/download.py --ids 11860` fails after 3 retries with `KeyError: '.zmetadata'` and the failure is written to `data/skipped.csv`. This is the same network block as Phase 0. The failure path works on a real error; the success path against real servers is untested.
+- NOT DONE: inspecting 20 random shots across campaigns, and downloading 50 shots. Per the project rules I am not guessing at the answers. The table below is deliberately empty.
+- To finish, run in Colab: `python scripts/inspect_shots.py --n 20` then `python scripts/download.py --n 50`, run the download a second time to confirm everything is served from the cache, and paste the output here.
+
+Inspection summary (to fill in from the Colab run)
+| item | finding |
+|---|---|
+| time step per campaign | TBD - not yet run |
+| time range | TBD - not yet run |
+| sign of ip | TBD - not yet run |
+| variables present / missing | TBD - not yet run |
+| anything odd | TBD - not yet run |
+
+Decisions
+- A shot whose summary group has none of the four signals (or no `time`) is treated as a load failure, not as a shot of NaN columns. This catches the zarr 3 "empty group" problem loudly instead of silently producing empty data.
+- A variable whose length differs from `time` is treated as missing (NaN column) rather than guessing how to align it. Revisit if the inspection shows this happens.
+- Retries wait 2 s, 4 s, 8 s (`RETRY_BACKOFF_S` in config). Failures are appended to `data/skipped.csv` from the main thread only, so parallel workers cannot corrupt it.

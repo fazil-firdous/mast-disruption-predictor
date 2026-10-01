@@ -42,8 +42,19 @@ TEMPORAL_TEST_CAMPAIGNS = ("M8", "M9")
 MAX_FALSE_ALARM_RATE = 0.05  # pick the threshold so at most 5% of clean shots raise an alarm
 N_BOOTSTRAP = 1000  # resamples over shots for the 95% confidence intervals
 
+# Signals cached per shot (SPEC 8.2): parquet column -> variable name in the summary group
+SIGNAL_VARIABLES = {
+    "ip": "ip",
+    "power_radiated": "power_radiated",
+    "neutron_rates_total": "neutron_rates_total",
+    "power_nbi": "power_nbi",
+}
+RETRY_BACKOFF_S = 2.0  # wait 2 s, then 4 s, then 8 s between retries, so a busy server can recover
+
 # Paths
 DATA_DIR = "data"
 RAW_DIR = "data/raw"
 PROCESSED_DIR = "data/processed"
 RESULTS_DIR = "results"
+SHOT_TABLE_CACHE = "data/shot_table.parquet"  # the table is ~11.5k rows, so one copy avoids re-downloading it
+SKIPPED_CSV = "data/skipped.csv"  # every shot we could not load, with the reason (SPEC 8.1)
