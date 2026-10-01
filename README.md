@@ -16,7 +16,7 @@ pytest
 Note: the shot stores are Zarr v3, so `zarr>=3` is required (see `NOTES.md`).
 
 ## Results so far
-Only the label comparison exists (`results/label_report/report.md`, produced by code that ran on 550 real shots). On a uniform random sample of 400 shots, operator notes mark 5.5% as disrupted and the signal-based current-quench detector marks 76.8%. Most MAST shots end with a current spike and fast fall whether or not a note mentions a disruption, so the label definition is an open decision for the project owner. Model results: TBD - not yet run.
+Only the label comparison exists (`results/label_report/report.md`, from code that ran on 400 real shots: 175 note-disrupted, 225 random note-clean). The current-quench detector confirms 97.7% of note-disrupted shots, but it also flags 74.2% of note-clean shots, because most MAST shots end with a fast current quench whether or not anyone called it a disruption. The label definition is an open decision for the project owner. Model results: TBD - not yet run.
 
 ## Limitations
 Labels are algorithmic and imperfect. Only 4 global signals are used, with no magnetics or profiles. MAST (2000 to 2013), not MAST-U. Offline evaluation, not real-time control. Results come from a subset of shots. The data layer has been tested on real files read from disk but not yet over HTTPS from the development sandbox.

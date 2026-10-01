@@ -21,7 +21,7 @@ MIN_PEAK_IP = 100e3  # A; shots that never reach 100 kA are too weak to say anyt
 RANDOM_SEED = 42  # one seed for splits, sampling and models, so every run is repeatable
 
 # Label policy (SPEC 5.3)
-LABEL_SOURCE = "signal"  # "signal" | "note" | "both"; operator notes are incomplete, so trust the current trace
+LABEL_SOURCE = "both"  # "signal" | "note" | "both"; owner chose "both" after the Phase 2 report: the detector alone flags ~74% of note-clean shots
 SPIKE_LOOKBACK_MS = 3  # Ip spike within 3 ms before the CQ marks the thermal quench (SPEC 5.2 step 4)
 MEDIAN_FILTER_SAMPLES = 3  # smallest median filter that removes single-sample glitches
 CQ_MIN_FRAC_OF_PEAK = 0.5  # quench must start above half of peak |Ip|; the last stretch of any linear ramp-down also falls 80% in 10 ms once |Ip| is small

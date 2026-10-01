@@ -20,13 +20,19 @@ OUT_DIR = os.path.join(config.RESULTS_DIR, "label_report")
 FLOOR_VALUES = [0.2, 0.35, 0.5, 0.65]  # values of CQ_MIN_FRAC_OF_PEAK tried in the sensitivity table
 
 
-def choose_shots(table, n, n_extra, seed):
-    """Seeded sample: n uniformly random shots (headline numbers) plus n_extra note-disrupted shots (more cases)."""
+def choose_shots(table, n, seed, pool_ids=None):
+    """Seeded sample of about n shots: every note-disrupted shot in the pool (capped at n // 2),
+    then random note-clean shots from the pool to make up n. The pool is the whole table unless pool_ids is given.
+    """
     rng = np.random.default_rng(seed)
-    uniform = [int(i) for i in rng.choice(table["shot_id"].to_numpy(), size=n, replace=False)]
-    flagged = table.loc[table["shot_postshot_comment"].map(labels.note_label) & ~table["shot_id"].isin(uniform), "shot_id"]
-    extra = [int(i) for i in rng.choice(flagged.to_numpy(), size=min(n_extra, len(flagged)), replace=False)]
-    return {"uniform": uniform, "extra": extra}
+    pool = table if pool_ids is None else table[table["shot_id"].isin(pool_ids)]
+    is_note = pool["shot_postshot_comment"].map(labels.note_label)
+    disrupted = pool.loc[is_note, "shot_id"].to_numpy()
+    clean = pool.loc[~is_note, "shot_id"].to_numpy()
+    if len(disrupted) > n // 2:
+        disrupted = rng.choice(disrupted, size=n // 2, replace=False)
+    clean = rng.choice(clean, size=min(n - len(disrupted), len(clean)), replace=False)
+    return sorted(int(i) for i in np.concatenate([disrupted, clean]))
 
 
 def fall_time_ms(time, ip):
@@ -40,14 +46,14 @@ def fall_time_ms(time, ip):
     return 1000 * (time[last_high + below[0]] - time[last_high])
 
 
-def label_one(shot_id, table_row, group):
+def label_one(shot_id, table_row):
     """One summary row: note label, signal label and a few trace measurements."""
     shot = load_shot(shot_id)
     time, ip = shot["time"].to_numpy(), shot["ip"].to_numpy()
     found = labels.detect_disruption(time, ip)
     comment = table_row["shot_postshot_comment"]
     return {
-        "shot_id": shot_id, "group": group, "campaign": table_row["campaign"],
+        "shot_id": shot_id, "campaign": table_row["campaign"],
         "note": labels.note_label(comment), "t_note": labels.parse_note_time(comment),
         "signal": found["status"], "t_disrupt": found["t_disrupt"],
         "quench_rate": found["quench_rate"], "peak_ip": found["peak_ip"],
@@ -56,7 +62,7 @@ def label_one(shot_id, table_row, group):
     }
 
 
-def plot_cases(cases, path, title):
+def plot_cases(cases, path, title, show_fall=False):
     """Plot |Ip| for each case in a 2-column grid, marking the signal time (red) and the note time (blue)."""
     rows = (len(cases) + 1) // 2
     fig, axes = plt.subplots(rows, 2, figsize=(11, 2.6 * rows), squeeze=False)
@@ -64,10 +70,16 @@ def plot_cases(cases, path, title):
         shot = load_shot(int(case["shot_id"]))
         ax.plot(shot["time"], np.abs(shot["ip"]) / 1e3, color="black", lw=1)
         if not np.isnan(case["t_disrupt"]):
-            ax.axvline(case["t_disrupt"], color="red", lw=1, label="signal")
+            ax.axvline(case["t_disrupt"], color="red", lw=1, label="signal t_disrupt")
         if not np.isnan(case["t_note"]):
-            ax.axvline(case["t_note"], color="blue", ls="--", lw=1, label="note")
-        ax.set_title(f"{int(case['shot_id'])} ({case['campaign']}): {case['comment'][:55]}", fontsize=8)
+            ax.axvline(case["t_note"], color="blue", ls="--", lw=1, label="note time")
+        label = f"{int(case['shot_id'])} ({case['campaign']}): "
+        if show_fall:
+            label += f"detector: {case['signal']}, 90%->10% fall {case['fall_ms']:.0f} ms"
+        else:
+            label += case["comment"][:55]
+        ax.set_title(label, fontsize=8)
+        ax.set_xlabel("time (s)", fontsize=8)
         ax.set_ylabel("|Ip| (kA)", fontsize=8)
         if ax.get_legend_handles_labels()[0]:
             ax.legend(fontsize=7, loc="upper left")
@@ -79,17 +91,20 @@ def plot_cases(cases, path, title):
     plt.close(fig)
 
 
-def sensitivity(table, uniform_ids):
-    """Share of the uniform sample flagged as disrupted for several values of CQ_MIN_FRAC_OF_PEAK."""
+def sensitivity(df):
+    """Share of note-clean and note-disrupted shots flagged by the detector, for several CQ_MIN_FRAC_OF_PEAK values."""
     original = config.CQ_MIN_FRAC_OF_PEAK
     rows = []
     for value in FLOOR_VALUES:
         config.CQ_MIN_FRAC_OF_PEAK = value
-        flagged = 0
-        for shot_id in uniform_ids:
-            shot = load_shot(shot_id)
-            flagged += labels.detect_disruption(shot["time"], shot["ip"])["detected"]
-        rows.append({"CQ_MIN_FRAC_OF_PEAK": value, "flagged": flagged, "share": flagged / len(uniform_ids)})
+        flagged = []
+        for shot_id in df["shot_id"]:
+            shot = load_shot(int(shot_id))
+            flagged.append(labels.detect_disruption(shot["time"], shot["ip"])["detected"])
+        flagged = np.array(flagged)
+        rows.append({"CQ_MIN_FRAC_OF_PEAK": value,
+                     "flagged, note clean": flagged[~df["note"].to_numpy()].mean(),
+                     "flagged, note disrupted": flagged[df["note"].to_numpy()].mean()})
     config.CQ_MIN_FRAC_OF_PEAK = original
     return pd.DataFrame(rows)
 
@@ -98,8 +113,10 @@ def md_table(df, index=True):
     """Render a small DataFrame as a markdown table (avoids needing the tabulate package)."""
     if index:
         df = df.rename_axis("").reset_index()
+
     def fmt(v):
         return f"{v:.3g}" if isinstance(v, (float, np.floating)) else str(v)
+
     lines = ["| " + " | ".join(str(c) for c in df.columns) + " |",
              "|" + "|".join("---" for _ in df.columns) + "|"]
     for row in df.itertuples(index=False):
@@ -107,98 +124,103 @@ def md_table(df, index=True):
     return "\n".join(lines)
 
 
-def build_report(df, sens, n_uniform):
-    """Markdown text of the report; every number comes from df and sens."""
-    uni = df[df["group"] == "uniform"]
-    known = uni[uni["signal"] != "unknown"]
+def build_report(df, sens, rampdowns):
+    """Markdown text of the report; every number comes from df, sens and rampdowns."""
+    known = df[df["signal"] != "unknown"]
     crosstab = pd.crosstab(known["note"].map({True: "note yes", False: "note no"}),
                            known["signal"].map({"disrupted": "signal yes", "clean": "signal no"}))
     crosstab.index.name = None
     crosstab.columns.name = None
-    both = df[df["note"] & df["t_note"].notna() & (df["signal"] == "disrupted")]
+    note_yes = known[known["note"]]
+    note_no = known[~known["note"]]
+    agree = (known["note"] == (known["signal"] == "disrupted")).mean()
+    both = known[known["note"] & known["t_note"].notna() & (known["signal"] == "disrupted")]
     delta = 1000 * (both["t_disrupt"] - both["t_note"])
-    quenched = df[df["signal"] == "disrupted"]
-    smooth = df[df["signal"] == "clean"]
-    note_yes = df[df["note"] & (df["signal"] != "unknown")]
-    share_flagged = (known["signal"] == "disrupted").mean()
-    share_noted = known["note"].mean()
+    flagged = known[known["signal"] == "disrupted"]
+    not_flagged = known[known["signal"] == "clean"]
     lines = [
         "# Label reconciliation report (SPEC 5.3)", "",
-        f"Shots processed: {len(df)} ({n_uniform} uniform random shots for the headline numbers, the rest are extra "
-        "note-disrupted shots used for the timing comparison and example plots). "
-        f"Shots with `unknown` signal label (|Ip| never above {config.MIN_PEAK_IP:.0f} A): {(df['signal'] == 'unknown').sum()}.", "",
-        "## 2x2 table, uniform random sample", "", md_table(crosstab), "",
-        f"Operator notes mark {share_noted:.1%} of this sample as disrupted. "
-        f"The signal detector marks {share_flagged:.1%}.", "",
+        f"Sample: {len(df)} shots, made of every note-disrupted shot in the pool ({df['note'].sum()}) plus "
+        f"{(~df['note']).sum()} random note-clean shots (seed {config.RANDOM_SEED}). "
+        "Because note-disrupted shots are over-represented, the overall agreement below is not the agreement "
+        "on a typical shot; read the rates per row. "
+        f"Shots labelled `unknown` (|Ip| never above {config.MIN_PEAK_IP:.0f} A): {(df['signal'] == 'unknown').sum()}.", "",
+        "## 2x2 table", "", md_table(crosstab), "",
+        f"- Overall agreement: {agree:.1%} of shots.",
+        f"- Note-disrupted shots that the detector also flags: {(note_yes['signal'] == 'disrupted').mean():.1%} "
+        f"({(note_yes['signal'] == 'disrupted').sum()} of {len(note_yes)}).",
+        f"- Note-clean shots that the detector flags anyway: {(note_no['signal'] == 'disrupted').mean():.1%} "
+        f"({(note_no['signal'] == 'disrupted').sum()} of {len(note_no)}).", "",
         "## Timing where both exist", "",
         f"{len(both)} shots have a note time and a detected quench. t_disrupt minus t_note (ms): "
         f"median {delta.median():.1f}, quartiles {delta.quantile(.25):.1f} to {delta.quantile(.75):.1f}, "
-        f"{(delta.abs() <= 10).mean():.0%} within 10 ms.", "",
-        "## Does a slow ramp-down look different from a quench?", "",
-        f"Time for |Ip| to fall from 90% to 10% of peak, median over shots: "
-        f"{quenched['fall_ms'].median():.1f} ms for the {len(quenched)} shots flagged disrupted, "
-        f"{smooth['fall_ms'].median():.1f} ms for the {len(smooth)} shots not flagged. "
-        f"Shots with no 10% point before the data ends: {smooth['fall_ms'].isna().sum()} of the not-flagged ones.", "",
-        "## Are noted and un-noted quenches different?", "",
-        "Medians over shots flagged by the detector:", "",
-        md_table(quenched.groupby("note")[["quench_rate", "peak_ip", "fall_ms"]].median().rename(
+        f"{(delta.abs() <= 10).mean():.0%} within 10 ms, {(delta.abs() > 20).sum()} differ by more than 20 ms.", "",
+        "## What does a flagged shot look like?", "",
+        f"Time for |Ip| to fall from 90% to 10% of peak (median): {flagged['fall_ms'].median():.1f} ms for the "
+        f"{len(flagged)} flagged shots, {not_flagged['fall_ms'].median():.1f} ms for the {len(not_flagged)} not flagged.", "",
+        "Medians over flagged shots, split by note:", "",
+        md_table(flagged.groupby("note")[["quench_rate", "peak_ip", "fall_ms"]].median().rename(
             index={True: "note yes", False: "note no"})), "",
+        "## Normal ramp-downs (SPEC 5.2 step 5)", "",
+        f"Three random note-clean shots with a clear slow end, 90%->10% fall of at least {5 * config.CQ_MAX_MS} ms "
+        f"(`rampdowns.png`): shots {', '.join(str(int(s)) for s in rampdowns['shot_id'])}, fall times "
+        f"{', '.join(f'{v:.0f}' for v in rampdowns['fall_ms'])} ms, detector result "
+        f"{', '.join(rampdowns['signal'])}. Of the {len(not_flagged)} unflagged shots, "
+        f"{(not_flagged['fall_ms'] < 5 * config.CQ_MAX_MS).sum()} fall faster than that "
+        f"(shortest {not_flagged['fall_ms'].min():.0f} ms). They are borderline cases, often a spike and a partial "
+        "drop followed by a final fall that starts below the CQ_MIN_FRAC_OF_PEAK floor.", "",
         "## Sensitivity to the starting-current floor", "", md_table(sens, index=False), "",
-        "## Summary", "",
-        f"- {(note_yes['signal'] == 'disrupted').mean():.0%} of note-disrupted shots "
-        f"({(note_yes['signal'] == 'disrupted').sum()} of {len(note_yes)}) show a quench in |Ip|, so a note is rarely contradicted by the signal.",
-        f"- The detector finds a quench in {share_flagged:.0%} of the uniform sample, far more than the notes. "
-        "Flagged shots with and without a note have similar quench rates and fall times (table above), "
-        "so the current trace alone does not separate a noted disruption from an ordinary end of pulse.",
-        "- Where both exist the two agree on timing (above), so the detector's time is usable when it is right about the event.",
-        "- Neither label has independent ground truth here. The final choice of `LABEL_SOURCE` is the owner's call (SPEC 5.3).", "",
-        "Plots: `disagreements_note_only.png`, `disagreements_signal_only.png`, `disagreements_timing.png`. "
-        "Per-shot table: `per_shot.csv`. Note-only list for manual review: `review_list.csv`.", "",
+        "Plots: `disagreements_note_only.png`, `disagreements_signal_only.png`, `disagreements_timing.png`, "
+        "`rampdowns.png`. Per-shot table: `per_shot.csv`. Note-only list for manual review: `review_list.csv`. "
+        "Exact shot list: `sample_ids.json`.", "",
     ]
     return "\n".join(lines)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--n", type=int, default=400, help="uniform random shots for the headline numbers")
-    parser.add_argument("--n-extra", type=int, default=150, help="extra note-disrupted shots for more cases")
+    parser.add_argument("--n", type=int, default=400, help="sample size")
     parser.add_argument("--seed", type=int, default=config.RANDOM_SEED)
-    parser.add_argument("--ids-file", help="JSON with lists 'uniform' and 'extra' instead of random choice")
+    parser.add_argument("--pool-file", help="JSON list of shot ids to sample from (default: whole shot table)")
+    parser.add_argument("--ids-file", help="JSON list of the exact shot ids to use (skips sampling)")
     args = parser.parse_args()
 
     table = load_shot_table()
     if args.ids_file:
-        chosen = json.load(open(args.ids_file))
+        ids = json.load(open(args.ids_file))
     else:
-        chosen = choose_shots(table, args.n, args.n_extra, args.seed)
-    ids = chosen["uniform"] + chosen["extra"]
+        pool = json.load(open(args.pool_file)) if args.pool_file else None
+        ids = choose_shots(table, args.n, args.seed, pool)
     result = download_shots(ids)
     failed = set(result["failed"])
     indexed = table.set_index("shot_id")
 
-    rows = [label_one(s, indexed.loc[s], "uniform" if s in chosen["uniform"] else "extra")
-            for s in ids if s not in failed]
-    df = pd.DataFrame(rows)
+    df = pd.DataFrame([label_one(s, indexed.loc[s]) for s in ids if s not in failed])
     os.makedirs(OUT_DIR, exist_ok=True)
     df.to_csv(os.path.join(OUT_DIR, "per_shot.csv"), index=False)
+    with open(os.path.join(OUT_DIR, "sample_ids.json"), "w") as f:
+        json.dump([int(s) for s in df["shot_id"]], f)
 
     note_only = df[df["note"] & (df["signal"] == "clean")]
     note_only.to_csv(os.path.join(OUT_DIR, "review_list.csv"), index=False)
     signal_only = df[~df["note"] & (df["signal"] == "disrupted")]
-    delta = (df["t_disrupt"] - df["t_note"]).abs()
-    timing = df[delta > 0.02].sort_values("shot_id")
+    timing = df[(df["t_disrupt"] - df["t_note"]).abs() > 0.02]
+    # a clear ramp-down takes several times CQ_MAX_MS; faster unflagged ends are reported as borderline
+    rampdowns = df[~df["note"] & (df["signal"] == "clean") & (df["fall_ms"] >= 5 * config.CQ_MAX_MS)]
 
     rng = np.random.default_rng(args.seed)
-    pick = lambda d, k: d.iloc[rng.permutation(len(d))[:k]]
-    plot_cases(pick(note_only, 3), os.path.join(OUT_DIR, "disagreements_note_only.png"),
+    pick = lambda d, k: d.iloc[np.sort(rng.permutation(len(d))[:k])]
+    plot_cases(pick(note_only, 4), os.path.join(OUT_DIR, "disagreements_note_only.png"),
                "Note says disrupted, detector finds no quench")
-    plot_cases(pick(signal_only[signal_only["group"] == "uniform"], 3),
-               os.path.join(OUT_DIR, "disagreements_signal_only.png"), "Detector finds a quench, no note")
+    plot_cases(pick(signal_only, 4), os.path.join(OUT_DIR, "disagreements_signal_only.png"),
+               "Detector finds a quench, note does not mention a disruption")
     plot_cases(pick(timing, 2), os.path.join(OUT_DIR, "disagreements_timing.png"),
-               "Both say disrupted but times differ by more than 20 ms")
+               "Both say disrupted but the times differ by more than 20 ms")
+    ramp_pick = pick(rampdowns, 3)
+    plot_cases(ramp_pick, os.path.join(OUT_DIR, "rampdowns.png"),
+               "Normal ramp-downs: note clean, detector should not flag", show_fall=True)
 
-    sens = sensitivity(table, [s for s in chosen["uniform"] if s not in failed])
-    report = build_report(df, sens, len(chosen["uniform"]) - len(failed & set(chosen["uniform"])))
+    report = build_report(df, sensitivity(df), ramp_pick)
     with open(os.path.join(OUT_DIR, "report.md"), "w") as f:
         f.write(report)
     print(report)

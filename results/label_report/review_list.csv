@@ -1,5 +1,5 @@
-shot_id,group,campaign,note,t_note,signal,t_disrupt,quench_rate,peak_ip,fall_ms,comment
-21673,extra,M7,True,,clean,,,903999.8125,54.0,'Ran OK. Early disruption due to arcing on centre column.'
-19388,extra,M7,True,,clean,,,514967.90625,151.0,'better. disrupts near end of rampdown. Smoother waveforms'
-25108,extra,Unknown,True,,clean,,,651958.0625,79.0,'Disruption caused by an IRE followed by what looks like a MARFE.'
-15555,extra,M6,True,0.6,clean,,,468298.3125,83.0,'Plasma rolled off slowly but disrupted at 600ms.'
+shot_id,campaign,note,t_note,signal,t_disrupt,quench_rate,peak_ip,fall_ms,comment
+15555,M6,True,0.6,clean,,,468298.3125,83.0,'Plasma rolled off slowly but disrupted at 600ms.'
+19388,M7,True,,clean,,,514967.90625,151.0,'better. disrupts near end of rampdown. Smoother waveforms'
+21673,M7,True,,clean,,,903999.8125,54.0,'Ran OK. Early disruption due to arcing on centre column.'
+25108,Unknown,True,,clean,,,651958.0625,79.0,'Disruption caused by an IRE followed by what looks like a MARFE.'

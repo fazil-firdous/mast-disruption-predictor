@@ -1,47 +1,44 @@
 # Label reconciliation report (SPEC 5.3)
 
-Shots processed: 550 (400 uniform random shots for the headline numbers, the rest are extra note-disrupted shots used for the timing comparison and example plots). Shots with `unknown` signal label (|Ip| never above 100000 A): 0.
+Sample: 400 shots, made of every note-disrupted shot in the pool (175) plus 225 random note-clean shots (seed 42). Because note-disrupted shots are over-represented, the overall agreement below is not the agreement on a typical shot; read the rates per row. Shots labelled `unknown` (|Ip| never above 100000 A): 0.
 
-## 2x2 table, uniform random sample
+## 2x2 table
 
 |  | signal no | signal yes |
 |---|---|---|
-| note no | 93 | 285 |
-| note yes | 0 | 22 |
+| note no | 58 | 167 |
+| note yes | 4 | 171 |
 
-Operator notes mark 5.5% of this sample as disrupted. The signal detector marks 76.8%.
+- Overall agreement: 57.2% of shots.
+- Note-disrupted shots that the detector also flags: 97.7% (171 of 175).
+- Note-clean shots that the detector flags anyway: 74.2% (167 of 225).
 
 ## Timing where both exist
 
-65 shots have a note time and a detected quench. t_disrupt minus t_note (ms): median 1.0, quartiles -2.0 to 6.0, 78% within 10 ms.
+99 shots have a note time and a detected quench. t_disrupt minus t_note (ms): median 1.0, quartiles -2.0 to 5.0, 78% within 10 ms, 8 differ by more than 20 ms.
 
-## Does a slow ramp-down look different from a quench?
+## What does a flagged shot look like?
 
-Time for |Ip| to fall from 90% to 10% of peak, median over shots: 5.0 ms for the 453 shots flagged disrupted, 124.0 ms for the 97 shots not flagged. Shots with no 10% point before the data ends: 0 of the not-flagged ones.
+Time for |Ip| to fall from 90% to 10% of peak (median): 4.0 ms for the 338 flagged shots, 124.0 ms for the 62 not flagged.
 
-## Are noted and un-noted quenches different?
-
-Medians over shots flagged by the detector:
+Medians over flagged shots, split by note:
 
 |  | quench_rate | peak_ip | fall_ms |
 |---|---|---|---|
-| note no | 1.92e+08 | 7.66e+05 | 5 |
-| note yes | 2.01e+08 | 7.82e+05 | 4 |
+| note no | 1.85e+08 | 7.64e+05 | 5 |
+| note yes | 2.02e+08 | 7.81e+05 | 4 |
+
+## Normal ramp-downs (SPEC 5.2 step 5)
+
+Three random note-clean shots with a clear slow end, 90%->10% fall of at least 50 ms (`rampdowns.png`): shots 24559, 28104, 29989, fall times 127, 155, 115 ms, detector result clean, clean, clean. Of the 62 unflagged shots, 2 fall faster than that (shortest 24 ms). They are borderline cases, often a spike and a partial drop followed by a final fall that starts below the CQ_MIN_FRAC_OF_PEAK floor.
 
 ## Sensitivity to the starting-current floor
 
-| CQ_MIN_FRAC_OF_PEAK | flagged | share |
+| CQ_MIN_FRAC_OF_PEAK | flagged, note clean | flagged, note disrupted |
 |---|---|---|
-| 0.2 | 363 | 0.907 |
-| 0.35 | 339 | 0.848 |
-| 0.5 | 307 | 0.767 |
-| 0.65 | 270 | 0.675 |
+| 0.2 | 0.884 | 0.989 |
+| 0.35 | 0.844 | 0.983 |
+| 0.5 | 0.742 | 0.977 |
+| 0.65 | 0.64 | 0.96 |
 
-## Summary
-
-- 98% of note-disrupted shots (168 of 172) show a quench in |Ip|, so a note is rarely contradicted by the signal.
-- The detector finds a quench in 77% of the uniform sample, far more than the notes. Flagged shots with and without a note have similar quench rates and fall times (table above), so the current trace alone does not separate a noted disruption from an ordinary end of pulse.
-- Where both exist the two agree on timing (above), so the detector's time is usable when it is right about the event.
-- Neither label has independent ground truth here. The final choice of `LABEL_SOURCE` is the owner's call (SPEC 5.3).
-
-Plots: `disagreements_note_only.png`, `disagreements_signal_only.png`, `disagreements_timing.png`. Per-shot table: `per_shot.csv`. Note-only list for manual review: `review_list.csv`.
+Plots: `disagreements_note_only.png`, `disagreements_signal_only.png`, `disagreements_timing.png`, `rampdowns.png`. Per-shot table: `per_shot.csv`. Note-only list for manual review: `review_list.csv`. Exact shot list: `sample_ids.json`.

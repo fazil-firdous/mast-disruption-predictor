@@ -39,14 +39,18 @@ A plain-English tour of the repo. Read the files in the order below. Files marke
 
 ## src/labels.py in detail
 - `note_label(comment)` -> bool. True if the operator comment contains "disrupt" and no negation ("no disrupt", "not disrupt", "non-disrupt", "didn't disrupt"). NaN or None gives False.
-- `parse_note_time(comment)` -> seconds or NaN. Finds the first "at <number> ms|s" after the word "disrupt". Known to miss many comments.
+- `parse_note_time(comment)` -> seconds or NaN. Finds the first "at <number> [ms|s]" after the word "disrupt". A number without a unit counts as seconds below 1.5 and ms from 10 up.
 - `median_filter(x, size=3)` -> array. Running median that keeps the same length.
 - `detect_disruption(time, ip)` -> dict with `status` ("disrupted", "clean" or "unknown"), `detected`, `t_disrupt` (s), `quench_rate` (A/s), `peak_ip` (A). Steps: take |ip|, smooth, give up if the peak is under `MIN_PEAK_IP`, find the earliest sample (above `CQ_MIN_FRAC_OF_PEAK` of the peak) that loses `CQ_DROP_FRAC` of its value within `CQ_MAX_MS`, move to the start of that fall, and use a nearby Ip spike as the time if there is one.
 - `final_label(note_flag, signal_flag, source=None)` -> bool. Applies `config.LABEL_SOURCE` ("signal", "note" or "both").
 
 ## scripts/label_report.py in detail
-- `choose_shots` picks a seeded uniform sample plus extra note-disrupted shots. `label_one` labels one shot both ways. `fall_time_ms` measures how fast |Ip| falls from 90% to 10%. `sensitivity` re-runs the detector for several floor values. `plot_cases` draws the disagreement plots. `build_report` writes the markdown from the numbers.
-- Run: `python scripts/label_report.py --n 400 --n-extra 150` (downloads what it needs), or `--ids-file results/label_report/sample_ids.json` to reuse the exact shots behind the committed report.
+- `choose_shots(table, n, seed, pool_ids)` -> sorted list of ids: every note-disrupted shot in the pool (at most n/2), filled up to n with random note-clean shots.
+- `fall_time_ms(time, ip)` -> ms for |Ip| to go from 90% to 10% of peak on the final fall.
+- `label_one(shot_id, table_row)` -> one row with both labels and trace measurements.
+- `plot_cases(cases, path, title, show_fall)` draws |Ip| with the signal time (red) and note time (blue).
+- `sensitivity(df)` re-runs the detector for several `CQ_MIN_FRAC_OF_PEAK` values. `md_table` formats tables. `build_report` writes the markdown from the numbers.
+- Run: `python scripts/label_report.py --n 400` (whole table as pool), `--pool-file ids.json` to sample from a list, or `--ids-file results/label_report/sample_ids.json` to reuse the exact shots behind the committed report.
 
 ## Where to look for results
-`results/label_report/report.md`, `per_shot.csv`, `review_list.csv`, three `disagreements_*.png`, `sample_ids.json`.
+`results/label_report/report.md`, `per_shot.csv`, `review_list.csv`, three `disagreements_*.png`, `rampdowns.png`, `sample_ids.json`.

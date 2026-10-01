@@ -6,8 +6,8 @@ import numpy as np
 from src import config
 
 NEGATION = re.compile(r"no disrupt|not disrupt|non-disrupt|didn.?t disrupt", re.IGNORECASE)
-# "AT 220MS", "at ~310 ms", "AT 0.22S"
-NOTE_TIME = re.compile(r"\bat\s*~?\s*(\d+(?:\.\d+)?)\s*(ms|s)\b", re.IGNORECASE)
+# "AT 220MS", "at ~310 ms", "AT 0.22S", and unit-less "at 0.302" or "at 190"
+NOTE_TIME = re.compile(r"\bat\s*~?\s*(\d+(?:\.\d+)?)\s*(ms|s)?\b", re.IGNORECASE)
 
 
 def note_label(comment):
@@ -32,7 +32,17 @@ def parse_note_time(comment):
     if match is None:
         return float("nan")
     value = float(match.group(1))
-    return value / 1000 if match.group(2).lower() == "ms" else value
+    unit = (match.group(2) or "").lower()
+    if unit == "ms":
+        return value / 1000
+    if unit == "s":
+        return value
+    # no unit: MAST shots last under ~1 s, so a small number is seconds and a large one is ms
+    if value < 1.5:
+        return value
+    if value >= 10:
+        return value / 1000
+    return float("nan")
 
 
 def median_filter(x, size=config.MEDIAN_FILTER_SAMPLES):

@@ -67,6 +67,10 @@ def test_note_label(comment, expected):
     ("Plasma disrupts at ~310 ms", 0.31),
     ("shot disrupted AT 0.22S", 0.22),
     ("H-mode at 212 ms then disrupted", float("nan")),
+    ("disrupts at 0.302 broken pellet at 0.263s", 0.302),
+    ("Disrupts early at 0.230 at IRE", 0.23),
+    ("DISRUPTED AT 190", 0.19),
+    ("disrupted at 5 coils", float("nan")),
     ("disruption at the same time", float("nan")),
     (None, float("nan")),
 ])
