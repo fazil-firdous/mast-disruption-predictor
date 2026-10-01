@@ -7,7 +7,8 @@ from src import config
 
 NEGATION = re.compile(r"no disrupt|not disrupt|non-disrupt|didn.?t disrupt", re.IGNORECASE)
 # "AT 220MS", "at ~310 ms", "AT 0.22S", and unit-less "at 0.302" or "at 190"
-NOTE_TIME = re.compile(r"\bat\s*~?\s*(\d+(?:\.\d+)?)\s*(ms|s)?\b", re.IGNORECASE)
+# the lookaheads stop "at 0.169delay" being read as "at 0" by backtracking
+NOTE_TIME = re.compile(r"\bat\s*~?\s*(\d+(?:\.\d+)?)(?![\d.])\s*(ms|s)?(?![a-z])", re.IGNORECASE)
 
 
 def note_label(comment):
@@ -32,6 +33,8 @@ def parse_note_time(comment):
     if match is None:
         return float("nan")
     value = float(match.group(1))
+    if value <= 0:
+        return float("nan")
     unit = (match.group(2) or "").lower()
     if unit == "ms":
         return value / 1000
@@ -127,3 +130,29 @@ def final_label(note_flag, signal_flag, source=None):
     if source == "both":
         return bool(note_flag and signal_flag)
     raise ValueError(f"LABEL_SOURCE must be 'signal', 'note' or 'both', got {source!r}")
+
+
+def shot_label(time, ip, comment, source=None):
+    """Final label for one shot under config.LABEL_SOURCE.
+
+    Returns a dict with status ('disrupted', 'clean' or 'unknown'), disrupted (bool), t_disrupt (s or NaN)
+    and the two inputs note (bool) and signal_status. t_disrupt comes from the detector; with source='note'
+    it falls back to the note time when the detector found nothing. 'unknown' shots should be skipped.
+    """
+    source = source or config.LABEL_SOURCE
+    found = detect_disruption(time, ip)
+    note = note_label(comment)
+    result = {"note": note, "signal_status": found["status"], "status": "unknown",
+              "disrupted": False, "t_disrupt": np.nan}
+    if found["status"] == "unknown":
+        return result
+    disrupted = final_label(note, found["detected"], source)
+    t_disrupt = found["t_disrupt"]
+    if disrupted and np.isnan(t_disrupt):
+        t_disrupt = parse_note_time(comment)
+    if disrupted and np.isnan(t_disrupt):
+        # a disruption with no usable time cannot be windowed, so leave it out rather than guess
+        return result
+    result.update(status="disrupted" if disrupted else "clean", disrupted=disrupted,
+                  t_disrupt=t_disrupt if disrupted else np.nan)
+    return result

@@ -56,9 +56,10 @@ Common precursors, which is why these signals matter:
 - Reference case: shot **11860**, note "DISRUPTION AT 220MS". `|Ip|` peaks near 700 kA, spikes to ~850 kA at ~0.210 s, then collapses to ~0 by ~0.213 s.
 
 ### 3.2 To verify before relying on them
-- Time base and sampling rate across campaigns.
-- Units of `neutron_rates_total` and `power_nbi` across shots (look for obviously scaled values).
-- Whether shots with `shot_abort` or `shot_useful == False` should be excluded. Inspect a sample first, then decide.
+- ~~Time base and sampling rate across campaigns.~~ Checked in Phase 1 (50 shots, M5–M9): uniform 1 ms everywhere, always starting at −0.100 s; record length varies (0.18–0.84 s end).
+- ~~Units of `neutron_rates_total` and `power_nbi`~~ Checked in Phase 1: plausible SI values (Hz, W), no scaled shots seen. `power_nbi` has small negative sensor offsets; `neutron_rates_total` and `power_nbi` can have leading NaNs.
+- ~~`shot_abort` / `shot_useful`~~ Checked: `shot_useful` is 1 or NaN (never 0), `shot_abort` is 1 for 39 shots. Decision: do not filter on either; shot selection uses the signal checks in 8.1.
+- Campaign values present: M5, M6, M7, M8, M9 and `Unknown` (292 shots).
 - Other groups (e.g. `amc`, `thomson_scattering`, magnetics) for Phase 10. Catalogue: https://mastapp.site.
 
 ## 4. Definitions
@@ -67,7 +68,7 @@ Common precursors, which is why these signals matter:
 |---|---|
 | shot | one plasma discharge, identified by `shot_id` |
 | `t_start` | first time `|Ip| >= IP_ON` (default 50 kA), i.e. plasma exists |
-| `t_disrupt` | disruption time from the signal-based detector (Section 5.2) |
+| `t_disrupt` | disruption time from the signal-based detector (Section 5.2), for shots labelled disrupted under `LABEL_SOURCE` |
 | current quench (CQ) | the fast fall of `|Ip|` during a disruption |
 | window | a short slice of a shot ending at time `t_end`. Features use samples in `(t_end − W, t_end]` plus causal running quantities |
 | horizon `H` | windows with `t_disrupt − H <= t_end < t_disrupt` are labelled positive |
@@ -91,6 +92,14 @@ CQ_DROP_FRAC   = 0.8     # current must fall by this fraction of pre-quench valu
 CQ_MAX_MS      = 10      # ...within this many ms to count as a quench
 MIN_PEAK_IP    = 100e3   # ignore shots whose |Ip| never exceeds this
 RANDOM_SEED    = 42
+LABEL_SOURCE   = "both"  # decided after Phase 2, see 5.3
+```
+Detector parameters added in Phase 2 (see 5.2 and `NOTES.md`):
+```
+CQ_MIN_FRAC_OF_PEAK = 0.5   # quench must start above half of peak |Ip|
+CQ_ONSET_FRAC       = 0.9   # onset = last sample within 90% of the level at the top of the fall
+SPIKE_MIN_RISE      = 0.03  # spike must be 3% above the level just before it
+SPIKE_LOOKBACK_MS   = 3
 ```
 
 ## 5. Labels
@@ -100,7 +109,7 @@ RANDOM_SEED    = 42
 
 Also parse a reported time where present (patterns like `AT 220MS`, `AT 0.22S`) into `t_note` in seconds. Leave it NaN otherwise.
 
-### 5.2 Signal-based detector (primary label)
+### 5.2 Signal-based detector
 Operator notes are incomplete and inconsistent, so the primary label comes from the current trace:
 
 1. `x = |Ip|`, smoothed with a 3-sample median filter.
@@ -110,6 +119,8 @@ Operator notes are incomplete and inconsistent, so the primary label comes from 
 5. A controlled ramp-down is slow (tens of ms), so it won't meet the `CQ_MAX_MS` criterion. Confirm this on real ramp-downs and log it.
 6. Output per shot: `detected` (bool), `t_disrupt` (s or NaN), `quench_rate` (A/s), `peak_ip` (A).
 
+Phase 2 refinements (needed to pass the tests and found on real data): candidates must start above `CQ_MIN_FRAC_OF_PEAK` of the peak (otherwise the tail of every ramp-down qualifies); the CQ start is moved from the earliest candidate to the last sample within `CQ_ONSET_FRAC` of the top of the fall (the earliest candidate can be up to `CQ_MAX_MS` early); a spike must rise `SPIKE_MIN_RISE` above the preceding level.
+
 ### 5.3 Reconciliation report (Phase 2 deliverable)
 Compare note labels and signal labels over the processed shots:
 - 2×2 table: note yes/no vs signal yes/no.
@@ -117,7 +128,9 @@ Compare note labels and signal labels over the processed shots:
 - 6–10 plots of disagreement cases, both kinds.
 - A short plain-language summary of which label is more trustworthy and why.
 
-**Final label policy:** `disrupted = signal-detected`. Note-only disagreements are kept in a list for manual review. The owner makes the final call after reviewing the report. Implement it as a single config switch `LABEL_SOURCE = "signal" | "note" | "both"`.
+**Final label policy (decided by the owner after the Phase 2 report): `LABEL_SOURCE = "both"`.** A shot is disrupted only if the note says so **and** the detector finds a current quench; `t_disrupt` is the detector's time. Every other shot with a known signal status is clean, and shots with status `unknown` are skipped. Reason: the detector alone flags about 74% of note-clean shots, because most MAST pulses end in a fast quench; the notes alone have no reliable time. Implemented as `labels.shot_label()`. The switch still accepts `"signal"` and `"note"` (for E7). The 4 note-only cases are kept in `results/label_report/review_list.csv`.
+
+Consequence for later phases: many clean shots also end in a fast current quench, so the last part of a clean shot looks like a disruption. Phase 3 must deal with this explicitly when building windows (see `NOTES.md`).
 
 ## 6. Leakage rules (read carefully)
 
@@ -165,7 +178,7 @@ Only compute windows where `t_end >= t_start + WINDOW_MS`.
 
 ### 8.4 Splits
 - **Random-by-shot:** 60/20/20 train/val/test, stratified by shot label, seeded.
-- **Temporal (Phase 7):** train on campaigns M5–M7, test on M8–M9 (check the campaign values actually present first). This is a small version of the real open problem of generalising to new conditions.
+- **Temporal (Phase 7):** train on campaigns M5–M7, test on M8–M9. Shots with campaign `Unknown` are left out of the temporal split (they cannot be placed in time) but are used in the random split. This is a small version of the real open problem of generalising to new conditions.
 - The test split is touched **once**, for final numbers. All tuning happens on validation.
 
 ## 9. Models

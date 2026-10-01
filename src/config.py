@@ -40,7 +40,7 @@ N_CLEAN = 300
 DOWNLOAD_WORKERS = 8  # parallel downloads; more risks being throttled by the server
 DOWNLOAD_RETRIES = 3  # transient HTTP errors are common when streaming many shots
 SPLIT_FRACTIONS = (0.6, 0.2, 0.2)  # train / val / test, split by shot
-TEMPORAL_TRAIN_CAMPAIGNS = ("M5", "M6", "M7")  # check the campaign values present before relying on these
+TEMPORAL_TRAIN_CAMPAIGNS = ("M5", "M6", "M7")  # the table also has "Unknown" (292 shots); it cannot be placed in time, so it is left out
 TEMPORAL_TEST_CAMPAIGNS = ("M8", "M9")
 
 # Evaluation (SPEC Sections 10-11)

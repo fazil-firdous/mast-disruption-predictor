@@ -15,7 +15,7 @@ Sample: 400 shots, made of every note-disrupted shot in the pool (175) plus 225 
 
 ## Timing where both exist
 
-99 shots have a note time and a detected quench. t_disrupt minus t_note (ms): median 1.0, quartiles -2.0 to 5.0, 78% within 10 ms, 8 differ by more than 20 ms.
+91 shots have a note time and a detected quench. t_disrupt minus t_note (ms): median 1.0, quartiles -2.0 to 5.0, 78% within 10 ms, 6 differ by more than 20 ms.
 
 ## What does a flagged shot look like?
 
@@ -30,7 +30,7 @@ Medians over flagged shots, split by note:
 
 ## Normal ramp-downs (SPEC 5.2 step 5)
 
-Three random note-clean shots with a clear slow end, 90%->10% fall of at least 50 ms (`rampdowns.png`): shots 24559, 28104, 29989, fall times 127, 155, 115 ms, detector result clean, clean, clean. Of the 62 unflagged shots, 2 fall faster than that (shortest 24 ms). They are borderline cases, often a spike and a partial drop followed by a final fall that starts below the CQ_MIN_FRAC_OF_PEAK floor.
+Three random note-clean shots with a clear slow end, 90%->10% fall of at least 50 ms (`rampdowns.png`): shots 21275, 26320, 26613, fall times 150, 101, 157 ms, detector result clean, clean, clean. Of the 62 unflagged shots, 2 fall faster than that (shortest 24 ms). They are borderline cases, often a spike and a partial drop followed by a final fall that starts below the CQ_MIN_FRAC_OF_PEAK floor.
 
 ## Sensitivity to the starting-current floor
 
@@ -40,5 +40,13 @@ Three random note-clean shots with a clear slow end, 90%->10% fall of at least 5
 | 0.35 | 0.844 | 0.983 |
 | 0.5 | 0.742 | 0.977 |
 | 0.65 | 0.64 | 0.96 |
+
+## Final labels under LABEL_SOURCE = "both"
+
+| LABEL_SOURCE | disrupted | clean |
+|---|---|---|
+| both | 171 | 229 |
+| signal | 338 | 62 |
+| note | 175 | 225 |
 
 Plots: `disagreements_note_only.png`, `disagreements_signal_only.png`, `disagreements_timing.png`, `rampdowns.png`. Per-shot table: `per_shot.csv`. Note-only list for manual review: `review_list.csv`. Exact shot list: `sample_ids.json`.

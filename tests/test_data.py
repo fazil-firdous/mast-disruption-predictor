@@ -78,19 +78,48 @@ def test_retry_then_success(monkeypatch):
     assert len(attempts) == 3
 
 
-def test_empty_group_is_an_error(monkeypatch):
-    monkeypatch.setattr(data, "_open_summary", lambda shot_id: xr.Dataset())
+def test_empty_group_is_an_error_and_is_retried(monkeypatch):
+    attempts = []
+
+    def opener(shot_id):
+        attempts.append(1)
+        return xr.Dataset()
+
+    monkeypatch.setattr(data, "_open_summary", opener)
     with pytest.raises(ValueError):
-        data.load_shot(9, retries=0, backoff=0)
+        data.load_shot(9, retries=2, backoff=0)
+    assert len(attempts) == 3
 
 
 def test_open_summary_reads_a_real_zarr_v3_store(tmp_path, monkeypatch):
     """Write a small zarr v3 store to disk and read it back through the same code path as the real servers."""
     root = tmp_path / "5.zarr"
-    xr.Dataset(attrs={}).to_zarr(root, mode="w", zarr_format=3)
-    fake_summary().to_zarr(root, group="summary", mode="a", zarr_format=3)
+    xr.Dataset(attrs={}).to_zarr(root, mode="w", zarr_format=3, consolidated=False)
+    fake_summary().to_zarr(root, group="summary", mode="a", zarr_format=3, consolidated=False)
     monkeypatch.setattr(config, "SHOT_ZARR_URL", str(tmp_path / "{shot_id}.zarr"))
     df = data.load_shot(5)
     assert len(df) == 400
     assert df["ip"].iloc[0] == pytest.approx(-5e5)
     assert df["neutron_rates_total"].isna().all()
+
+
+def test_missing_shot_is_not_retried(monkeypatch):
+    attempts = []
+
+    def opener(shot_id):
+        attempts.append(1)
+        raise FileNotFoundError("no such shot")
+
+    monkeypatch.setattr(data, "_open_summary", opener)
+    with pytest.raises(FileNotFoundError):
+        data.load_shot(8, retries=3, backoff=0)
+    assert len(attempts) == 1
+
+
+def test_check_connection_reports_both_outcomes(monkeypatch):
+    monkeypatch.setattr(data, "_open_summary", lambda shot_id: fake_summary())
+    ok, message = data.check_connection(11860)
+    assert ok and "400 samples" in message
+    monkeypatch.setattr(data, "_open_summary", lambda shot_id: xr.Dataset())
+    ok, message = data.check_connection(11860)
+    assert not ok and "11860" in message

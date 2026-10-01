@@ -32,7 +32,7 @@ def _open_summary(shot_id):
 def _summary_to_frame(ds):
     """Turn an opened summary group into a DataFrame with the fixed column set."""
     if "time" not in ds.coords and "time" not in ds.variables:
-        raise ValueError("summary group has no time coordinate (zarr 3 installed?)")
+        raise ValueError("summary group is empty or has no time (network blocked, or zarr<3 installed?)")
     times = ds["time"].values
     frame = pd.DataFrame({"time": times.astype("float64")})
     found = 0
@@ -59,6 +59,10 @@ def _fetch_shot(shot_id, retries, backoff):
             return _summary_to_frame(_open_summary(shot_id))
         except Exception as error:
             last_error = error
+            # a missing shot will not appear on a retry. An empty group is retried: zarr 3 returns one
+            # when the connection fails, so it may be a network problem rather than missing data
+            if isinstance(error, FileNotFoundError):
+                break
             if attempt < retries:
                 time.sleep(backoff * 2**attempt)
     raise last_error
@@ -76,6 +80,18 @@ def load_shot(shot_id, use_cache=True, retries=config.DOWNLOAD_RETRIES, backoff=
     os.makedirs(config.RAW_DIR, exist_ok=True)
     frame.to_parquet(path)
     return frame
+
+
+def check_connection(shot_id=config.REFERENCE_SHOT):
+    """Try to read one known shot straight from the server (no cache, no retries).
+
+    Returns (ok, message). Use it before a big download so a blocked network fails fast with a clear reason.
+    """
+    try:
+        frame = _summary_to_frame(_open_summary(shot_id))
+    except Exception as error:
+        return False, f"could not read shot {shot_id}: {type(error).__name__}: {error}"[:300]
+    return True, f"read shot {shot_id}: {len(frame)} samples"
 
 
 def _log_skipped(rows):

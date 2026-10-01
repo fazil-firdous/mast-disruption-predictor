@@ -62,23 +62,39 @@ Detector judgement calls (SPEC 5.2 left room)
 - A candidate must start above `CQ_MIN_FRAC_OF_PEAK` = 0.5 of peak current. Reason: the last stretch of any linear ramp-down also falls 80% in 10 ms once |Ip| is small (my first synthetic ramp-down test failed at 0.2). Cost: a disruption that starts below half of peak current is not found (see note-only cases). On real data the floor is also what keeps some ramp-downs unflagged: shot 28104 ramps down slowly and then drops from about 350 kA (44% of peak) to 0 in a few ms.
 - NaN samples in `ip` are dropped before detection.
 - `LABEL_SOURCE = "both"` means disrupted only when the note and the detector agree. The SPEC did not define it.
-- `parse_note_time`: first "at <number> [ms|s]" after the word "disrupt". Unit-less numbers are read as seconds below 1.5 and ms from 10 up, otherwise NaN. I added this after the timing plots showed "disrupts at 0.302 broken pellet at 0.263s" being read as 0.263. Times found in note-disrupted comments: 379 -> 506 of 855. It can still pick the wrong number when the comment gives a cause time (e.g. 25659 "Disrupted from FA trip at 0.18s", quench at 0.259 s).
+- `parse_note_time`: first "at <number> [ms|s]" after the word "disrupt". Unit-less numbers are read as seconds below 1.5 and ms from 10 up, otherwise NaN. I added this after the timing plots showed "disrupts at 0.302 broken pellet at 0.263s" being read as 0.263. Times found in note-disrupted comments: 379 before this change, 467 after (the 2026-10-02 fix-up below removed some false matches). It can still pick the wrong number when the comment gives a cause time (e.g. 25659 "Disrupted from FA trip at 0.18s", quench at 0.259 s).
 
 Report run (all numbers from `results/label_report/report.md`)
 - Sample: 400 shots = all 175 note-disrupted shots in the pool + 225 random note-clean shots (seed 42). The pool is the 801 shots copied so far (`data/pool_ids.json`, built from random and note-disrupted draws). In Colab the default pool is the whole shot table. The exact ids are in `results/label_report/sample_ids.json`.
 - 2x2: note yes and signal yes 171, note yes and signal no 4, note no and signal yes 167, note no and signal no 58. Agreement overall 57.2% (inflated toward note-yes by the sampling).
 - Notes are confirmed by the signal: 97.7% of note-disrupted shots show a current quench.
 - The detector flags 74.2% of note-clean shots. Flagged shots look the same with and without a note: median quench rate 2.0e8 vs 1.9e8 A/s, peak 781 vs 764 kA, 90%->10% fall 4 vs 5 ms. Unflagged shots fall in 124 ms (median). DATA SURPRISE: most MAST shots, including ones the operator called fine ("OK", "Very similar to previous shot"), end with a fast current quench rather than a slow ramp-down to zero. Earlier (uniform sample of 400) the median flagged quench was 5.4 ms before the shot table's `plasma_end_time` with or without a note.
-- Timing (99 shots with both times): `t_disrupt - t_note` median +1.0 ms, quartiles -2.0 to +5.0 ms, 78% within 10 ms, 8 differ by more than 20 ms (mostly the note gives a cause time, e.g. "FA trip at 0.18s", or a time unrelated to the quench).
-- Ramp-downs: 3 random note-clean shots with a slow end (24559, 28104, 29989; 115 to 155 ms) are not flagged. 2 of 62 unflagged shots fall faster than 50 ms; borderline.
+- Timing (91 shots with both times): `t_disrupt - t_note` median +1.0 ms, quartiles -2.0 to +5.0 ms, 78% within 10 ms, 6 differ by more than 20 ms (mostly the note gives a cause time, e.g. "FA trip at 0.18s", or a time unrelated to the quench).
+- Ramp-downs: 3 random note-clean shots with a slow end (21275, 26320, 26613; 101 to 157 ms) are not flagged (`rampdowns.png`). 2 of 62 unflagged shots fall faster than 50 ms; borderline.
 - 4 note-disrupted shots are not flagged (`review_list.csv`): 15555, 19388, 21673, 25108. All disrupt at low current or during the ramp-down (below the 0.5 floor).
 - Sensitivity: share of note-clean shots flagged is 88% / 84% / 74% / 64% for floor 0.2 / 0.35 / 0.5 / 0.65. Note-disrupted: 99% / 98% / 98% / 96%. No floor value separates the two groups.
 
 Decisions waiting for the owner
 1. ~~`LABEL_SOURCE`~~ Decided 2026-10-02 by the owner: `"both"`. A shot is disrupted only when the note says so AND the detector finds a quench; `t_disrupt` comes from the detector. On the report sample that is 171 shots. Shots where only one source says disrupted (167 detector-only, 4 note-only) count as not disrupted. Consequence to remember for Phase 3: many "clean" shots still end in a fast quench, so the end of every shot must be handled carefully when building windows.
-2. Whether `Unknown` campaign shots (292) go into the temporal split.
-3. Whether the `zarr>=3` change is accepted.
+2. ~~`Unknown` campaign~~ Decided (2026-10-02, owner asked me to decide): left out of the temporal split, used in the random split. They cannot be placed before or after M7, so putting them on either side would blur the "later campaigns" test.
+3. ~~`zarr>=3`~~ Decided: keep `zarr>=3,<4` (it is the only version that can read the stores), plus `xarray>=2024.10` (first versions with zarr 3 support).
 
 Not done / not verified
 - `notebooks/colab_pipeline.ipynb` has not been run in Colab.
 - No HTTPS download of shot data from the sandbox has worked (see the network sections).
+
+## 2026-10-02 - Fix-up before Phase 3
+
+The owner asked me to fix the open items myself before Phase 3. What changed and why:
+- **Note time parser.** "at 0.169delay" was read as 0 s because the regex backtracked to "at 0" (shot 22760). The number now has to be followed by a space, a unit or punctuation, and times of 0 or below are NaN. 2 new tests.
+- **Retries.** A shot that does not exist (`FileNotFoundError`, which includes zarr's `GroupNotFoundError`) is no longer retried with 2 + 4 + 8 s waits.
+- **DATA/NETWORK SURPRISE.** With the network blocked, zarr 3 does not raise an error: `xr.open_zarr` waits about 11 s and returns an EMPTY dataset (checked from the sandbox on shot 11860). So an empty group stays retryable and is reported as "empty or has no time (network blocked, or zarr<3 installed?)". Treating it as permanent would silently lose shots on a flaky connection.
+- **`check_connection()`** in `src/data.py` reads the reference shot once. `scripts/download.py` calls it first and stops with a clear message if it fails (`--skip-check` to bypass). The notebook calls it too. Checked from the sandbox: it stops after one attempt with that message.
+- **HTTP path checked.** I served the copied stores and the shot table from a local web server and ran the real HTTP code (`fsspec` + `aiohttp` + zarr 3): shot table 11,573 x 189 rows read over HTTP, 40 shots downloaded and identical to the cached files, a missing shot logged to `skipped.csv`. Still not checked: the real HTTPS servers from this sandbox (blocked).
+- **`labels.shot_label(time, ip, comment)`** applies `LABEL_SOURCE` to one shot and returns status, `disrupted` and `t_disrupt`. With `"note"` it falls back to the note time when the detector finds nothing. A disrupted shot with no usable time becomes `unknown` (cannot be windowed). 3 new tests.
+- **`LABEL_SOURCE = "both"`** written into SPEC 4 and 5.3, with the reason. The detector parameters added in Phase 2 are now listed in SPEC 4 and 5.2. SPEC 3.2's "to verify" items are marked done with what was found. SPEC 8.4 says what happens to `Unknown`.
+- **Report.** It now shows the disrupted count under each `LABEL_SOURCE` (both 171, signal 338, note 175 of 400). The |Ip| trace is grey so the red detector line is visible. Re-run after the parser fix; only the timing line changed (91 shots, 6 over 20 ms).
+- **Small fixes.** `inspect_shots.py --n 20` now really gives 20 shots when the campaign count does not divide 20. Removed an empty root `conftest.py` (`tests/__init__.py` already puts the repo root on the path). Test writes zarr without consolidated metadata, so `pytest -W error` runs with no warnings. 49 tests pass.
+
+Still open, cannot be fixed from here
+- The notebook has not been run in Colab, and the real HTTPS servers cannot be reached from the sandbox. The first Colab run (connection-check cell) is the real test.

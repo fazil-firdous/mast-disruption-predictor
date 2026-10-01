@@ -71,6 +71,8 @@ def test_note_label(comment, expected):
     ("Disrupts early at 0.230 at IRE", 0.23),
     ("DISRUPTED AT 190", 0.19),
     ("disrupted at 5 coils", float("nan")),
+    ("early disruption, mode slows at 0.169delay in separating", float("nan")),
+    ("disrupted at 0 ms", float("nan")),
     ("disruption at the same time", float("nan")),
     (None, float("nan")),
 ])
@@ -97,3 +99,27 @@ def test_final_label_switch(source, note, signal, expected):
 def test_final_label_rejects_unknown_source():
     with pytest.raises(ValueError):
         labels.final_label(True, True, "magic")
+
+
+def test_shot_label_both_needs_note_and_quench():
+    quench = make_shot("quench", t_quench=0.22)
+    rampdown = make_shot("rampdown")
+    noted = "DISRUPTION AT 220MS"
+    yes = labels.shot_label(quench["time"], quench["ip"], noted, "both")
+    assert yes["status"] == "disrupted" and abs(yes["t_disrupt"] - 0.22) <= 0.002
+    assert labels.shot_label(quench["time"], quench["ip"], "good shot", "both")["status"] == "clean"
+    assert labels.shot_label(rampdown["time"], rampdown["ip"], noted, "both")["status"] == "clean"
+
+
+def test_shot_label_note_falls_back_to_note_time():
+    rampdown = make_shot("rampdown")
+    result = labels.shot_label(rampdown["time"], rampdown["ip"], "DISRUPTION AT 300MS", "note")
+    assert result["status"] == "disrupted"
+    assert result["t_disrupt"] == pytest.approx(0.3)
+    no_time = labels.shot_label(rampdown["time"], rampdown["ip"], "disrupted", "note")
+    assert no_time["status"] == "unknown"
+
+
+def test_shot_label_unknown_for_tiny_shot():
+    tiny = make_shot("tiny")
+    assert labels.shot_label(tiny["time"], tiny["ip"], "DISRUPTION AT 220MS")["status"] == "unknown"

@@ -16,11 +16,11 @@ def pick_shots(table, n, seed):
     """Pick about n shots, spread as evenly as possible over the campaigns in the table."""
     rng = np.random.default_rng(seed)
     campaigns = sorted(table["campaign"].dropna().unique())
-    per_campaign = max(1, n // len(campaigns))
     chosen = []
-    for campaign in campaigns:
+    for k, campaign in enumerate(campaigns):
         ids = table.loc[table["campaign"] == campaign, "shot_id"].to_numpy()
-        take = min(per_campaign, len(ids))
+        # share n out evenly; the first n % len(campaigns) campaigns get one extra
+        take = min(n // len(campaigns) + (k < n % len(campaigns)), len(ids))
         chosen += [(int(i), campaign) for i in rng.choice(ids, size=take, replace=False)]
     return chosen
 

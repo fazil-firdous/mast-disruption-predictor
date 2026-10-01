@@ -1,8 +1,8 @@
 numpy
 pandas
 pyarrow
-xarray
-zarr>=3
+xarray>=2024.10
+zarr>=3,<4
 fsspec
 aiohttp
 requests

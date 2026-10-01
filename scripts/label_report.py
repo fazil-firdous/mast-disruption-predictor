@@ -68,11 +68,11 @@ def plot_cases(cases, path, title, show_fall=False):
     fig, axes = plt.subplots(rows, 2, figsize=(11, 2.6 * rows), squeeze=False)
     for ax, (_, case) in zip(axes.flat, cases.iterrows()):
         shot = load_shot(int(case["shot_id"]))
-        ax.plot(shot["time"], np.abs(shot["ip"]) / 1e3, color="black", lw=1)
+        ax.plot(shot["time"], np.abs(shot["ip"]) / 1e3, color="0.45", lw=1)
         if not np.isnan(case["t_disrupt"]):
-            ax.axvline(case["t_disrupt"], color="red", lw=1, label="signal t_disrupt")
+            ax.axvline(case["t_disrupt"], color="red", lw=1.2, zorder=3, label="signal t_disrupt")
         if not np.isnan(case["t_note"]):
-            ax.axvline(case["t_note"], color="blue", ls="--", lw=1, label="note time")
+            ax.axvline(case["t_note"], color="blue", ls="--", lw=1.2, zorder=3, label="note time")
         label = f"{int(case['shot_id'])} ({case['campaign']}): "
         if show_fall:
             label += f"detector: {case['signal']}, 90%->10% fall {case['fall_ms']:.0f} ms"
@@ -124,6 +124,16 @@ def md_table(df, index=True):
     return "\n".join(lines)
 
 
+def final_counts(known):
+    """Number of disrupted shots under each LABEL_SOURCE option (the configured one is listed first)."""
+    options = [config.LABEL_SOURCE] + [o for o in ("signal", "note", "both") if o != config.LABEL_SOURCE]
+    counts = {}
+    for source in options:
+        flags = [labels.final_label(n, s == "disrupted", source) for n, s in zip(known["note"], known["signal"])]
+        counts[source] = int(sum(flags))
+    return counts
+
+
 def build_report(df, sens, rampdowns):
     """Markdown text of the report; every number comes from df, sens and rampdowns."""
     known = df[df["signal"] != "unknown"]
@@ -170,6 +180,9 @@ def build_report(df, sens, rampdowns):
         f"(shortest {not_flagged['fall_ms'].min():.0f} ms). They are borderline cases, often a spike and a partial "
         "drop followed by a final fall that starts below the CQ_MIN_FRAC_OF_PEAK floor.", "",
         "## Sensitivity to the starting-current floor", "", md_table(sens, index=False), "",
+        f"## Final labels under LABEL_SOURCE = \"{config.LABEL_SOURCE}\"", "",
+        "| LABEL_SOURCE | disrupted | clean |", "|---|---|---|",
+        *[f"| {source} | {n} | {len(known) - n} |" for source, n in final_counts(known).items()], "",
         "Plots: `disagreements_note_only.png`, `disagreements_signal_only.png`, `disagreements_timing.png`, "
         "`rampdowns.png`. Per-shot table: `per_shot.csv`. Note-only list for manual review: `review_list.csv`. "
         "Exact shot list: `sample_ids.json`.", "",
