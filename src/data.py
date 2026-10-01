@@ -24,9 +24,9 @@ def load_shot_table(use_cache=True):
 
 
 def _open_summary(shot_id):
-    # zarr 3 opens these v2 stores as empty groups, so requirements.txt pins zarr<3
+    # the stores were re-ingested as zarr v3 on 2026-09-22, which zarr<3 cannot read (KeyError '.zmetadata')
     url = config.SHOT_ZARR_URL.format(shot_id=shot_id)
-    return xr.open_zarr(url, group=config.SUMMARY_GROUP)
+    return xr.open_zarr(url, group=config.SUMMARY_GROUP, consolidated=False)
 
 
 def _summary_to_frame(ds):

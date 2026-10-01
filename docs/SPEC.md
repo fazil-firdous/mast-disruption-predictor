@@ -40,7 +40,7 @@ Common precursors, which is why these signals matter:
   ```python
   xr.open_zarr(f"https://s3.echo.stfc.ac.uk/mast/level2/shots/{shot_id}.zarr", group="summary")
   ```
-  Requires **`zarr<3`**: with zarr 3 the group opens with no variables.
+  Requires **`zarr>=3`**: the stores were re-ingested as Zarr v3 (`zarr.json` files, ingested 2026-09-22), which `zarr<3` cannot read (`KeyError: '.zmetadata'`). Corrected in Phase 2, see `NOTES.md`.
   Variables in the `summary` group (shot 11860):
   | name | meaning | units |
   |---|---|---|

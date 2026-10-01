@@ -1,8 +1,10 @@
 """Every tunable parameter in one place, so each choice can be found and explained."""
+import os
 
 # Data sources (SPEC 3.1)
 SHOT_TABLE_URL = "https://mastapp.site/parquet/level2/shots"
-SHOT_ZARR_URL = "https://s3.echo.stfc.ac.uk/mast/level2/shots/{shot_id}.zarr"
+# env override lets tests and offline work point at a local copy of the stores
+SHOT_ZARR_URL = os.environ.get("MAST_ZARR_URL", "https://s3.echo.stfc.ac.uk/mast/level2/shots/{shot_id}.zarr")
 SUMMARY_GROUP = "summary"
 REFERENCE_SHOT = 11860  # operator note says "DISRUPTION AT 220MS"; used as a sanity check
 
@@ -22,6 +24,9 @@ RANDOM_SEED = 42  # one seed for splits, sampling and models, so every run is re
 LABEL_SOURCE = "signal"  # "signal" | "note" | "both"; operator notes are incomplete, so trust the current trace
 SPIKE_LOOKBACK_MS = 3  # Ip spike within 3 ms before the CQ marks the thermal quench (SPEC 5.2 step 4)
 MEDIAN_FILTER_SAMPLES = 3  # smallest median filter that removes single-sample glitches
+CQ_MIN_FRAC_OF_PEAK = 0.5  # quench must start above half of peak |Ip|; the last stretch of any linear ramp-down also falls 80% in 10 ms once |Ip| is small
+CQ_ONSET_FRAC = 0.9  # quench onset = last sample still within 90% of the pre-fall level; the 80%-drop search alone can fire up to CQ_MAX_MS too early
+SPIKE_MIN_RISE = 0.03  # a spike counts only if it is 3% above the level just before it, so flat-top noise is not mistaken for one
 
 # Feature offsets (SPEC Section 7)
 PNBI_OFFSET = 1e5  # W; stops prad/pnbi blowing up when the beams are off

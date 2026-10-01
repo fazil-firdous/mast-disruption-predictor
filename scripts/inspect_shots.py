@@ -46,9 +46,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--n", type=int, default=20)
     parser.add_argument("--seed", type=int, default=config.RANDOM_SEED)
+    parser.add_argument("--cached-only", action="store_true", help="only pick shots already in data/raw")
     args = parser.parse_args()
 
     table = load_shot_table()
+    if args.cached_only:
+        cached = {int(f.split(".")[0]) for f in os.listdir(config.RAW_DIR) if f.endswith(".parquet")}
+        table = table[table["shot_id"].isin(cached)]
     picks = pick_shots(table, args.n, args.seed)
     result = download_shots([s for s, _ in picks])
     rows = [describe(s, c) for s, c in picks if s not in result["failed"]]

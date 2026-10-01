@@ -1,0 +1,551 @@
+shot_id,group,campaign,note,t_note,signal,t_disrupt,quench_rate,peak_ip,fall_ms,comment
+27034,uniform,M8,False,,disrupted,0.41300000000000003,113326342.1874999,764857.75,71.0,'SHot ran OK - just one breakdown during SS injection.'
+26108,uniform,M8,True,,disrupted,0.356,144719811.19791654,494751.5,4.0,'no FA trip (!). Sawteeth go away at t=0.310 disrupt at t=0.350'
+12552,uniform,M5,False,,disrupted,0.355,215728787.10937482,948227.6875,4.0,'BEAM LONGER THAN PLASMA'
+24789,uniform,M7,False,,disrupted,0.377,199678003.90624982,1029290.625,5.0,"'PIC: ""Gorgeous plasma"" - good match to reference with better MHD'"
+13410,uniform,M5,False,,disrupted,0.354,285493832.03124976,754569.1875,8.0,'q95=6.15. 20ms ELM-free then loses H-mode'
+26191,uniform,M8,False,,disrupted,0.24000000000000002,128235637.49999988,728229.1875,5.0,'OK'
+21457,uniform,M7,False,,clean,,,636476.9375,124.0,'OK.'
+14192,uniform,M5,False,,disrupted,0.39,130384841.14583322,763011.875,28.0,'OK - sawtooth triggered Hmode periods.'
+29506,uniform,M9,False,,disrupted,0.361,179968420.31249985,1000887.75,6.0,'Good beams - H mode from 280 ms.Lasers at required time but ELM slightly later.'
+27112,uniform,M8,False,,disrupted,0.397,197391200.52083316,767232.0,5.0,'Type I ELMs are back - H-mode still ends at 300 ms'
+27050,uniform,M8,False,,disrupted,0.377,106029217.77343741,774001.0,63.0,'Good beams. Good shot but dithering H-mode. Plasma finally kicked of H-mode by a tearing 
+25958,uniform,M8,False,,clean,,,440641.3125,115.0,'Good data - strike point now in IR view - pump out appears to start earlier'
+22344,uniform,M7,False,,disrupted,0.34199999999999997,216018753.90624982,968514.3125,5.0,'Good shot but FA3 tripped again at shot start. This is a problem for the programme.'
+18020,uniform,M6,False,,disrupted,0.378,286811746.09374976,1203237.0,4.0,'OK. Got H-mode shortly before switching off the beams. Density ramp very similar to refer
+28298,uniform,M8,False,,disrupted,0.32599999999999996,212022671.87499982,790166.4375,4.0,'good repeat IRE at 130ms as in reference'
+18427,uniform,M6,False,,clean,,,759908.5,142.0,'no NBI  no h-mode'
+22247,uniform,M7,False,,disrupted,0.40700000000000003,224291117.1874998,974451.9375,4.0,'Better. Still a drop in R_outer in  between 0.065s and 0.155s.No H-mode.'
+28253,uniform,M8,False,,disrupted,0.33399999999999996,220083507.8124998,1059774.625,5.0,'Ok. SS beam late but 40 ms of ELMy H-mode.'
+17509,uniform,M6,False,,disrupted,0.548,214968390.62499982,744949.8125,124.0,'short beam under powered H-mode at the same time but not sustained after 0.26s'
+21168,uniform,M7,False,,clean,,,756376.3125,127.0,'similar to last shot some STI H-modes from 0.273 but less than in 21167'
+16941,uniform,M6,False,,clean,,,730749.125,114.0,'Another full length shot. ZIp tracks reference but not much visible on camera'
+21682,uniform,M7,False,,clean,,,419343.125,110.0,'Density is larger than in 21294. No pump-out observed. Plasma is now too high vertically 
+14022,uniform,M5,False,,disrupted,0.28600000000000003,196876813.80208316,715691.125,3.0,'NO IBGASS PUFF (finger trouble)'
+18890,uniform,M6,False,,clean,,,602676.9375,38.0,'Rubbish shot plasma too big low density plasma - Homer can t cope'
+14197,uniform,M5,False,,disrupted,0.33699999999999997,204403187.49999982,879150.9375,4.0,'Full length shot. c/c separation at 70ms (XIM da/hm10/r and hsv). still oscillating verti
+15287,uniform,M6,True,,disrupted,0.24100000000000002,167243453.12499985,849229.875,5.0,':-) nice one disrupts at 0.246 asm_out rating quite high though'
+13603,uniform,M5,False,,disrupted,0.29300000000000004,214116533.85416648,747468.0,4.0,'Similar result - strange flickering during later phase'
+27666,uniform,M8,False,,disrupted,0.32699999999999996,208151697.26562482,983503.4375,5.0,'two good beams - shot last until 320 ms - get some small ELMs but still a alrge one'
+18751,uniform,M6,False,,disrupted,0.30700000000000005,138281868.74999988,808401.5625,5.0,'SS didn t break down - shot died after low beams'
+18607,uniform,M6,False,,disrupted,0.281,181537203.51562485,1163764.5,11.0,'very short H-mode'
+11878,uniform,M5,False,,disrupted,0.19999999999999998,343591288.0859372,753135.1875,2.0,"OVERDONE ZREF, VERTICALLY UNSTABLE"
+22607,uniform,M7,False,,disrupted,0.536,98068567.38281241,415369.75,70.0,'Good shot but density is higher than previous shot.'
+18921,uniform,M6,True,0.22,disrupted,0.221,201715878.90624982,995918.0,4.0,'shot disrupts early at 0.22s sawteeth start at 0.15s disruption due to a locked mode.'
+29882,uniform,M9,False,,clean,,,594157.4375,126.0,'OK shot. Density up a bit.'
+26017,uniform,M8,False,,clean,,,783026.625,178.0,'Ok.'
+28957,uniform,M9,False,,disrupted,0.538,119895884.7656249,471873.9375,76.0,'One breakdown on SWH-mode from 300msPoor loop volts signal from faulty plasma Ip rog'
+18643,uniform,M6,False,,clean,,,629854.5625,121.0,'OK'
+14549,uniform,M5,False,,disrupted,0.42500000000000004,430867718.74999964,645023.75,20.0,'Short beam with impure cutoff. H mode nevertheless'
+23939,uniform,M7,False,,disrupted,0.375,355262390.6249997,662402.0,33.0,'Good shot and beams. No H mode ran through nicely.  No sign of re-attachment (they say).'
+12113,uniform,M5,False,,disrupted,0.391,207355402.99479148,711181.625,3.0,''
+26162,uniform,M8,False,,disrupted,0.28500000000000003,209199341.79687482,905874.375,4.0,'Good repeat of standard shot though a little shorter (285ms cf 320 in ref.). Usual short 
+24382,uniform,M7,False,,disrupted,0.522,120064752.60416657,435273.09375,47.0,'good repeat'
+21987,uniform,M7,False,,disrupted,0.31799999999999995,392146742.18749964,956760.6875,3.0,'ELMs kicking the Z control into oscillation - would be better with 4 FAs.'
+26555,uniform,M8,False,,clean,,,675602.6875,143.0,'Again problems with real time density control shortly before 300 ms. Plasma drops out of 
+12915,uniform,M5,False,,disrupted,0.44000000000000006,251083871.0937498,808468.0625,3.0,'GOOD SHOT'
+18816,uniform,M6,False,,clean,,,758143.875,171.0,'standard shot OK - no clear H-mode - overdense in period up to 250 ms'
+15985,uniform,M6,False,,disrupted,0.378,178646921.87499985,947457.1875,63.0,'Kept off CC longer but still touching.'
+15445,uniform,M6,False,,disrupted,0.128,98280645.18229158,701193.4375,6.0,'FAs Cut out early loose control of plasma before P2 reversal can happen.'
+13605,uniform,M5,False,,disrupted,0.271,170998244.14062485,755782.9375,4.0,'disappointing - shot is even shorter.'
+17178,uniform,M6,False,,disrupted,0.346,240849645.8333331,856948.9375,4.0,'density is about the same'
+17436,uniform,M6,False,,clean,,,581912.5,128.0,'Not bad for a first attempt. Barely gets off the centre column though.'
+14469,uniform,M5,False,,disrupted,0.218,162963171.87499985,815824.375,5.0,'Still no gas'
+30407,uniform,M9,False,,disrupted,0.44800000000000006,339256757.8124997,691715.3125,2.0,'Good beams. Shot went for longer but big density pump out at 0.35s.'
+25900,uniform,M8,False,,disrupted,0.281,159216794.92187485,762787.4375,5.0,'Density is a good match up to 0.21s. ELM coils BCD OK.'
+13031,uniform,M5,False,,clean,,,743585.1875,24.0,'Good shot and beam.'
+29989,uniform,M9,False,,clean,,,456544.46875,115.0,'Plasma looks good nice landing again.'
+18547,uniform,M6,False,,disrupted,0.351,176052464.84374985,1179513.75,63.0,'No H mode. Gas puff sent plasma over-dense causing IRE.  Good density match. Z jumps up a
+28124,uniform,M8,False,,disrupted,0.42900000000000005,192171627.73437482,986982.875,5.0,'Good start for refining the scenario.Good beams.'
+19615,uniform,M7,False,,disrupted,0.273,241417882.8124998,616439.25,3.0,'Good shot.'
+13134,uniform,M5,False,,disrupted,0.389,230376378.9062498,761330.5625,36.0,'OK - Density much higher than 12191 only one blip of H-mode.'
+14624,uniform,M5,False,,disrupted,0.398,296047057.2916664,1158037.625,4.0,'long shot'
+14510,uniform,M5,False,,disrupted,0.29300000000000004,250894076.1718748,1197007.625,4.0,'Good repetition of 14234 until 245ms when locked mode ejects ~half of particles and energ
+15220,uniform,M6,False,,disrupted,0.32899999999999996,188177559.89583316,776074.375,32.0,'better density lower than expected'
+24559,uniform,M7,False,,clean,,,644923.4375,127.0,'OK.'
+26399,uniform,M8,False,,clean,,,776278.1875,173.0,'ELM coils result in expected density pumpout RP head clearly inserted in plasma edge.IRE 
+16599,uniform,M6,False,,disrupted,0.087,47806072.91666663,656383.25,24.0,'short pulse. strong probe interaction. nb optical f/b was in use. early density still hig
+17528,uniform,M6,False,,clean,,,745096.0,284.0,'some H-mode blips'
+28118,uniform,M8,False,,disrupted,0.48,179783794.27083316,645403.4375,3.0,'2 good beams up to 300  ms then SW broke down - H-mode to 300 ms - ELM frequency lower th
+27379,uniform,M8,False,,disrupted,0.44300000000000006,173813488.28124985,830064.625,4.0,'Surprisingly not bad - sustained fast ELMs and longer shot that 27202.'
+15530,uniform,M6,True,,disrupted,0.32299999999999995,220938619.1406248,917112.25,4.0,'disrupts at 0.3'
+15902,uniform,M6,False,,disrupted,0.405,183211157.7148436,953868.5,65.0,'Good shot and beam. Excellent data.'
+24880,uniform,M7,True,0.15,disrupted,0.145,99885418.74999991,641827.3125,7.0,'Shot disrupts at 0.15s. Looks suspiciously like a locked mode.Good beam.'
+18566,uniform,M6,False,,disrupted,0.357,205812687.49999982,855396.0625,4.0,'Good shot'
+11932,uniform,M5,False,,disrupted,0.28400000000000003,165117500.97656235,683185.625,4.0,280 MS SHOT - XMM FELL OVER - PLASMA CURRENT NOW LOOKS GOOD
+29821,uniform,M9,True,,disrupted,0.215,146432093.74999988,497986.15625,4.0,'Disrupted again as soon as the NBI came on. Density slightly better sustained but still d
+14951,uniform,M6,False,,disrupted,0.44100000000000006,192203976.07421857,468448.90625,29.0,'excellent. we will stop using NBI for the rest of today. HSV shows lower X point fuelling
+29543,uniform,M9,False,,disrupted,0.376,157839760.93749985,979479.5,5.0,'Enter H mode at 280ms. Type III ELMs present - not enough beam power.'
+17758,uniform,M6,False,,clean,,,624668.9375,113.0,'Another Ohmic shot.'
+26936,uniform,M8,False,,clean,,,842973.75,178.0,'Nozzle got hit at 0.186s therefore a bad H-mode and not a good repeat. Modulation clearly
+27432,uniform,M8,False,,disrupted,0.359,132344100.58593738,608514.9375,4.0,'SW had 2 breakdowns at the start - may have a small effect at about 320 ms'
+23444,uniform,M7,False,,disrupted,0.30200000000000005,187327400.39062482,832457.1875,4.0,'SS late by 70 ms.Good match of density before 100 ms.Density slightly too low than refere
+30023,uniform,M9,False,,clean,,,589745.75,96.0,'good shot - higher density than previous probably due to wall loading'
+27181,uniform,M8,False,,disrupted,0.19599999999999998,197140374.99999982,752083.5,4.0,'ok. time between chirps gets smaller. Increased diffusion.'
+25977,uniform,M8,False,,disrupted,0.33699999999999997,126542447.91666655,765889.0,20.0,'All ELM coils fired'
+24399,uniform,M7,False,,disrupted,0.40700000000000003,210367090.62499982,1122044.5,5.0,'Density sags after 100 ms.'
+29929,uniform,M9,False,,disrupted,0.363,204045815.42968732,868552.3125,4.0,'Slightly higher density than the last shot but still lower than reference good MHD'
+21700,uniform,M7,False,,clean,,,421054.65625,108.0,'PSUs B and C failed.'
+17931,uniform,M6,False,,disrupted,0.489,135853365.88541654,753575.5625,110.0,'Earlier H mode then killed by IRE at 0.200 shot lived on at high Vloop. It s a good job w
+20500,uniform,M7,False,,disrupted,0.5880000000000001,202563572.26562482,629199.25,51.0,'good shot H-mode from 340 to 520 ms'
+22547,uniform,M7,False,,disrupted,0.483,110051415.0390624,831763.625,133.0,'Good beamsstill no impurity puffing'
+23621,uniform,M7,False,,disrupted,0.279,123682842.44791655,422142.15625,3.0,'OK'
+26180,uniform,M8,False,,disrupted,0.17400000000000002,196261335.93749982,496726.03125,27.0,'Good repeat. DMV fired correctly at 170ms.'
+13228,uniform,M5,False,,clean,,,761912.75,99.0,'good shot - the faster pulling off the cc worked OK'
+24635,uniform,M7,False,,clean,,,854826.875,178.0,'Much the same. 2 nbi breakdowns this time.  Seems to be using flux rather fast. Unfortuna
+14532,uniform,M5,False,,clean,,,778743.1875,22.0,'lose Hmode before the end of the beam'
+12629,uniform,M5,False,,disrupted,0.24000000000000002,468485476.5624996,971097.375,2.0,'DIAGNOSTIC PROBLEM - NO ANE DENSITY.'
+26404,uniform,M8,False,,disrupted,0.29700000000000004,221848916.66666648,830662.4375,4.0,'Shot slightly shorter than ref (plasma dies at 300ms).Recip. probe head further into plas
+30174,uniform,M9,False,,clean,,,455938.0625,71.0,'Ok. Good pulse. H-mode at 380 ms.'
+22997,uniform,M7,False,,clean,,,426561.53125,106.0,'Ok.'
+27578,uniform,M8,False,,disrupted,0.34199999999999997,137183553.71093738,648038.75,5.0,'IREs at 0.25s'
+14195,uniform,M5,False,,clean,,,742969.75,101.0,'Actually got less Vloop early resulting in low Ip and subsequent overshoot when radial co
+29272,uniform,M9,False,,disrupted,0.29300000000000004,185011695.31249982,908763.25,4.0,'Ok. Shot slightly shorter than reference. ELM coil A tripped. rotation affected only slig
+26352,uniform,M8,False,,clean,,,828506.3125,181.0,'Shot didn t go into H-mode. Three IREs during ramp down. Good beams.'
+17032,uniform,M6,False,,disrupted,0.42200000000000004,177975148.43749985,800632.5,5.0,'Good 430ms shot. Density now a little high earlier H mode but ends at 0.245 (NBI ends soo
+15372,uniform,M6,False,,clean,,,718014.3125,92.0,'density much higher - ib gas puff set itself higher than requested 700 - mastm01 says 140
+23975,uniform,M7,False,,disrupted,0.4710000000000001,194356043.94531232,431378.5625,2.0,'good shot'
+28770,uniform,M9,False,,disrupted,0.32299999999999995,141745882.81249988,652940.3125,4.0,'320 ms shot - looks like a n=1 filament from the first sawtooth hits something at 300 ms 
+27333,uniform,M8,False,,disrupted,0.393,181245433.59374985,921135.4375,5.0,'Ok. Impurity puff in H-mode.'
+22749,uniform,M7,False,,disrupted,0.365,139706971.67968738,619161.1875,87.0,'real-time density got problem! Affecting both density control and the beam!No H-mode.'
+29538,uniform,M9,True,0.32,disrupted,0.32599999999999996,293507024.41406226,649523.3125,2.0,'Disrupts at 320ms. Good shot for coherence imaging.'
+29348,uniform,M9,False,,disrupted,0.498,27383331.542968724,456759.0,25.0,'Good beams.ELM coils A and B failed to fire.'
+20577,uniform,M7,True,0.145,disrupted,0.142,156418863.28124985,822633.8125,5.0,'Disruption at 145 ms.'
+13794,uniform,M5,False,,disrupted,0.366,185114760.4166665,759902.1875,26.0,'A sweet and groovy shot.'
+27927,uniform,M8,False,,disrupted,0.33299999999999996,183498736.32812485,917639.75,5.0,' shot. Good data for last pointer radial scan.'
+12442,uniform,M5,False,,disrupted,0.40700000000000003,209539664.06249982,920323.8125,4.0,'SLIGHTLY WORSE H-MODE STILL ENDS WITH LOCKED MODE AT 260MSEC.'
+14267,uniform,M5,False,,disrupted,0.344,173134645.8333332,631374.5625,32.0,'OK'
+23504,uniform,M7,False,,disrupted,0.5830000000000001,179255677.73437485,642740.6875,69.0,'OK but no ELM B current.'
+12123,uniform,M5,False,,disrupted,0.28600000000000003,218135863.2812498,551943.625,3.0,''
+20749,uniform,M7,False,,clean,,,715431.0,113.0,'Plasma did not resonate properly'
+13391,uniform,M5,True,0.32,disrupted,0.31300000000000006,263136515.6250095,945737.6875,4.0,'good pelletbut shot still disrupts at 320ms HM did not set diagnostic up'
+14400,uniform,M5,False,,disrupted,0.33599999999999997,151721700.5208332,631059.375,23.0,'OK-ish. Density f/b worked but failed to constrain density due to hp i/b gas being left o
+29807,uniform,M9,False,,disrupted,0.44700000000000006,181616570.31249985,787915.0,4.0,'Density still high at start of shot.'
+15617,uniform,M6,False,,disrupted,0.42500000000000004,197986175.78124982,841583.125,4.0,'Good shot with 200ms 1.35MW max beam.'
+18296,uniform,M6,False,,clean,,,719404.125,145.0,'OK if unexciting'
+27236,uniform,M8,False,,clean,,,786399.4375,171.0,'27 sliding joint warnings - all false. Density lower and H mode slightly better than refe
+12411,uniform,M5,False,,disrupted,0.261,209229679.68749982,762884.25,4.0,'NO IRE BUT A VERY SHORT SHOT'
+11926,uniform,M5,False,,disrupted,0.281,182899480.46874985,807755.875,4.0,QUITE THE SAME
+16298,uniform,M6,False,,disrupted,0.32699999999999996,242898890.6249998,844326.5625,4.0,'OK'
+17059,uniform,M6,False,,disrupted,0.30900000000000005,177379822.26562485,919467.0625,5.0,'good shot with good beam'
+30383,uniform,M9,False,,disrupted,0.376,531175369.1406245,1091280.375,2.0,'Useful shot.'
+13372,uniform,M5,False,,disrupted,0.388,213899976.56249982,758859.375,40.0,'higher density than 12191 otherwise ok'
+20517,uniform,M7,False,,disrupted,0.44700000000000006,220171566.4062498,689852.6875,15.0,'Good shot H-mode from 220-380ms'
+14173,uniform,M5,False,,disrupted,0.43000000000000005,229583382.8124998,808892.125,4.0,'good long ELMy H-mode. Drops out of H-mode shortly after NBI'
+20890,uniform,M7,False,,clean,,,630273.5625,83.0,'Works fine this time.Nice long shot.'
+19573,uniform,M7,False,,disrupted,0.33299999999999996,207438060.54687482,434228.375,2.0,'good repeat'
+26224,uniform,M8,False,,disrupted,0.29800000000000004,194619460.93749982,802962.25,5.0,'OK. Good density match to 25613. FIG data similar to 23613.'
+23764,uniform,M7,False,,clean,,,646453.75,116.0,'Look OK but Ip flat-top is not very flat.'
+12804,uniform,M5,False,,disrupted,0.41600000000000004,205759025.39062482,896768.25,4.0,'GOOD SHOT'
+29414,uniform,M9,False,,clean,,,650875.375,129.0,'Enters H mode at 370ms.'
+22275,uniform,M7,False,,clean,,,626072.4375,121.0,'Still no H-mode. IR cameras show strike-point splitting ; locked mode?'
+28897,uniform,M9,False,,disrupted,0.483,104897463.54166657,596414.5,67.0,'OK shot but plasma rather dim.'
+28181,uniform,M8,False,,disrupted,0.355,126229539.06249988,828942.1875,37.0,'nice shot'
+21740,uniform,M7,False,,disrupted,0.385,166019300.78124985,425217.1875,3.0,'good shot beam 23ms late no H-mode sawteeth start at 0.288s some interaction with RP.'
+13125,uniform,M5,False,,disrupted,0.349,213517325.52083313,758791.0625,9.0,'good shot'
+21071,uniform,M7,False,,disrupted,0.369,207083052.73437482,766724.625,72.0,'Good shot but 10% higher density due to higher fuelling plenum pressure after refill.'
+16310,uniform,M6,False,,disrupted,0.40900000000000003,182265220.70312485,772515.4375,38.0,'Good shot very long ELM free periods'
+28177,uniform,M8,False,,disrupted,0.30900000000000005,178714517.57812485,868970.6875,4.0,'nice shot good TS timing L-mode'
+15038,uniform,M6,False,,disrupted,0.281,203339567.70833316,759083.5,4.0,'Upwards VDE. Test blip gave a fairly small output on FA1/2.'
+20611,uniform,M7,False,,disrupted,0.359,130227278.64583322,680290.125,57.0,'interferometer failed so no NBI'
+19391,uniform,M7,True,,disrupted,0.19299999999999998,309734677.7343747,669852.625,2.0,'Worked - with disruption'
+22220,uniform,M7,False,,disrupted,0.366,206226037.10937482,1018336.875,4.0,'That worked: H-mode from 260 to 320ms.'
+24206,uniform,M7,False,,disrupted,0.4710000000000001,211517477.53906232,886235.9375,4.0,'Good beams.  H-mode lost at 320 ms.'
+25315,uniform,Unknown,False,,disrupted,0.31699999999999995,198969853.51562482,901486.875,5.0,'not bad at all.'
+14621,uniform,M5,False,,disrupted,0.276,314590739.5833331,1269843.75,4.0,'Too many changes - short shot'
+24202,uniform,M7,False,,disrupted,0.391,227661386.7187498,1074966.0,5.0,'No H-mode.'
+12466,uniform,M5,False,,disrupted,0.25,389090150.39062464,803342.1875,2.0,'OK'
+20090,uniform,M7,False,,disrupted,0.43800000000000006,240774998.0468748,655089.375,43.0,'Low density due to fringe hop in Real time density measurement'
+28047,uniform,M8,False,,disrupted,0.483,44861506.51041663,627691.6875,12.0,'3 breakdowns on SW - Lower ELM freq than coil on shot - so effect of coils clear'
+22746,uniform,M7,False,,disrupted,0.42000000000000004,287049955.07812476,628794.6875,2.0,'Beam OK still no H-mode! Still density lower than in 22742.'
+21951,uniform,M7,False,,disrupted,0.31999999999999995,176739328.12499985,800532.5625,5.0,'OK.First observation of flying dust.'
+29270,uniform,M9,False,,disrupted,0.352,189768589.84374982,814642.125,4.0,'good shot - good data collected'
+13335,uniform,M5,False,,disrupted,0.41600000000000004,411730124.99999964,739068.375,51.0,'Good 400ms shot. 900kW NBI.'
+19637,uniform,M7,False,,disrupted,0.555,162989843.74999985,491771.375,41.0,'nearly lost Homer around 150ms due to dark plasma. Otherwise good match to reference.'
+21728,uniform,M7,False,,disrupted,0.397,93679769.85677075,631815.0,82.0,'OK.No clear effect of the ELM coils on the density as expected.'
+25666,uniform,M8,False,,disrupted,0.364,109924746.0937499,450459.375,17.0,'OK. Duration 360ms'
+25235,uniform,Unknown,False,,clean,,,647436.875,130.0,'Great - clear N=2 signal produced.'
+27715,uniform,M8,False,,disrupted,0.43000000000000005,136170085.93749988,757747.375,61.0,'Good shot. Good beams.'
+22091,uniform,M7,False,,disrupted,0.32099999999999995,183747783.20312485,958617.75,6.0,'Good H-mode but still early termination.'
+25260,uniform,Unknown,False,,disrupted,0.363,91937751.30208325,432280.125,64.0,'OK'
+16678,uniform,M6,False,,clean,,,755239.6875,126.0,'OK  the same'
+28272,uniform,M8,False,,disrupted,0.135,160935708.00781235,756658.125,4.0,'lasted longer but still lost control at X point formation'
+14275,uniform,M5,False,,disrupted,0.38,154443024.08854154,769404.375,30.0,'Density a little lower some H mode'
+23605,uniform,M7,False,,disrupted,0.29400000000000004,192136203.12499982,734975.75,4.0,'Good shot one beam break down'
+15744,uniform,M6,False,,clean,,,1022686.375,256.0,'Similar to 15742.'
+20107,uniform,M7,False,,disrupted,0.543,206091253.90624982,661306.1875,34.0,'OK.'
+24574,uniform,M7,False,,disrupted,0.30300000000000005,189562444.66145816,928929.0,39.0,'bad beams.'
+16624,uniform,M6,False,,disrupted,0.129,449612023.4374996,598516.625,3.0,'plasma falls down at 0.135'
+24897,uniform,M7,False,,clean,,,658870.3125,193.0,'Not bad beams and shot.'
+17215,uniform,M6,True,,disrupted,0.30500000000000005,187829035.15624982,819145.5,4.0,'IRE at 0.2 disrupts at 0.3'
+18144,uniform,M6,False,,disrupted,0.158,326350792.9687497,778792.9375,7.0,'Lost both FAs at 0.138 for no obvious reason followed by VDE. High ripple on TF and Ip. D
+20862,uniform,M7,False,,disrupted,0.4700000000000001,142028380.85937488,680337.625,5.0,'OK'
+28288,uniform,M8,False,,disrupted,0.31400000000000006,716143179.6874994,813292.75,2.0,'good repeat'
+29176,uniform,M9,False,,disrupted,0.349,158416367.18749985,803477.4375,47.0,'Overdense in 20-50 ms period - which produces a low IP - but the good news is there is no
+26489,uniform,M8,False,,disrupted,0.5780000000000001,187991623.04687482,662762.0625,77.0,'Ok. SS beam broke down. H-mode at 223 ms lost because of a saw-tooth at 250 ms. H-mode ag
+25996,uniform,M8,False,,disrupted,0.254,202523786.45833316,655315.0625,3.0,'Good shot no RT density signal'
+29597,uniform,M9,False,,disrupted,0.42100000000000004,192549582.03124982,952111.625,4.0,'Good shot.'
+15564,uniform,M6,False,,disrupted,0.395,157085938.8020832,756821.0,61.0,'Good . No LM. Density marginally higher.'
+25066,uniform,Unknown,False,,disrupted,0.375,133990689.45312488,921149.0,41.0,'Good beams at last.H-mode observed.Back transition during ELM coils followed by re-transi
+15261,uniform,M6,False,,clean,,,806759.8125,124.0,'OK.'
+18235,uniform,M6,False,,disrupted,0.28400000000000003,208371175.78124982,888817.8125,4.0,'OK'
+25034,uniform,Unknown,False,,clean,,,750068.9375,127.0,'2nd beam even more delayed.'
+22224,uniform,M7,False,,disrupted,0.353,173816503.51562485,886679.75,5.0,'Shot longer; Z shift kills first H-mode period; it starts from 0.3.'
+16299,uniform,M6,False,,disrupted,0.32599999999999996,239765567.70833313,835850.0625,4.0,'OK'
+25765,uniform,M8,False,,disrupted,0.24500000000000002,209986519.53124982,918121.5,4.0,'Good shot.'
+29649,uniform,M9,False,,disrupted,0.544,370995162.10937464,641462.625,76.0,'Shot 450ms duration.H mode at 350ms until end of shot.SW beam breakdown so beam late (did
+26332,uniform,M8,False,,clean,,,825155.75,156.0,'Eliminated IRE at 80 ms but still got one at 220. As for the rest similar to 26330.'
+28956,uniform,M9,False,,clean,,,593987.5625,125.0,'Two successive breakdowns in beam.But good shot.Good data for coherence imaging and e-cel
+18009,uniform,M6,False,,disrupted,0.44400000000000006,199591118.16406232,855109.9375,4.0,'h-mode early but beam started later ~130ms'
+18033,uniform,M6,False,,disrupted,0.29600000000000004,285736588.5416664,1164229.0,12.0,'good shot H-mode from 0.233s lost at 0.274 because of n=1 mode locking 5 ELMs from 0.255s
+29264,uniform,M9,False,,disrupted,0.344,195470261.71874982,991807.75,5.0,'No H-mode. SS beam ok.'
+25349,uniform,Unknown,False,,disrupted,0.259,122201550.7812499,429622.09375,3.0,'OK.'
+21275,uniform,M7,False,,clean,,,634352.8125,150.0,'OK'
+25000,uniform,M7,False,,clean,,,757227.5625,161.0,'good. very good match to reference (1st sawtooth slightly later) 240KW more power.About 6
+23450,uniform,M7,False,,disrupted,0.51,90228626.22070305,746748.25,91.0,'SS didn t fire. Small NTM after each sawtooth at the end of the shot.'
+16665,uniform,M6,False,,clean,,,624424.8125,111.0,'OK'
+22030,uniform,M7,False,,clean,,,643532.9375,106.0,'No conclusive sign of Ne in the vessel.'
+24321,uniform,M7,True,,disrupted,0.15,160155072.26562485,807324.0,5.0,'Early disruption. P6 currents haywire due to vertical control problem. CCBV24 faulty.'
+16390,uniform,M6,False,,disrupted,0.45100000000000007,286275171.3867185,639034.5,2.0,'Another beam failure'
+30077,uniform,M9,False,,disrupted,0.368,220754265.6249998,1029932.875,5.0,'SW failed. SS broke down. No interferometer. However ELMy H-mode obtained (although at lo
+28020,uniform,M8,False,,disrupted,0.228,98565907.36607134,916436.1875,10.0,'Both beams on time produces a large IRE at 220 ms'
+16627,uniform,M6,False,,disrupted,0.382,182465242.18749985,663036.1875,4.0,'shot shorter after ECRH (3 min GDC)'
+24642,uniform,M7,False,,disrupted,0.5840000000000001,439788570.3124996,647680.3125,267.0,'Ok but no SS beam.'
+18032,uniform,M6,False,,disrupted,0.30800000000000005,192146013.67187482,1142959.75,55.0,'no SS beam either no H-mode IRE at 0.23s'
+23609,uniform,M7,False,,clean,,,733884.125,126.0,'Beam had many break downs almost not there'
+23923,uniform,M7,False,,disrupted,0.30700000000000005,180361570.31249985,663726.9375,21.0,'Okay'
+17976,uniform,M6,False,,disrupted,0.29200000000000004,164817640.62499985,823132.75,5.0,'short H-mode  300 ms shot'
+15653,uniform,M6,False,,disrupted,0.272,281359073.24218726,628163.0,2.0,'OK'
+27206,uniform,M8,False,,clean,,,662036.125,131.0,'Good shot - some effect on ELMs and density but less than at 0.55 T'
+28827,uniform,M9,False,,clean,,,605980.375,81.0,'nice long flat lower density pulse'
+16820,uniform,M6,False,,disrupted,0.23900000000000002,213278736.97916648,787037.5625,4.0,'dirty !!! but full swing'
+25523,uniform,M8,False,,clean,,,410585.5625,1270.0,'OK.'
+21061,uniform,M7,False,,disrupted,0.33899999999999997,342668962.40234345,776808.5,43.0,'Good shot beam delayed by 93ms Ar went in this time'
+24518,uniform,M7,False,,disrupted,0.372,249227658.85416645,866347.25,4.0,'Shot and Beam OK.H-mode starts about at the same time as in previous shots but it lasts l
+30018,uniform,M9,False,,clean,,,659035.625,94.0,'real time density failed - SW very late 400 ms'
+24572,uniform,M7,False,,disrupted,0.366,202829694.01041648,872813.25,33.0,'Good beams and shot.  Not much effect from the ELM coils.'
+21859,uniform,M7,False,,clean,,,419695.875,107.0,'Okay'
+21782,uniform,M7,False,,disrupted,0.378,195032781.24999982,899902.0625,5.0,'OK'
+26410,uniform,M8,False,,disrupted,0.256,301474513.67187476,654929.25,2.0,'Good for DMV.'
+21046,uniform,M7,False,,disrupted,0.364,157806776.04166654,766885.0,70.0,'Inboard fuelling seen.'
+20755,uniform,M7,False,,clean,,,843334.125,24.0,'Okay'
+27035,uniform,M8,False,,clean,,,785654.625,174.0,'Pretty poor density control. leading to event at 0.310s.'
+29364,uniform,M9,False,,disrupted,0.682,40781663.08593746,459599.21875,47.0,'Good coils on shot.Difference in acchieved r_out'
+23694,uniform,M7,False,,clean,,,635213.5625,215.0,'Still doesn t detach. Looks more firm on CC if anything!'
+15819,uniform,M6,False,,disrupted,0.402,187057972.65624982,762102.6875,34.0,'Breakdown delayed 1.5ms IP 70kA lower during intial phase.'
+27825,uniform,M8,False,,clean,,,431891.59375,114.0,'Good beams.  Long shot.Response of plasma to step change in FLOW_REF at 400ms but no disr
+30275,uniform,M9,False,,disrupted,0.49,142521822.91666654,608831.75,38.0,'Good shot.H mode from 140 ms ELMing until end of H mode at 400msOuter radius constant at 
+20740,uniform,M7,False,,clean,,,714029.5,114.0,'OK'
+30165,uniform,M9,False,,disrupted,0.33299999999999996,217053164.06249982,1032389.75,5.0,'HFS midplane gas puff did not fire because the valve was left in fill and not puff mode.'
+18748,uniform,M6,False,,disrupted,0.628,39764011.858258896,632650.25,53.0,'Massively long H-mode shot - 630 ms.However even full EF current is not affecting the ELM
+25267,uniform,Unknown,False,,disrupted,0.39,200689242.18749982,927069.8125,4.0,'OK'
+18779,uniform,M6,False,,disrupted,0.385,194885658.20312482,998110.6875,5.0,'OK beams and shot - 5 ELMs.'
+14531,uniform,M5,False,,disrupted,0.375,193462414.06249982,812604.5,4.0,'good shot but locked mode at 270 ms and we loose Hmode  probably due to too long impurity
+23388,uniform,M7,False,,disrupted,0.35,220255127.60416648,776642.3125,4.0,'Beam very intermittent'
+18940,uniform,M6,False,,clean,,,761840.75,120.0,'OK'
+24438,uniform,M7,False,,disrupted,0.44800000000000006,254239703.12499976,858312.375,3.0,'Good beam.  Longer shot again.'
+29238,uniform,M9,False,,disrupted,0.41300000000000003,214940374.99999982,803330.25,4.0,'Good shot SW from 0.1 but also LLM at 0.16s'
+27108,uniform,M8,False,,disrupted,0.43300000000000005,121189957.0312499,788298.375,118.0,'Good shot with H-mode periods'
+20809,uniform,M7,False,,disrupted,0.34099999999999997,196265712.89062482,864616.5,4.0,'Again short beam due to the interferometer.'
+23982,uniform,M7,False,,disrupted,0.548,113551158.2031249,432945.28125,15.0,'OK.Analysed  interferometer data not available (raw data and real-time data is there)Real
+20303,uniform,M7,False,,disrupted,0.352,178134166.01562485,792223.6875,5.0,'NBI failed to trigger before 0.33s.'
+24217,uniform,M7,False,,disrupted,0.33599999999999997,206788259.76562482,919328.625,5.0,'It is shorter.'
+16677,uniform,M6,False,,clean,,,761648.625,137.0,'very similar'
+27836,uniform,M8,False,,clean,,,775653.5,167.0,'OK but H-mode performance is no that great.'
+12974,uniform,M5,False,,clean,,,825891.0625,98.0,'BETTER'
+28757,uniform,M9,False,,disrupted,0.29200000000000004,159081059.8958332,613455.0,4.0,'300ms shot. SW NBI ok.'
+30343,uniform,M9,False,,disrupted,0.32199999999999995,157184738.28124985,761152.125,4.0,'Investigation shot with 1 beam.Over dense. Z-ref needs correcting.'
+21014,uniform,M7,False,,disrupted,0.279,110967243.48958324,424082.84375,6.0,'much the same pulse length. much better SX signal. Not radically different in terms of ma
+29175,uniform,M9,False,,disrupted,0.348,163137374.99999985,832234.0,5.0,'very large IRE at 225 ms - the density ramp rate didnt actually change even though the re
+13756,uniform,M5,False,,clean,,,763473.0,61.0,'OK'
+14614,uniform,M5,False,,disrupted,0.41000000000000003,146472522.13541654,639055.75,25.0,'Short Beam'
+20915,uniform,M7,False,,clean,,,625181.0625,113.0,'OK. Looks very similar to the previous shot. So as expected the top ELM coils don t do mu
+24545,uniform,M7,False,,disrupted,0.364,238606010.41666645,862860.1875,3.0,'2 Good beams - good H-mode - no back transition'
+27104,uniform,M8,False,,clean,,,787482.3125,176.0,'OK'
+28099,uniform,M8,False,,disrupted,0.31200000000000006,187189980.46875504,856228.3125,5.0,'SS broke down. Shot still overdense with respect to reference.'
+27817,uniform,M8,False,,disrupted,0.41800000000000004,405486624.99999964,641755.125,43.0,'H-mode slightly delayed - plasma uses more flux as coils come on resulting in a shorter I
+26574,uniform,M8,False,,clean,,,667189.125,134.0,'Very good long shot with full plasma ramp-down density pump-out is less. Run out of flux 
+22233,uniform,M7,False,,disrupted,0.368,113941664.0624999,741732.0625,90.0,'No beam.'
+25810,uniform,M8,False,,disrupted,0.368,84139007.81249993,795939.0,77.0,'OK.'
+22819,uniform,M7,False,,disrupted,0.278,274096300.78124976,639277.5625,3.0,'Good shot.'
+29345,uniform,M9,False,,clean,,,650291.0625,101.0,'no interferometer density - no YagsEnd of current flattop at 480ms.'
+18716,uniform,M6,False,,clean,,,626675.375,122.0,'No H-mode until about 400ms and only lasts about 40ms. Still enough to be useful'
+16593,uniform,M6,False,,disrupted,0.363,115765355.4687499,610845.0,78.0,'350 ms shot - still does not interact with cc after 200 ms'
+11998,uniform,M5,False,,disrupted,0.347,206963126.30208313,684633.5,3.0,WORST EVER OXYGEN LEVEL - TEST PUFFS FROM OUTBOARD GAS SHOW NO OXYGEN RISE ON RGA
+14346,uniform,M5,True,,disrupted,0.26,202984999.99999982,932236.6875,5.0,'bad shot. no beam. vertical wobble at 0.200 followed by disruption. nb this shot has notc
+15154,uniform,M6,False,,disrupted,0.367,251938594.72656226,700447.8125,58.0,'350 ms shot  - do not see X-point in divcam view till 250 ms'
+14528,uniform,M5,False,,disrupted,0.399,174606436.0351561,775199.0625,4.0,'all FA (P6   EFC) ran correctly'
+17501,uniform,M6,False,,disrupted,0.205,80263547.85156243,788530.75,9.0,'interesting. Slight neutron dose rate alarm. 3.01MW total NBI. We have Elms and lots of f
+19414,uniform,M7,False,,disrupted,0.31400000000000006,104675285.15625378,512621.9375,58.0,'Longer shot but no NBI.'
+27590,uniform,M8,False,,disrupted,0.33499999999999996,103204126.30208324,817121.125,33.0,'OK large IRE at 310ms.'
+30390,uniform,M9,False,,disrupted,0.355,306730946.2890622,643654.8125,2.0,'SW beam had a breakdown 0.22s.'
+25957,uniform,M8,False,,disrupted,0.4720000000000001,120857175.7812499,446045.625,31.0,'Much better density - good pump out observed - but strike point moves out of IR window be
+23988,uniform,M7,False,,disrupted,0.545,186427359.37499982,432967.125,72.0,'shot OK.Real-time density failed.'
+26604,uniform,M8,False,,clean,,,761246.0,167.0,'OK'
+24525,uniform,M7,False,,disrupted,0.361,221864229.16666648,877270.875,4.0,'Ok. Good shot still in H-mode.'
+22351,uniform,M7,True,0.267,disrupted,0.273,168456283.20312485,792086.9375,5.0,'good repeat however disrupts at 0.267s'
+27738,uniform,M8,False,,clean,,,748845.375,170.0,'Good shot.'
+20270,uniform,M7,False,,disrupted,0.33599999999999997,217653822.26562482,919304.125,4.0,'ELM coils didn t engage'
+18434,uniform,M6,False,,disrupted,0.264,82651819.1964285,756670.875,8.0,'FAs cut out at 100ms causing plasma to return to midplane. Radial control was magnetic an
+27336,uniform,M8,False,,disrupted,0.25,147424950.19531238,640337.625,4.0,'Ok but again no CH4 visible from CELESTE 3.'
+30427,uniform,M9,False,,disrupted,0.376,229732347.6562498,1014112.875,4.0,'good beams - H-mode from 280msX_MM_LVPS shows a lot lower current than AMC_TF - TF does n
+11824,uniform,M5,False,,disrupted,0.34299999999999997,142711088.86718738,555203.8125,30.0,GOOD SHOT
+23721,uniform,M7,False,,disrupted,0.33199999999999996,69266593.74999994,753505.75,11.0,'Short H-mode. Plasma too tight on CC.'
+14313,uniform,M5,False,,disrupted,0.381,197787463.54166648,773176.4375,31.0,'Okay - marginally underdense from reference shot 14275'
+27721,uniform,M8,False,,disrupted,0.554,101494895.83333324,421680.34375,31.0,'Under-dense from 130ms. No DSF data. - datak was not requested.'
+23161,uniform,M7,False,,disrupted,0.385,101764869.14062491,639111.125,79.0,'OK.'
+23723,uniform,M7,False,,disrupted,0.393,89301339.06249993,741588.875,21.0,'Longer H-mode terminated by huge pellet'
+19613,uniform,M7,False,,disrupted,0.362,213859656.24999982,603951.5,26.0,'Good shot.'
+15366,uniform,M6,False,,disrupted,0.359,150316571.6145832,724791.75,51.0,'good shot'
+17490,uniform,M6,False,,disrupted,0.562,119812444.98697907,741247.0,146.0,'OK but shortish beam. Some broken pellets in the discharge.'
+14806,uniform,M6,False,,disrupted,0.366,190877640.62499982,766826.8125,30.0,'good shot'
+13066,uniform,M5,False,,disrupted,0.482,264070868.6523435,530912.5,2.0,'GOOD SHOT SIMILAR TO 13064'
+18635,uniform,M6,False,,clean,,,632173.0,93.0,'Enters H-mode at 400ms.'
+16852,uniform,M6,False,,clean,,,633850.125,101.0,'Good shot with better density match to reference.'
+16047,uniform,M6,False,,disrupted,0.364,194487790.03906232,840673.5,4.0,'no NBI 0.38s Ohmic shot'
+27467,uniform,M8,False,,disrupted,0.4720000000000001,294651947.26562476,656425.0625,2.0,'Still get density oscillations in period 230-350ms. Good beams not getting into H-mode.'
+13903,uniform,M5,False,,disrupted,0.345,155084562.49999985,760729.0625,5.0,'looks ok. probe fairly deep now.'
+21872,uniform,M7,False,,disrupted,0.45400000000000007,115382270.18229157,675814.0,114.0,'Good. Density is half-way between the typical 680kA (21870) and 400kA (21867) shots.'
+17546,uniform,M6,False,,clean,,,728534.6875,146.0,'Good shot.'
+13071,uniform,M5,False,,disrupted,0.477,187449652.34374982,526194.375,6.0,'GOOD. COULD HAVE REDUCED EARLY GAS. MAY NOT BE PROPERLY DND UNTIL 300 (THO EFIT SAYS 190)
+26805,uniform,M8,False,,disrupted,0.33899999999999997,194792720.70312482,910826.375,5.0,'SS started late at 0.26s.Discharge reached flattop for around 75ms.'
+22501,uniform,M7,False,,disrupted,0.41800000000000004,193936221.67968732,833530.125,4.0,'Ok density still slightly lower than in reference shot.'
+24211,uniform,M7,True,,disrupted,0.34299999999999997,193219728.51562482,863659.9375,5.0,'H-mode starts earlier disruption on IRE at 0.34'
+12953,uniform,M5,False,,disrupted,0.148,259195226.56249976,1058193.75,16.0,'GOOD SHOT UPTO 130MS TERMINATES WITH MODE'
+21756,uniform,M7,False,,clean,,,639117.75,93.0,'Good shot H-mode from 0.32s nice regular ELMs'
+22601,uniform,M7,False,,disrupted,0.254,299076230.46874976,848410.8125,10.0,'Pretty much the same as 22599'
+24624,uniform,M7,True,,disrupted,0.256,168177627.92968735,762509.6875,4.0,'Disrupted after first sawtooth'
+13291,uniform,M5,False,,disrupted,0.32799999999999996,239744190.10416645,841511.3125,4.0,'no pellet :-( L/H at 0.195s    H* at 0.255s H/L at 0.311s after 1st sawtooth  good beams'
+17607,uniform,M6,False,,disrupted,0.30100000000000005,140189135.93749988,885719.25,6.0,'Reasonable shot but poor Ip and radial control.'
+19462,uniform,M7,False,,disrupted,0.348,118915352.86458322,592376.3125,66.0,'plasma OK. NO BEAM.  dont know why. Enable from PCS is OK. Still no i/b Helios.'
+16373,uniform,M6,False,,disrupted,0.362,252714440.62499976,1359817.75,5.0,'Hot dog! 2 good beams H mode at 0.280 clean beam cut on SW. Density climbing rapidly. tea
+19522,uniform,M7,False,,disrupted,0.17900000000000002,213592233.07291648,678060.1875,3.0,'Plasma ended with an upwards Vertical Displacement Event at ~0.2s. We probably went too f
+22227,uniform,M7,False,,disrupted,0.29700000000000004,176195337.89062485,795059.3125,5.0,'No better.'
+17133,uniform,M6,False,,disrupted,0.257,216521729.16666648,764088.1875,4.0,'Short shot no NBI.'
+12355,uniform,M5,False,,disrupted,0.385,173651314.45312485,719309.6875,4.0,'LONG SHOT 390MS BIT OF H-MODE AT END I2T LIMIT 450 REACHED'
+21303,uniform,M7,True,,disrupted,0.45600000000000007,109194356.77083324,417571.375,4.0,'Shot disrupted. Pump out observed.'
+25749,uniform,M8,True,0.25,disrupted,0.24600000000000002,229539414.0625014,989504.5,4.0,'Disrupted at 0.25s. Oxygen signal reduced compared to previous. Current hump at start of 
+17797,uniform,M6,True,0.123,disrupted,0.121,109336451.5624999,658096.5,6.0,'slightly lower density disrupts at 0.123s loose FAs at 0.11s'
+21164,uniform,M7,False,,disrupted,0.276,199568773.43749982,776916.125,14.0,'OK. Some of the essential magnetic signals are faulty and need fixing.'
+13714,uniform,M5,False,,disrupted,0.41700000000000004,223258134.11458313,744327.0,3.0,'short NBI. Not much change in loop voltage no H-mode'
+23129,uniform,M7,False,,disrupted,0.40700000000000003,102983601.56249991,668334.5625,105.0,'Ran OK. Current ramp and flat-top a little bit wobbly because of Homer failure. 10% diffe
+22122,uniform,M7,False,,disrupted,0.369,260345382.81249976,953071.875,4.0,'Good beams good H-mode.'
+14045,uniform,M5,False,,disrupted,0.4620000000000001,180265720.05208316,847726.0,33.0,'nicht gut. short nbi.'
+20231,uniform,M7,False,,disrupted,0.28400000000000003,244223078.1249998,838887.6875,4.0,'still no good - i/b helios not working at all.'
+24379,uniform,M7,False,,disrupted,0.523,86676006.34765618,433637.6875,46.0,'good repeat'
+25470,uniform,M8,False,,clean,,,419220.875,1260.0,'TF and P4 OK.'
+22822,uniform,M7,False,,disrupted,0.28500000000000003,561008789.0624995,674401.125,2.0,'Change in DRREF made no change in R_out that s magnetic control for you. Can t be certain
+22061,uniform,M7,False,,disrupted,0.30900000000000005,192914196.28906232,828454.6875,4.0,'Similar to the last shot no He signal in RGB'
+24742,uniform,M7,False,,disrupted,0.359,234527894.5312498,1075242.875,5.0,'Good shot H-mode from 0.2718s until 0.3468s somewhat shorter than in the reference shot.'
+17078,uniform,M6,False,,disrupted,0.255,205979653.64583316,800737.3125,4.0,'OK. Longer beam.'
+27421,uniform,M8,False,,disrupted,0.264,155468519.53124985,800228.125,5.0,'Better - similar to 2 bean reference (27417 complete with event a bit earlier). Density a
+17809,uniform,M6,False,,disrupted,0.367,29729788.411458306,566920.5625,93.0,'still not looking great. Poor radial and Ip feedback but doesn t get over-sized'
+13502,uniform,M5,False,,disrupted,0.348,151313612.6302082,758496.125,50.0,'plasma ok but no beam (!)'
+13814,uniform,M5,False,,clean,,,750923.875,70.0,'good shot with density a bit too high compared to 13803'
+13817,uniform,M5,False,,disrupted,0.31100000000000005,178599018.2291665,753294.8125,21.0,'OK'
+25993,uniform,M8,False,,disrupted,0.255,278135472.65624976,660874.75,3.0,'Good shot'
+27687,uniform,M8,False,,disrupted,0.401,175249814.45312485,915810.75,57.0,'ELM free H mode from 210 to 240ms. cHFS gas shutoff successful.No beta ramp down seen.'
+13708,uniform,M5,False,,disrupted,0.395,289253171.87499976,747560.1875,35.0,'good shot'
+22529,uniform,M7,False,,disrupted,0.42500000000000004,276388957.03124976,681449.125,3.0,'Lasts longer than reference.'
+12360,uniform,M5,False,,disrupted,0.353,271585697.91666645,915886.0625,4.0,'GOOD SHOT BUT Z POSTION STILL NO CONSTANT'
+12544,uniform,M5,False,,disrupted,0.43400000000000005,326971113.2812497,768898.25,3.0,'DENSITY BACK ON TRACK WITH 12536.'
+30368,uniform,M9,False,,disrupted,0.42300000000000004,209346558.59374982,885372.125,4.0,'OK. FA currents opposite sign and smaller magnitude as required.'
+29208,uniform,M9,False,,disrupted,0.33999999999999997,196262277.34374982,945930.5,5.0,'Good RP data as seen on camerashot terminates at 360ms.Brief H-mode (270ms - 330ms)'
+29416,uniform,M9,False,,disrupted,0.53,183723601.56249985,647766.0625,4.0,'Density increase seen but slightly too low compared to the high current referenceNo Heliu
+24707,uniform,M7,False,,disrupted,0.33299999999999996,97166195.87053563,817830.6875,7.0,'Beams ok.Still no good H-mode.'
+22705,uniform,M7,False,,clean,,,638344.125,102.0,'Good shot'
+30251,uniform,M9,False,,disrupted,0.256,137448099.60937488,666990.875,5.0,'beam fired from 0 rather than requested 120 ms - shot to 250 ms - but otherwise good shot
+29452,uniform,M9,False,,disrupted,0.367,198235183.59374982,937581.25,5.0,'good beams - interesting shot'
+27159,uniform,M8,False,,disrupted,0.44200000000000006,155499371.09374985,683826.625,4.0,'Ok'
+20823,uniform,M7,True,0.31,disrupted,0.31100000000000005,199822490.23437482,890067.4375,5.0,'OK. Disruption at 0.31s. Strong density ramp up from 0.15s to the end no flat top reached
+20544,uniform,M7,False,,disrupted,0.43800000000000006,71834595.83536777,733675.1875,115.0,'good shot correct sweep to recreate 18487'
+21855,uniform,M7,False,,clean,,,634579.25,137.0,'Okay'
+18810,uniform,M6,False,,disrupted,0.64,65109168.16406244,635077.5625,36.0,'good long shot SW beam breaks down quite early unfortunately'
+27352,uniform,M8,False,,disrupted,0.353,257385121.09374976,669676.8125,22.0,'OK. with pellet at 320ms.'
+12024,uniform,M5,False,,disrupted,0.381,195954507.81249982,663603.375,4.0,'380 MS SHOT - GOOD BEAM'
+29598,uniform,M9,False,,disrupted,0.344,132861593.74999988,918105.3125,7.0,'Good shot.'
+22037,uniform,M7,False,,disrupted,0.41500000000000004,219591795.8984373,636309.3125,42.0,'OK.'
+17218,uniform,M6,False,,disrupted,0.30900000000000005,182391562.49999985,771041.0,4.0,'no beam'
+19623,uniform,M7,False,,disrupted,0.29100000000000004,248377093.0989581,777192.25,3.0,'Ran OK - early termination at 300 ms'
+11826,uniform,M5,True,0.3,disrupted,0.29900000000000004,62160943.35937495,658652.0625,10.0,"GOOD SHOT, GOOD BEAM BUT DISRUPTS AT 300MS (FA TRIP)"
+20345,uniform,M7,False,,disrupted,0.373,155676544.4335936,688516.875,4.0,'NBI is very  late 5 breakdowns'
+21085,uniform,M7,False,,clean,,,757006.6875,124.0,'No beam'
+28167,uniform,M8,False,,disrupted,0.25,362230025.3906247,794290.375,2.0,'Still vertically unstable.'
+16691,uniform,M6,False,,clean,,,765586.875,128.0,'ok'
+26261,uniform,M8,False,,clean,,,759330.3125,171.0,'density less than half reference. substantial HXR levels'
+16652,uniform,M6,False,,clean,,,622185.4375,124.0,'OK'
+15116,uniform,M6,False,,disrupted,0.32499999999999996,189017106.44531232,780533.8125,4.0,'good repeat'
+28133,uniform,M8,False,,disrupted,0.379,166131819.53124985,909725.5,5.0,'NTM present.Good repeat of reference.'
+18672,uniform,M6,False,,disrupted,0.24500000000000002,121073724.60937531,1175997.625,9.0,'large event at 250 ms and looses plasma'
+29687,uniform,M9,False,,clean,,,450966.15625,71.0,'H mode at 380ms.No enough RMP coil current.All coils fired.'
+14265,uniform,M5,False,,disrupted,0.28,259514863.28124976,654484.5625,3.0,'300 ms shot'
+20264,uniform,M7,False,,clean,,,769843.0,163.0,'There was plasma but didn t look too good. No GDC after previous shot?Beam still not oper
+23790,uniform,M7,False,,disrupted,0.405,195658236.9791665,753142.0,18.0,'Outer radius control fails since HOMER drops out after 0.038s hence the radius and contro
+19587,uniform,M7,False,,disrupted,0.394,91806449.21874993,564155.125,58.0,'Ok. This time P4 and P5 worked as planned.'
+16568,uniform,M6,False,,disrupted,0.233,113591175.29296865,743895.6875,84.0,'Longer plasma. Ip still didn t take off completely.'
+16340,uniform,M6,False,,disrupted,0.483,81425309.89583325,739530.25,117.0,'Better termination of small final plasma on centre column rather than big VDE. Only had s
+18544,uniform,M6,False,,disrupted,0.34099999999999997,112328296.8749999,751799.25,7.0,'Early H mode but IRE at 350ms.'
+25809,uniform,M8,False,,clean,,,798881.4375,122.0,'Good shot with soft landing.'
+27494,uniform,M8,False,,clean,,,635179.5625,123.0,nan
+15708,uniform,M6,False,,clean,,,765959.8125,122.0,'initial plasma current lower than reference (2 outboard PVs are disabled) but otherwise O
+29892,uniform,M9,False,,clean,,,452199.0,72.0,'good shot all ECC OK.'
+22641,uniform,M7,True,,disrupted,0.148,177598481.77083316,665778.3125,4.0,'OK. Good beams. Early disruption but not a problem for today s program.'
+20483,uniform,M7,False,,disrupted,0.42900000000000005,164977684.0820311,720944.1875,4.0,'interesting shot  trigger small regular ELMS'
+27399,uniform,M8,False,,disrupted,0.34299999999999997,204122802.73437482,890690.0625,4.0,'SS beam late by 23 ms - get an IRE at 170 ms - ELM free H-mode from about 270 ms - little
+16622,uniform,M6,False,,disrupted,0.44900000000000007,46788946.093749955,624717.0625,76.0,'good shot but plasma too big at the end'
+12130,uniform,M5,False,,disrupted,0.394,168596084.6354165,764412.3125,43.0,''
+22514,uniform,M7,False,,disrupted,0.348,322274700.1953122,743638.25,3.0,'Better.'
+12506,uniform,M5,False,,disrupted,0.478,278833946.6145831,894913.8125,3.0,''
+18847,uniform,M6,False,,clean,,,767052.625,142.0,'good'
+25424,uniform,M8,False,,clean,,,262232.5,1293.0,'OK.'
+21362,uniform,M7,False,,clean,,,632586.4375,144.0,'Another fine shot. Slightly grotty density signal but useable.'
+16936,extra,M6,True,0.3,disrupted,0.30200000000000005,238991795.57291645,766220.0625,3.0,'OK disrupts at 300ms just after flux limit. Start-up duration and loop voltage are all be
+22824,extra,M7,True,,disrupted,0.24300000000000002,289254308.59374976,640767.75,2.0,'Got quite a bit of density but shot disrupted at 0.245 because q95~2'
+21799,extra,M7,True,,disrupted,0.53,376496253.90624964,637490.25,33.0,'NBI OK but shot still disrupted.'
+27699,extra,M8,True,,disrupted,0.31400000000000006,338743429.6875185,704728.375,2.0,'Disrupts earlier and displacement observed earlier.'
+13289,extra,M5,True,0.32,disrupted,0.31799999999999995,211810007.81249982,923880.375,4.0,'disrupts  at 0.32s due to locked mode 20ms after first sawtooth  some pellet visible at 0
+12494,extra,M5,True,,disrupted,0.33199999999999996,197180554.68749982,909039.8125,5.0,'19 ALARMS; MAX 131% DISRUPTS SIGNIFICANTLY EARLIER THAN 12437 - 330 MS RATHER THAN 440 MS
+20065,extra,M7,True,0.3,disrupted,0.31500000000000006,270275869.7916764,959332.8125,4.0,'Did not get beams before 160ms. Locked mode disruption at 300ms.'
+18401,extra,M6,True,,disrupted,0.28400000000000003,132724884.48660703,1165946.375,10.0,'Goes ELM-free immediately at 0.230 disrupt at 0.280 (much earlier than 18028 5kHz mode is
+23307,extra,M7,True,0.12,disrupted,0.126,196734971.35416648,726626.25,4.0,'SS had several breakdowns and so fired late (at 115ms).Early disruption at 120ms.'
+20824,extra,M7,True,0.29,disrupted,0.4630000000000001,147266841.1458332,736297.6875,98.0,'OK. Disrupted much later (0.46s). Density reached high flat top after 0.35s. H mode at 0.
+12230,extra,M5,True,,disrupted,0.40800000000000003,237360138.02083313,798459.875,4.0,'OK. DENSITY ROLLING DOWN FROM 360MS DISRUPT AT 410 - SLOWING NTM.'
+18437,extra,M6,True,,disrupted,0.23700000000000002,549754453.1249995,1206195.375,2.0,'2 good beams. unexplained disruption at end of Ip ramp. SS beam somewhat late. Density al
+12392,extra,M5,True,,disrupted,0.30000000000000004,157463535.15624985,524312.5625,3.0,'GOOD P2 MANAGED TO REVERSE GOT AS FAR AS +10KA BEFORE IT DISRUPTED'
+29631,extra,M9,True,0.4,disrupted,0.398,155671234.37499985,615377.3125,4.0,'density during chfs higher by roughly 10% from 150ms. modest changes in density throughou
+24601,extra,M7,True,,disrupted,0.145,163916355.46874985,589337.0625,4.0,'Plasma disrupts early - no SNBI.'
+14182,extra,M5,True,,disrupted,0.33699999999999997,184907135.74218732,795103.6875,4.0,'good full length beam. Disrupts about 330ms'
+14569,extra,M5,True,0.3,disrupted,0.29400000000000004,247881651.04166645,788975.6875,3.0,'disrupts at 300 ms - FAs cut out'
+18479,extra,M6,True,,disrupted,0.257,204392544.27083316,747245.5,4.0,'don t help much - disrupts only 25 ms later'
+25191,extra,Unknown,True,0.27,disrupted,0.273,190952654.9479165,762827.6875,77.0,'Shot disrupted at 270ms. Good NBI.'
+22047,extra,M7,True,0.22,disrupted,0.221,472573902.3437496,979644.25,2.0,'Disruption at 0.22s.'
+21673,extra,M7,True,,clean,,,903999.8125,54.0,'Ran OK. Early disruption due to arcing on centre column.'
+14360,extra,M5,True,,disrupted,0.24600000000000002,169999010.74218854,727920.375,4.0,'disrupts about 250ms'
+22417,extra,M7,True,,disrupted,0.28,325169884.7656247,866228.5,23.0,'Density is a bit closer but still that early disruption persists.SW didn t fire.'
+29753,extra,M9,True,0.35,disrupted,0.348,73282370.53571422,598010.1875,7.0,'Good - H mode from 120ms with well spaced ELMs.Disrupts at 350ms'
+14586,extra,M5,True,0.275,disrupted,0.32099999999999995,207631943.35937482,918884.1875,4.0,'Good beam plasma disrupts shortly after due to a locked mode big sawtooth at 0.275s outer
+20791,extra,M7,True,0.3,disrupted,0.30300000000000005,183232376.95312485,812901.75,4.0,'Good shot but disrupted at 300 ms.'
+25356,extra,Unknown,True,,disrupted,0.42400000000000004,219192605.4687498,987075.0,5.0,'OK with similar H-mode phase but disruption comes later.'
+17949,extra,M6,True,,disrupted,0.32299999999999995,196420846.87499982,1107848.875,6.0,'Beam not great. Again disruption at around 0.32 s.'
+18732,extra,M6,True,,disrupted,0.32399999999999995,181688974.60937485,819175.75,5.0,'disrupts at 0.32 because of huge puff at 0.3 without any reason -it is on flow control wi
+29427,extra,M9,True,,disrupted,0.34199999999999997,222412146.4843748,1050017.125,4.0,'Good shot  - L mode as requested. Disrupts 340 ms.'
+17586,extra,M6,True,,disrupted,0.266,308068914.0624997,1332667.75,4.0,'good beams. Early disruption - not clear why. much better inner gap and early Ip and dens
+22297,extra,M7,True,,disrupted,0.362,200154601.56249982,944138.4375,4.0,'Good beams and shot. Disrupt at 0.360 probably sawtooth. Density ramping up  all 4 ECC OK
+27639,extra,M8,True,0.3,disrupted,0.29600000000000004,286584197.26562476,656743.0,2.0,'Plasma disrupts at 300 ms.'
+20774,extra,M7,True,,disrupted,0.278,184283620.11718735,800670.875,4.0,'ealry even less pronounced and sawteeth later - still disrupt at 0.280. Neon seen on CX.'
+25035,extra,Unknown,True,,disrupted,0.352,182202621.09374985,832227.3125,5.0,'SW beam 70ms late. Disruption at 0.340 (2nd sawtooth).  Good match in neutron rate betwee
+15315,extra,M6,True,,disrupted,0.28200000000000003,225203097.6562498,649234.875,12.0,'disrupts on schedule but a mode appears to lock just before it.'
+21674,extra,Unknown,True,,disrupted,0.17400000000000002,361548465.8203122,761093.0625,2.0,'Disrupted even earlier. Hot spots visible on centre column.'
+17726,extra,M6,True,,disrupted,0.30700000000000005,184460648.43749985,837658.8125,5.0,'good shot - good IR and photron camera data of the disruption'
+24005,extra,M7,True,0.28,disrupted,0.276,131648151.04166655,428548.90625,3.0,'Ok. Disrupts at 280 ms.'
+17152,extra,M6,True,,disrupted,0.31400000000000006,182040029.2968799,819078.8125,5.0,'Short beam . Disrupt at 0.310 for no good reason.'
+22045,extra,M7,True,,disrupted,0.279,408951273.43749964,884584.625,2.0,'Plasma disrupted 0.255ms. Seems the plasma can t handle the neon.'
+23333,extra,M7,True,,disrupted,0.206,203155341.14583316,745088.5625,3.0,'Disrupts at 0.21'
+18886,extra,M6,True,0.3,disrupted,0.29900000000000004,147985581.3802082,948131.0625,6.0,'Disruption at 300ms caused by locked mode. Initial density responded to prefill change.'
+15758,extra,M6,True,,disrupted,0.275,244685682.29166645,875122.1875,4.0,'Looks OK but disrupts at 0.28'
+20038,extra,M7,True,0.16,disrupted,0.16,140343138.67187488,648801.125,5.0,'Disruption at 160ms.'
+28321,extra,M8,True,,disrupted,0.158,34886135.25390622,536785.8125,34.0,'CHFS gas puff was still on!! with 2000mbar.Effective disruption mitigation.'
+11851,extra,M5,True,,disrupted,0.271,257923283.85416645,842806.25,3.0,"GAS BETTER, BUT STILL NOT RIGHT. EARLY DISRUPTION. SLIDING JOINT ALARMS 144% MAX."
+13300,extra,M5,True,0.263,disrupted,0.32199999999999995,322620370.1171872,755050.125,3.0,'disrupts at 0.302 broken pellet at 0.263s L/H at 0.191s H/L at 0.305s'
+27970,extra,M8,True,,disrupted,0.41000000000000003,97900343.74999991,465359.34375,5.0,'Disrupts at 411 cHFS starts at 377.Plamsa density very close to 21712.'
+28995,extra,M9,True,0.4,disrupted,0.395,129219244.79166655,445452.53125,4.0,' Good shot - disrupts at 400ms - beam blip from 270ms.'
+23306,extra,M7,True,0.335,disrupted,0.33699999999999997,238705667.9687498,765760.875,22.0,'Beam started 20ms late.Otherwise good shot. Disrupted at 335ms.'
+22793,extra,M7,True,0.33,disrupted,0.33399999999999996,260114973.9583331,966768.75,4.0,'SW stopped firing at 240ms. Disruption at 330ms.'
+23319,extra,M7,True,,disrupted,0.18999999999999997,191847864.58333316,704936.9375,3.0,'Short shot. Density tracks the reference shot until 110 ms then stays below. At 170 ms th
+16369,extra,M6,True,0.35,disrupted,0.355,130008470.70312488,859642.1875,53.0,'Huge sawtooth at ~300ms almost disrupts the plasma which seems to  bounce  off the upper 
+25194,extra,Unknown,True,0.17,disrupted,0.18600000000000003,48998935.39428741,765884.125,26.0,'Shot disrupted at 170ms.'
+24883,extra,M7,True,,disrupted,0.145,92587039.06249991,643196.8125,7.0,'Early disruption.Good beam.Reason for the early disruptions found: FA2 cuts out. Probably
+23168,extra,M7,True,,disrupted,0.33799999999999997,124785437.4999999,439281.0,3.0,'EFC 05 now failed (02 has not been working since 23161).  nb. ASM locked mode signals are
+26270,extra,M8,True,,disrupted,0.42000000000000004,58044711.495535664,489374.34375,7.0,'good shot LM set in at 0.330 disrupt at 0.43.'
+24620,extra,M7,True,,disrupted,0.263,210261079.10156232,885579.875,4.0,'Disrupted at the end of the beams.'
+20232,extra,M7,True,,disrupted,0.219,313876052.0833331,1113364.5,4.0,'Reached target Ip but disrupt immediately'
+18765,extra,M6,True,,disrupted,0.251,192915994.14062482,993214.125,15.0,'Very poor. IRE and disruption at 0.230.  18558-60 were not much better 16215 had lower de
+12474,extra,M5,True,,disrupted,0.28200000000000003,228820645.83333313,790408.0,4.0,'DISRUPTS AT SAME TIME I.E. NOT ARGONS FAULT'
+19388,extra,M7,True,,clean,,,514967.90625,151.0,'better. disrupts near end of rampdown. Smoother waveforms'
+28773,extra,M9,True,,disrupted,0.30900000000000005,168483552.0833332,619665.3125,4.0,'large event at 300 ms again causes disruption probably triggers an NTM - good match in th
+20814,extra,M7,True,,disrupted,0.31999999999999995,207185286.45833313,733378.875,4.0,'Disrupted early at 320msLate beam start'
+29843,extra,M9,True,0.23,disrupted,0.23,214024347.65624982,995143.8125,5.0,'BT does not reach 0.5 T. Disrupts at 230 ms.'
+15210,extra,M6,True,0.319,disrupted,0.33799999999999997,212764929.68749982,777057.0625,38.0,'density flat top there (thanks to Andy). filamentary structure during disruption in IR on
+22760,extra,M7,True,,disrupted,0.17900000000000002,101856661.27232134,775374.0625,7.0,'early disruption while still on c/c.  fairly strong 15kHz mode grows and slows at 0.169de
+25108,extra,Unknown,True,,clean,,,651958.0625,79.0,'Disruption caused by an IRE followed by what looks like a MARFE.'
+23310,extra,M7,True,0.125,disrupted,0.124,198295882.81249982,731866.125,3.0,'Only a short beam blip from 70 to 80ms. Disruption at 125ms.'
+18500,extra,M6,True,0.26,disrupted,0.268,190981308.59374982,819874.5625,4.0,'disrupts at 260 ms'
+28206,extra,M8,True,,disrupted,0.209,362332757.8124997,833020.6875,2.0,'disrupts ~0.21s good beams'
+23883,extra,M7,True,0.25,disrupted,0.24800000000000003,183687360.35156488,444169.65625,27.0,'Disruption at 0.25s. Plasma radius extremely large may have screwed up HOMER. The SL forg
+13268,extra,M5,True,,disrupted,0.385,247565406.2499998,1067017.375,4.0,'Acceptable density control not ringing. Curious event at 320 disrupt at 380.'
+27392,extra,M8,True,0.3,disrupted,0.29100000000000004,251279249.9999998,681564.5,3.0,'Disrupts at 300 ms again'
+27613,extra,M8,True,0.22,disrupted,0.217,182212070.31249985,931882.5625,5.0,'RP disrupts plasma at 220ms. Probe probably in too early.'
+15109,extra,M6,True,0.17,disrupted,0.171,134863378.90624988,622766.8125,4.0,'disrupts at 0.17s initial density still too high but tracks density from 15092 well from 
+27147,extra,M8,True,,disrupted,0.215,156868984.37499985,620345.875,5.0,'disrupt at about 0.210.  World first observation of anomalous Doppler effect using NBI (t
+24611,extra,M7,True,,disrupted,0.126,193312714.84374982,510682.25,3.0,'Shot disrupts early - SNBI early breakdown.'
+28268,extra,M8,True,,disrupted,0.375,236803677.7343748,1039528.0625,4.0,'Shot ran OK in L mode. Disrupt at 0.375 about 35ms before  H mode reference - likely 1st 
+19553,extra,M7,True,,disrupted,0.11199999999999999,200399402.0996092,416783.40625,2.0,'Disrupts very earlyVDE downwards'
+15967,extra,M6,True,,disrupted,0.31699999999999995,221321417.9687498,956326.875,4.0,'good no ANE uses more flux than 15824 disrupts at 0.317 higher SXR'
+27675,extra,M8,True,,disrupted,0.28500000000000003,174312976.56249985,972855.25,5.0,'Both beams seriously delayed short H mode before disruption'
+14174,extra,M5,True,,disrupted,0.34299999999999997,183832847.65624985,875354.75,5.0,'disrupts about 340ms before end of NBI.'
+16967,extra,M6,True,,disrupted,0.253,270424742.18749976,927562.5,4.0,'OK so it wasnt the beam causing the disruption - clean beam termination and still disrupt
+22153,extra,M7,True,,disrupted,0.24700000000000003,616447320.3124994,697912.0,2.0,'Good shot; MARFEd before disruption'
+22290,extra,M7,True,,disrupted,0.158,149855755.85937488,792698.8125,5.0,'Bad. IRE at 800KA disrupted plasma. Density matches 22138 which had V slow Ip ramp.'
+16981,extra,M6,True,,disrupted,0.30200000000000005,557986906.2499995,741426.875,3.0,'not entirely happy still disrupts at 0.300. Blanket maybe thinner.'
+30284,extra,M9,True,,disrupted,0.31100000000000005,227830382.8124998,1055719.375,5.0,'Radius now OK - match to 1.4m as required and plasma off centre columnShot ends at 320ms 
+22636,extra,M7,True,,disrupted,0.17900000000000002,248145273.4374998,763897.625,17.0,'SS had 6 breakdowns. Early disruption.'
+27757,extra,M8,True,,disrupted,0.211,226939361.97916648,764678.625,3.0,'Disrupts shortly after 200 ms'
+15007,extra,M6,True,,disrupted,0.399,227735138.6718748,1039034.6875,5.0,'OK shot. Density overshot target so gas was off after 0.200 started falling after 0.300 (
+16452,extra,M6,True,0.35,disrupted,0.349,152497361.32812485,645100.25,4.0,'disrupts at 0.35s probably FA fault no SW beam good PINI comparably only a few blibs'
+19874,extra,M7,True,,disrupted,0.529,142137964.84374988,445428.53125,3.0,'OK. Disruption at the end of the TF flat top.'
+21953,extra,M7,True,,disrupted,0.137,292241416.01562476,701020.6875,2.0,'Early disruption.'
+29837,extra,M9,True,0.19,disrupted,0.18500000000000003,160706777.34374985,609622.4375,4.0,'Disrupts at 190 ms.'
+22925,extra,M7,True,,disrupted,0.359,123517233.07291655,635773.5625,70.0,'OK. Disruption occurred later in ramp-down.'
+17532,extra,M6,True,,disrupted,0.32999999999999996,192561208.49609357,795982.6875,4.0,'disrupts when hit P1 limit'
+28334,extra,M8,True,0.13,disrupted,0.24300000000000002,145214369.14062488,831365.4375,11.0,'Disrupts early at 0.230 at IRE short H-mode phase at 0.13s'
+15945,extra,M6,True,0.4,disrupted,0.397,211555194.01041648,765427.4375,28.0,'ran ok disrupts in rampdown at 400ms. Extended Bv window led to P2XO complaint.Observe th
+16979,extra,M6,True,,disrupted,0.29700000000000004,320177203.1249997,744568.375,3.0,'Interesting. Longer beam and disrupt at 0.300 but also a radiating boundary - must be exp
+20820,extra,M7,True,0.33,disrupted,0.32699999999999996,197471005.20833316,742042.6875,4.0,'OK. Ran longer (disrupted at 0.33s). Shot recorded as test-shot by DATAC (Central didn t 
+17901,extra,M6,True,,disrupted,0.32399999999999995,176478886.71874985,840512.5,5.0,'density isn t controlled disruption nearly at the same time every shot'
+22012,extra,M7,True,,disrupted,0.352,490910152.3437496,1005678.375,2.0,'OK plasma two beams but still disrupts early t=350ms'
+20259,extra,M7,True,0.285,disrupted,0.29500000000000004,217967492.18749982,947563.25,4.0,'OK-ish. disrupted about 0.300 - why? RT density jumped again. Looks like a locked mode at
+17101,extra,M6,True,0.37,disrupted,0.369,184033429.68749985,783418.5,4.0,'looks OK disrupts at 370ms'
+17095,extra,M6,True,,disrupted,0.215,212469020.83333313,808121.9375,4.0,'lost H mode at 0.2 and disrupts at 0.215'
+13644,extra,M5,True,0.34,disrupted,0.34099999999999997,223838265.6249998,795661.875,4.0,'Prolonging O/B by 30ms not sufficient to compensate missing I/B (200ms would have been ne
+20455,extra,M7,True,0.56,disrupted,0.5640000000000001,309176304.6874997,427257.625,12.0,'looks good. Disrupts at 560ms'
+17724,extra,M6,True,,disrupted,0.31300000000000006,226232847.65625608,976061.25,4.0,'good beam from the beginning - good sharp disruption'
+18292,extra,M6,True,,disrupted,0.543,318592660.1562497,738043.1875,2.0,'Lost early H mode didn t happen till 0.300 (nel=1.9e20) Longer shot - did disrupt at 0.54
+12769,extra,M5,True,,disrupted,0.354,281841896.48437476,638383.5625,2.0,'PLASMA DISRUPTED 350MS'
+17513,extra,M6,True,0.2,disrupted,0.18800000000000003,84338707.58928564,733970.8125,8.0,'no beam disrupt at 0.2s no colour camera IRE causes vertical displacement which killed th
+19791,extra,M7,True,,disrupted,0.347,176455791.99218735,781465.875,4.0,'Same behaviour as previous shot. No change to disruption. ELM PSUs didn t trip though.'
+13074,extra,M5,True,,disrupted,0.31300000000000006,338109695.3124997,709769.875,2.0,'HMM. MUCH THE SAME AS 13065. STRONG MODE AT 4KHZ AND HXR BURSTS PRECEDING DISRUPTION (NOT
+23401,extra,M7,True,,disrupted,0.24200000000000002,284492671.87499976,666290.25,3.0,'Shot disrupted ZREF too small.'
+23440,extra,M7,True,0.35,disrupted,0.362,243127679.6874998,850678.9375,3.0,'good H-mode from 250 ms - might still be too high - disrupts at 350 ms'
+18066,extra,M6,True,,disrupted,0.32199999999999995,189656968.74999982,734468.25,5.0,'2 MW beam good H-mode till disruption at 0.3'
+25659,extra,M8,True,0.18,disrupted,0.259,93644815.42968741,442037.78125,4.0,'Disrupted from FA trip at 0.18s.'
+29927,extra,M9,True,,disrupted,0.19199999999999998,145717421.87499988,779298.0,9.0,'Disrupts at IRE discharge is overdense.'
+25294,extra,Unknown,True,,disrupted,0.271,166195587.89062485,770337.25,5.0,'Disrupts after 0.29s on a sawtooth RFA is reciprocating OK'
+23886,extra,M7,True,0.3,disrupted,0.30900000000000005,114894057.29166657,433805.9375,4.0,'Disruption at 0.3s. Lost density feedback...'
+18583,extra,M6,True,0.09,disrupted,0.28300000000000003,604174749.9999994,1373090.25,3.0,'SS beam a 0.023s late no pellet since gate valve wasn t open (RO did not speck to the SL 
+22028,extra,M7,True,,disrupted,0.19799999999999998,392434111.32812464,811093.6875,2.0,'No NBI shot disrupts.'
+20601,extra,M7,True,,disrupted,0.373,632208687.4999994,788706.25,2.0,'IRE at 0.186s disrupts early at 0.371 not clear why but probably a locked mode density fi
+12245,extra,M5,True,,disrupted,0.355,229244769.28710917,931806.1875,4.0,'GOOD BEAM PROBE TOO LATE AND TOO FAR OUT PLASMA DISRUPTS EARLIER'
+28338,extra,M8,True,0.238,disrupted,0.23600000000000002,184475761.71874985,829490.5625,4.0,'Disrupts at 0.238s on a VDE strange density trace the Photron camera indicates that we ma
+18525,extra,M6,True,,disrupted,0.279,334519109.3749997,1639230.375,4.0,'good SW SS 2 cutouts. RT dens jumps. brief H mode. still disrupting.  q95=4'
+26893,extra,M8,True,0.32,disrupted,0.31999999999999995,209405136.71874982,954184.1875,5.0,'Plasma disrupts early at 320 ms.Good beams.The same happened yesterday in shot 26857.'
+13719,extra,M5,True,,disrupted,0.19899999999999998,206972776.04166648,742536.875,8.0,'density now too low. disrupts early'
+24597,extra,M7,True,0.29,disrupted,0.281,342553285.1562497,860069.625,3.0,'Better shot  disrupts at 290ms.'
+13609,extra,M5,True,0.23,disrupted,0.231,279899074.21874976,753975.4375,3.0,'disruption at 230 ms'
+27700,extra,M8,True,0.35,disrupted,0.354,305486152.3437497,652050.625,2.0,'One breakdown on SW.  Shot disrupts at 350 ms. Image shows RMPs effects plasma at a coil 
+14317,extra,M5,True,0.31,disrupted,0.31200000000000006,211312044.9218807,955631.3125,5.0,'ANE_DENSITY loopy (real-time measurement also wrong at start but gives 8.5e19 at end whic
+20456,extra,M7,True,,disrupted,0.5870000000000001,29874622.558593724,421831.15625,28.0,'good - ran quietly without disruption'
+22758,extra,M7,True,,disrupted,0.276,181499126.95312485,813324.625,5.0,'NOt bad shot disrupt at 0.280 but OK till then.'
+13720,extra,M5,True,,disrupted,0.344,366629565.6738278,762054.8125,2.0,'density unchanged but doesn t disrupt this time.'
+22298,extra,M7,True,,disrupted,0.278,202850822.91666648,849685.3125,5.0,'No SW beam disrupt at 0.260 - density only slightly reduced at that time'
+17301,extra,M6,True,,disrupted,0.26,233872411.45833313,899431.5,4.0,'Not great - plasma over-sized during startup. Disrupt at 0.260 (as did today s standard s
+20604,extra,M7,True,0.485,disrupted,0.483,690177273.4374994,818247.75,2.0,'no H-mode disrupts at 0.485s'
+16208,extra,M6,True,0.36,disrupted,0.362,153976048.82812485,663554.5625,4.0,'Disrupts at 360 ms locked mode after density decline from 300 ms'
+15555,extra,M6,True,0.6,clean,,,468298.3125,83.0,'Plasma rolled off slowly but disrupted at 600ms.'
+22595,extra,M7,True,0.29,disrupted,0.29100000000000004,253070369.79166645,905748.9375,3.0,'Boo. Disrupt at 0.290s. Large mode slowing from 18kHz. Desnity a bit low compared with 22
+17416,extra,M6,True,,disrupted,0.268,175299580.07812485,773580.9375,4.0,'density pumping out after 0.150 disrupt at 0.270. otherwise OK.'
+22057,extra,M7,True,0.28,disrupted,0.267,204082075.52083316,796067.9375,4.0,'Good beams shot disrupts at 0.28s now.'
+15280,extra,M6,True,,disrupted,0.30800000000000005,177645154.9479165,668300.8125,12.0,'Success! A disruption just after 300 ms. However the IMACON camera didn t work during the
+29820,extra,M9,True,,disrupted,0.161,76164555.98958327,541567.75,7.0,'Even early disruption. Interferometer failed.'
+14180,extra,M5,True,,disrupted,0.33299999999999996,234201442.70833313,837530.5625,4.0,'nice one. Good H-mode.  Event  at 317ms (first sawtooth locked mode?) leads to disruption
+28908,extra,M9,True,0.23,disrupted,0.24100000000000002,152951772.46093735,673085.375,4.0,'Disrupts early at 0.23s (early flow ref similar to 28907). Overdense in the early phase. 
+21976,extra,M7,True,,disrupted,0.34199999999999997,221428753.9062498,1141577.0,5.0,'major event at end of Ip ramp ELMy H mode from 0.310 disrupt at 0.330'

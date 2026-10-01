@@ -82,3 +82,15 @@ def test_empty_group_is_an_error(monkeypatch):
     monkeypatch.setattr(data, "_open_summary", lambda shot_id: xr.Dataset())
     with pytest.raises(ValueError):
         data.load_shot(9, retries=0, backoff=0)
+
+
+def test_open_summary_reads_a_real_zarr_v3_store(tmp_path, monkeypatch):
+    """Write a small zarr v3 store to disk and read it back through the same code path as the real servers."""
+    root = tmp_path / "5.zarr"
+    xr.Dataset(attrs={}).to_zarr(root, mode="w", zarr_format=3)
+    fake_summary().to_zarr(root, group="summary", mode="a", zarr_format=3)
+    monkeypatch.setattr(config, "SHOT_ZARR_URL", str(tmp_path / "{shot_id}.zarr"))
+    df = data.load_shot(5)
+    assert len(df) == 400
+    assert df["ip"].iloc[0] == pytest.approx(-5e5)
+    assert df["neutron_rates_total"].isna().all()
