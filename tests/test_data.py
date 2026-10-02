@@ -1,8 +1,11 @@
 """Tests for src/data.py using fake in-memory shots, so no network is needed."""
+import warnings
+
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
+import zarr
 
 from src import config, data
 
@@ -91,16 +94,35 @@ def test_empty_group_is_an_error_and_is_retried(monkeypatch):
     assert len(attempts) == 3
 
 
+def write_store_like_fair_mast(root):
+    """Zarr v3 store laid out like the real ones: a summary group plus consolidated metadata at the root."""
+    with warnings.catch_warnings():
+        # zarr warns that consolidated metadata is not yet part of the v3 spec; FAIR-MAST uses it anyway
+        warnings.simplefilter("ignore")
+        xr.Dataset(attrs={}).to_zarr(root, mode="w", zarr_format=3, consolidated=False)
+        fake_summary().to_zarr(root, group="summary", mode="a", zarr_format=3, consolidated=False)
+        zarr.consolidate_metadata(str(root))
+
+
 def test_open_summary_reads_a_real_zarr_v3_store(tmp_path, monkeypatch):
-    """Write a small zarr v3 store to disk and read it back through the same code path as the real servers."""
-    root = tmp_path / "5.zarr"
-    xr.Dataset(attrs={}).to_zarr(root, mode="w", zarr_format=3, consolidated=False)
-    fake_summary().to_zarr(root, group="summary", mode="a", zarr_format=3, consolidated=False)
+    """Read a small v3 store through the same code path as the real servers."""
+    write_store_like_fair_mast(tmp_path / "5.zarr")
     monkeypatch.setattr(config, "SHOT_ZARR_URL", str(tmp_path / "{shot_id}.zarr"))
     df = data.load_shot(5)
     assert len(df) == 400
     assert df["ip"].iloc[0] == pytest.approx(-5e5)
     assert df["neutron_rates_total"].isna().all()
+
+
+def test_open_summary_uses_root_consolidated_metadata(tmp_path, monkeypatch):
+    """On S3 the arrays can only be found through the root's consolidated metadata (folders cannot be listed).
+    Deleting the per-array metadata files mimics that: only a reader that uses the root metadata still works."""
+    root = tmp_path / "6.zarr"
+    write_store_like_fair_mast(root)
+    for array_meta in (root / "summary").glob("*/zarr.json"):
+        array_meta.unlink()
+    monkeypatch.setattr(config, "SHOT_ZARR_URL", str(tmp_path / "{shot_id}.zarr"))
+    assert data.load_shot(6, retries=0)["ip"].notna().all()
 
 
 def test_missing_shot_is_not_retried(monkeypatch):

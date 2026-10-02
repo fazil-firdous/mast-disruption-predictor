@@ -24,9 +24,10 @@ def load_shot_table(use_cache=True):
 
 
 def _open_summary(shot_id):
-    # the stores were re-ingested as zarr v3 on 2026-09-22, which zarr<3 cannot read (KeyError '.zmetadata')
+    # zarr v3 stores since 2026-09-22 (zarr<3 cannot read them). The array list lives only in the root's
+    # consolidated metadata and S3 cannot list folders, so consolidated=False sees an empty group.
     url = config.SHOT_ZARR_URL.format(shot_id=shot_id)
-    return xr.open_zarr(url, group=config.SUMMARY_GROUP, consolidated=False)
+    return xr.open_zarr(url, group=config.SUMMARY_GROUP, consolidated=True)
 
 
 def _summary_to_frame(ds):
