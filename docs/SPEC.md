@@ -160,6 +160,13 @@ Missingness: if a signal is absent for the whole shot, its features are NaN and 
 
 Only compute windows where `t_end >= t_start + WINDOW_MS`.
 
+Phase 3 additions (all causal, see `NOTES.md`):
+- Windows also stop once the plasma has ended: the first time from `t_start + WINDOW_MS` on that `|Ip| < IP_ON`, after `|Ip|` has once reached `MIN_PEAK_IP`. Both conditions are needed because of breakdown transients.
+- `t_start` is undefined (no windows) if `|Ip| >= IP_ON` already at the first sample, because no breakdown is visible.
+- `has_<signal>` = 1 if the signal has any finite sample at or before `t_end`. For a signal absent from the whole shot this is the same as the definition above, and it never looks ahead.
+- `pnbi_on` is NaN when `pnbi_last` is NaN.
+- Window sample set: `t_end - WINDOW_MS < time <= t_end`, so 20 samples on the 1 ms grid. `t_end` is always a real sample time.
+
 ## 8. Dataset construction
 
 ### 8.1 Shot selection

@@ -98,3 +98,40 @@ The owner asked me to fix the open items myself before Phase 3. What changed and
 
 Still open, cannot be fixed from here
 - The notebook has not been run in Colab, and the real HTTPS servers cannot be reached from the sandbox. The first Colab run (connection-check cell) is the real test.
+
+## 2026-10-02 - Live check of shot 11860, and a loader bug it found
+
+- I could not run Colab myself (no logged-in browser is available). The closest equivalent is a fresh cloud machine with normal internet. So I added a GitHub Actions workflow (`.github/workflows/ci.yml`) that does what the notebook does: clean checkout, `pip install -r requirements.txt` on Python 3.12, then `scripts/check_live.py` against the real servers. It also runs `pytest`.
+- First run: tests passed, live check FAILED. The `summary` group opened empty after 1.7 s.
+- Cause (my bug from Phase 1): `xr.open_zarr(..., consolidated=False)`. The real stores list their arrays only in the root `zarr.json` (`consolidated_metadata`, 352 entries for 11860, including `summary/ip`, `summary/time`). S3 over plain HTTPS cannot list folders, so without consolidated metadata zarr finds no arrays. My local HTTP test had passed only because Python's `http.server` serves folder listings, which S3 does not. A debug run on GitHub Actions tried each option against the live server: `consolidated=False` gives 0 variables; `consolidated=True` or `None` gives all 4.
+- Fix: `consolidated=True` in `src/data.py`. New regression test `test_open_summary_uses_root_consolidated_metadata` (it fails with the old setting, checked). The local copies in `data/mirror` got the same consolidated root metadata (`zarr.consolidate_metadata`); all 801 cached shots re-read identical.
+- Second CI run (zarr 3.4.0, xarray 2026.9.0): shot table 11573 x 189; shot 11860 has 385 samples from -0.100 to 0.284 s at a 1 ms step; max |Ip| 853 kA at 0.210 s; 46 kA at 0.213 s; all four signals present. All SPEC 3.1 checks PASS. **Shot 11860 loads from the real servers on a fresh machine.** Colab itself is still untested; it is the same code path.
+
+## 2026-10-02 - Phase 3: causal window features
+
+Implemented `src/features.py` (`prepare_signals`, `find_t_start`, `find_t_plasma_off`, `window_features`, `window_ends`, `shot_windows`, `feature_names`) per SPEC 6 and 7, and `scripts/feature_check.py`. 30 features per window. 69 tests pass.
+
+Tests (SPEC 12 causality and more)
+- Causality: random huge values written after `t_end` leave that window's features exactly equal (4 window ends tested). A whole-shot version: tripling |Ip| after 0.15 s leaves all earlier rows identical.
+- Planted leaks are caught: a 1 ms look-ahead in the window mask fails 5 tests; a whole-shot running max fails 6.
+- Also tested: exactly 20 samples per window, slope in units/s, ip sign has no effect, windows start at `t_start + WINDOW_MS` and step by `STRIDE_MS`, nothing at or after `t_stop`, windows stop when the plasma ends, missing signal gives NaN features and `has_` = 0, running max ignores a later spike, ratio offsets, a tiny shot gives no windows, breakdown transients.
+
+Judgement calls
+- **Plasma-off rule.** SPEC 7 does not say when windows end for a clean shot. With no plasma there is nothing to predict, so windows stop the first time `|Ip| < IP_ON`. Two guards were needed, both found on real data:
+  (1) 14195: |Ip| touches 58 kA at breakdown, then hovers at 30-50 kA for tens of ms before rising to 743 kA. So the plasma only counts as "ended" after |Ip| has once reached `MIN_PEAK_IP`.
+  (2) 11826, 16568, 16593, 20749, 21014: within ~5 ms of `t_start`, |Ip| spikes past 100 kA and dips to about 10 kA for one or two samples, then ramps up. So the search starts at the first possible window end, `t_start + WINDOW_MS`.
+  With both, windows end within a few ms of the shot table's `plasma_end_time` (median 3 ms before for clean shots; 8 ms for disrupted shots, which stop at `t_disrupt`). The largest gap is 26842 (69 ms): there the current really collapses to ~30 kA at 0.12 s ("No P4 - plasma expands out"), so stopping is right.
+- **Current already on at the first sample.** 25424, 25470 (and 25523 among the cached shots), all M8: |Ip| is 260-365 kA at -0.100 s and stays almost flat for over 2 s ("OK.", "TF and P4 OK."). These are not normal MAST pulses (probably engineering or test shots; I can't confirm). With no breakdown there is no `t_start`, so they get no windows. Phase 4 should log them in `skipped.csv`.
+- **`has_<signal>`** uses samples up to `t_end` only (strictly causal; same as the SPEC for wholly missing signals).
+- Window = `t_end - 20 ms < time <= t_end`. `t_end` is snapped to a real sample. Time comparisons use a 1e-9 s slack because the stored times are floats like 0.21000000000000002.
+
+Run on the 400 report shots (`results/features/summary.md`)
+- 26,360 windows in about 17 s. 0 infinite values. 2 shots without windows (25424, 25470). Median windows per shot: 74 clean, 55 disrupted.
+- Real-data causality: each shot cut at a random window end and recomputed from the cut data only. 12,986 rows compared, all identical.
+- Missing values (share of windows): prad 19.7%, pnbi 9.1%, neutrons 4.2%, prad/pnbi 26.9%. These come from whole-shot absence: 80, 36 and 20 of 399 shots have no prad, pnbi or neutrons.
+- DATA NOTE: `neutron_rates_total` is exactly 0 for the whole shot in 59 of the 760 cached shots that have it (11860 included). In all 59, the beams never went above 100 kW (11860 peaks at 16 W). Ohmic plasmas make few neutrons, so I keep the zeros as real values, not as missing.
+
+Input for Phase 4 (not decided here; `shot_windows` takes `t_stop` so either option is possible)
+- Under `LABEL_SOURCE = "both"`, 167 of the 229 clean shots still end in a fast current quench that nobody noted. Their windows give 1,002 clean windows in the 30 ms before that quench. That is about as many as the 1,022 positive windows from the 171 disrupted shots, and the two kinds look alike on these signals.
+- The same clean shots also keep 189 windows at or after their quench, while disrupted shots stop at `t_disrupt`. A model could learn "the quench is under way, so it's clean", which is the wrong lesson.
+- Suggestion: stop every shot's windows at the detector's quench time (`t_stop` = detector `t_disrupt` whenever a quench is found), so both classes end the same way. The 1,002 near-quench clean windows would remain; whether to keep them (honest, hard), drop them, or weight them is the main Phase 4 decision.
