@@ -1,0 +1,31 @@
+# Runs the tests, then checks that the real data servers can be read from a fresh cloud machine,
+# the same way the Colab notebook does (clone, pip install -r requirements.txt, open shot 11860).
+name: ci
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q -W error
+
+  live-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: versions
+        run: python -c "import zarr, xarray; print('zarr', zarr.__version__, 'xarray', xarray.__version__)"
+      - name: open shot 11860 summary over HTTPS
+        run: python scripts/check_live.py
