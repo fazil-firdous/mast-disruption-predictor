@@ -74,6 +74,11 @@ def _cache_path(shot_id):
     return os.path.join(config.RAW_DIR, f"{shot_id}.parquet")
 
 
+def is_cached(shot_id):
+    """True if the shot's signals are already on disk (so loading it needs no network)."""
+    return os.path.exists(_cache_path(shot_id))
+
+
 def _fetch_shot(shot_id, retries, backoff):
     """Download one shot, retrying with growing waits. Raises the last error if all attempts fail."""
     last_error = None

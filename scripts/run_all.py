@@ -8,7 +8,7 @@ import traceback
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.build_dataset import build
+from scripts.build_dataset import build, table_from_report
 from src import config, experiment, notify
 
 MAIN_EXPERIMENTS = ["E0", "E1", "E2", "E3"]
@@ -61,11 +61,14 @@ def main():
     parser.add_argument("--scale", choices=["small", "full"], default="small")
     parser.add_argument("--skip-build", action="store_true", help="reuse data/processed from an earlier run")
     parser.add_argument("--main-only", action="store_true", help="only E0-E3")
+    parser.add_argument("--offline", action="store_true", help="no network: use only shots already on disk")
+    parser.add_argument("--from-report", help="use the 400 shots of a Phase 2 per_shot.csv (mastapp.site down)")
     args = parser.parse_args()
     notify.send(f"MAST pipeline starting (scale={args.scale}, label source={config.LABEL_SOURCE})")
 
     if not args.skip_build:
-        counts = step(f"build dataset ({args.scale})", build, args.scale)
+        table = table_from_report(args.from_report) if args.from_report else None
+        counts = step(f"build dataset ({args.scale})", build, args.scale, False, table, args.offline)
         if counts is None:
             sys.exit(1)
         notify.send(f"dataset: {counts}")

@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from src import config, dataset
-from src.data import check_connection, download_shots, load_shot_table
+from src.data import check_connection, download_shots, is_cached, load_shot_table
 
 
 def table_from_report(path):
@@ -30,14 +30,22 @@ def table_from_report(path):
                          "shot_postshot_comment": comments})
 
 
-def build(scale="small", skip_check=False, table=None):
+def shot_counts(scale):
+    """(n_disrupted, n_clean) for a scale: 'small' is the balanced SPEC subset, 'full' every disruption plus
+    FULL_N_CLEAN clean shots (None means all)."""
+    if scale == "small":
+        return config.N_DISRUPTED, config.N_CLEAN
+    return None, config.FULL_N_CLEAN
+
+
+def build(scale="small", skip_check=False, table=None, offline=False):
     """Download, label, select, window and split. Returns a dict of counts for the log / Telegram.
 
     table: use this shot table and every shot in it (e.g. table_from_report) instead of the live one.
+    offline: no network at all; use only shots already on disk (e.g. brought by the GitHub relay).
     """
-    n_disrupted = config.N_DISRUPTED if scale == "small" else None
-    n_clean = config.N_CLEAN if scale == "small" else config.FULL_N_CLEAN
-    if not skip_check:
+    n_disrupted, n_clean = shot_counts(scale)
+    if not skip_check and not offline:
         ok, message = check_connection(attempts=config.CONNECTION_CHECK_ATTEMPTS)
         if not ok:
             raise RuntimeError(message + "\nRun: python scripts/diagnose_network.py")
@@ -48,7 +56,10 @@ def build(scale="small", skip_check=False, table=None):
     else:
         ids = [int(i) for i in table["shot_id"]]
         n_disrupted = n_clean = None
-    failed = set(download_shots(ids)["failed"])
+    if offline:
+        failed = {i for i in ids if not is_cached(i)}
+    else:
+        failed = set(download_shots(ids)["failed"])
     labelled = dataset.label_shots([i for i in ids if i not in failed], table)
     shots = dataset.select_shots(labelled, n_disrupted, n_clean)
 
@@ -73,9 +84,10 @@ def main():
                         help="small: N_DISRUPTED + N_CLEAN shots; full: every disruption + FULL_N_CLEAN clean")
     parser.add_argument("--skip-check", action="store_true", help="do not test the connection first")
     parser.add_argument("--from-report", help="use the shots and labels of a Phase 2 per_shot.csv (mastapp.site down)")
+    parser.add_argument("--offline", action="store_true", help="no network: use only shots already on disk")
     args = parser.parse_args()
     table = table_from_report(args.from_report) if args.from_report else None
-    print(build(args.scale, args.skip_check, table))
+    print(build(args.scale, args.skip_check, table, args.offline))
 
 
 if __name__ == "__main__":

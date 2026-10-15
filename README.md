@@ -2,7 +2,7 @@
 
 A machine-learning project that watches a MAST tokamak plasma pulse as it unfolds and tries to raise an alarm before a disruption, using only information available up to that moment. Work is staged by phase (see `docs/SPEC.md` and `the project rules`).
 
-**Status: the v1 pipeline (Phases 0 to 7) and the first research extensions (E8-E10) are written, tested (114 tests) and have run end to end on real MAST shots. Trained models and their results live on the owner's private server, not in this repository (see "Public code, private runs").**
+**Status: the v1 pipeline (Phases 0 to 7) and the first research extensions (E8-E10) are written, tested (127 tests) and have run end to end on real MAST shots. Trained models and their results live on the owner's private server, not in this repository (see "Public code, private runs").**
 
 ## How it works
 1. **Data**: four global signals per shot from FAIR-MAST (`|Ip|`, radiated power, neutron rate, NBI power), 1 ms sampling.
@@ -36,12 +36,13 @@ python scripts/predict_shot.py --shot 11860        # run the best trained model 
 If `mastapp.site` (the shot table) is down, `python scripts/build_dataset.py --from-report results/label_report/per_shot.csv` builds a dataset from the 400 shots of the Phase 2 report instead. `python scripts/diagnose_network.py` explains any connection problem.
 
 ## Public code, private runs
-The repository holds only code, docs and small reference results. Everything a training run produces (downloaded data, trained models, results, logs) goes to the folder named by `MAST_HOME`; unset, that is the current folder (git-ignored). On a personal server, `MAST_HOME` points outside the repo, so your own runs never end up on GitHub, and the Telegram token stays in the git-ignored `.env`. Anyone who clones the repo gets the same pipeline and trains their own models.
+The repository holds only code, docs and small reference results. Everything a training run produces (downloaded data, trained models, results, logs) goes to the folder named by `MAST_HOME`; unset, that is the current folder (git-ignored). On a personal server the setup puts everything, including the private settings file with the tokens (`~/mast-private/.env`), in `~/mast-private`. That folder is outside the code, so deleting or re-cloning the code never touches it, and your own runs never end up on GitHub. Anyone who clones the repo gets the same pipeline and trains their own models.
 
 ## Running forever on a personal VPS
 1. Make a Telegram bot with @BotFather and note the token and your chat id.
-2. `git clone https://github.com/fazil-mastu/mastu.git && cd mastu && bash deploy/setup_vps.sh`. It installs everything, asks for the token and chat id, sets `MAST_HOME=~/mast-private`, runs the tests and the network check, and installs the research server as a systemd service (it restarts after crashes and reboots).
-3. The research server (`scripts/research_server.py`) then: waits out network outages, runs the full pipeline for every new commit pushed to GitHub, spends idle time on the E10 seed sweep, sends a daily heartbeat, and answers commands from your chat only: `/status`, `/results`, `/log`, `/predict 11860`, `/diagnose`, `/run`, `/update`, `/pause`, `/resume`, `/stop`, `/help`.
+2. `git clone https://github.com/fazil-mastu/mastu.git && cd mastu && bash deploy/setup_vps.sh`. It installs everything, asks for the bot token, chat id and (optionally) a GitHub token, stores them in `~/mast-private/.env`, runs the tests and the network check, and installs the research server as a systemd service (it restarts after crashes and reboots).
+   - **If STFC blocks your server** (its IP range; check with `scripts/diagnose_network.py`), give the setup a GitHub fine-grained token: Settings > Developer settings > Fine-grained tokens, repository `mastu` only, permission **Actions: read and write**. The server then uses the **GitHub data relay**: a GitHub Actions job (`.github/workflows/fetch_data.yml`), which can reach STFC, downloads the shots and hands them over as a one-day artifact; your server unpacks them into `~/mast-private/data` and trains there. Only public MAST data passes through GitHub; nothing is committed.
+3. The research server (`scripts/research_server.py`) then: waits out network outages, runs the full pipeline for every new commit pushed to GitHub, spends idle time on the E10 seed sweep, sends a daily heartbeat, and answers commands from your chat only: `/status`, `/results`, `/log`, `/predict 11860`, `/diagnose`, `/run`, `/fetch`, `/update`, `/pause`, `/resume`, `/stop`, `/help`.
 4. Prefer `screen`? Stop the service (`sudo systemctl disable --now mast-research`) and run `screen -S mast .venv/bin/python scripts/research_server.py`. Only one copy can run at a time.
 
 ## Results

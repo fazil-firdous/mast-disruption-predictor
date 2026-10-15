@@ -13,6 +13,7 @@ HELP = """MAST research server commands:
 /predict 11860 - run the best saved model on one shot and send the plot
 /diagnose - check the network path to the data servers
 /run - start a full pipeline run now
+/fetch - fetch the data again through GitHub (for servers STFC blocks), then run
 /update - pull new code now (the server restarts itself)
 /pause, /resume - stop or allow new jobs
 /stop - kill the running job
@@ -23,7 +24,7 @@ def new_state():
     """State of a server that has never run."""
     return {"offset": 0, "last_ok_commit": None, "failed_commit": None, "failed_at": 0.0, "paused": False,
             "force_pipeline": False, "seeds_done": [], "last_heartbeat": 0.0, "last_update_check": 0.0,
-            "network_down_since": None, "started_at": time.time()}
+            "network_down_since": None, "relay_manifest": None, "force_fetch": False, "started_at": time.time()}
 
 
 def read_state(path=STATE_PATH):
@@ -70,6 +71,37 @@ def next_job(state, head, now, processed_ready):
             if seed not in done:
                 return "seed", seed
     return None, None
+
+
+def access_mode(data_ok, table_ok, relay_ok):
+    """How the next full run gets its data: 'direct' (STFC and shot table answer), 'direct-report' (STFC answers,
+    mastapp.site is down: use the 400 report shots), 'relay' (STFC blocks this server, a GitHub token is set),
+    or None (wait and try again)."""
+    if data_ok and table_ok:
+        return "direct"
+    if data_ok:
+        return "direct-report"
+    if relay_ok:
+        return "relay"
+    return None
+
+
+def relay_needed(state, scale):
+    """True if the relay has not yet brought data for this scale, or a re-fetch was asked for."""
+    manifest = state["relay_manifest"]
+    return state["force_fetch"] or manifest is None or manifest.get("scale") != scale
+
+
+def pipeline_args(scale, mode, manifest=None):
+    """Arguments for scripts/run_all.py: offline after a relay fetch, and the report shots when the relay or this
+    server had no shot table."""
+    args = ["--scale", scale]
+    if mode == "relay":
+        args.append("--offline")
+    no_table = mode == "direct-report" or (mode == "relay" and manifest and manifest.get("table_source") == "report")
+    if no_table:
+        args += ["--from-report", config.REPORT_CSV]
+    return args
 
 
 def heartbeat_due(state, now):

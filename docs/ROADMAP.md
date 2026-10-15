@@ -33,6 +33,7 @@ Status markers: **done** (code + tests), **built** (code + tests, waiting for a 
 - **E2 Transfer — later.** MAST to MAST-U when data is public; few-shot adaptation.
 
 ## Track H — Infrastructure (done)
+- GitHub data relay for servers STFC blocks (`src/relay.py`, `.github/workflows/fetch_data.yml`); private settings in the permanent `~/mast-private/.env`.
 - Public code, private runs (`MAST_HOME`), saved models (`src/registry.py`), live prediction (`scripts/predict_shot.py`), network diagnosis, always-on research server with Telegram commands, E10 seed sweep for spreads.
 
 ## Track F — Explanation and demo
