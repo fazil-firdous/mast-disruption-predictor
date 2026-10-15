@@ -135,3 +135,38 @@ Input for Phase 4 (not decided here; `shot_windows` takes `t_stop` so either opt
 - Under `LABEL_SOURCE = "both"`, 167 of the 229 clean shots still end in a fast current quench that nobody noted. Their windows give 1,002 clean windows in the 30 ms before that quench. That is about as many as the 1,022 positive windows from the 171 disrupted shots, and the two kinds look alike on these signals.
 - The same clean shots also keep 189 windows at or after their quench, while disrupted shots stop at `t_disrupt`. A model could learn "the quench is under way, so it's clean", which is the wrong lesson.
 - Suggestion: stop every shot's windows at the detector's quench time (`t_stop` = detector `t_disrupt` whenever a quench is found), so both classes end the same way. The 1,002 near-quench clean windows would remain; whether to keep them (honest, hard), drop them, or weight them is the main Phase 4 decision.
+
+## 2026-10-15 - Phases 4 to 7 in one go, plus the VPS runner (owner's instruction)
+
+The owner asked me to finish the whole pipeline without stopping between phases, then run it on a VPS with Telegram updates. So the "one phase at a time / STOP FOR REVIEW" rule was waived for this session at the owner's request.
+
+Network: this sandbox still cannot reach `mastapp.site`, `s3.echo.stfc.ac.uk` or `api.telegram.org` (connection reset), and the 801-shot local copy from earlier sessions is gone (fresh container, data is never committed). **So every piece of code below is tested only on synthetic shots. No real-data model result exists yet.** The first real numbers will come from `scripts/run_all.py` on the VPS.
+
+Cleanups from the code review
+- `detect_disruption` takes an optional `min_frac_of_peak`, so `label_report.sensitivity()` no longer changes `config` while it runs.
+- The unexplained `+ 10` ms in the spike rule is now `config.SPIKE_BASELINE_MS`.
+- `feature_check.py` passes `t_stop` as an argument instead of hiding it in `DataFrame.attrs`; `lambda` assignment and unclosed `json.load(open(...))` removed; `tests/test_smoke.py` removed (real tests exist).
+- `data._log_skipped` is now `data.log_skipped`, because `dataset.py` logs unknown and window-less shots there too.
+- Known small inconsistency, left as is on purpose: the detector finds the plasma start on the median-filtered |Ip|, `features.find_t_start` on the raw |Ip|. They can differ by one sample. Changing the detector would change the Phase 2 labels, and the detector's `t_start` is only used to skip the breakdown when searching for a quench.
+
+Phase 4 decision (owner said "leave everything", so I took my recommendation from the Phase 3 notes)
+- `STOP_AT_QUENCH = True`: every shot's windows end at the detector's quench, disrupted or clean. Before, clean shots kept windows during their own quench while disrupted shots stopped, which would teach "quench under way = clean".
+- `NEAR_QUENCH_CLEAN = "keep"`: clean windows in the 30 ms before an unnoted quench stay in training as label 0. Honest and hard. Setting it to `"drop"` removes them from training only; evaluation always keeps every window, otherwise we would hide exactly the cases that cause false alarms.
+- Shot pool: every note-disrupted shot (under "both" a disruption needs a note) plus 1.5x the needed clean shots at random, then label, then sample `N_DISRUPTED` / `N_CLEAN`. `--scale full` takes every disruption and `FULL_N_CLEAN = 3000` clean shots (SPEC 8.1).
+- The window table stores labels for all three `LABEL_SOURCE`s, so E7 relabels without rebuilding.
+
+Phase 5-7 judgement calls
+- Alarm time = end of the K-th window over threshold. For threshold sweeps, `alarms.alarm_times` uses "smallest of the last K scores >= threshold", which is the same rule; a test checks it against the plain loop on 50 random sequences.
+- Caught = alarm at least `MIN_WARNING_MS` before `t_disrupt`, however early (SPEC 4). Very early alarms are not penalised; worth revisiting.
+- Threshold: lowest one with validation false-alarm rate <= 5%. If no threshold reaches that, the one with the fewest false alarms is used and `meets_false_alarm_limit` is false in `metrics.json` (found in the synthetic rehearsal: B0's 0/1 scores still fire at threshold 1.0).
+- Grid choice: the combination that meets the limit with the highest validation catch rate, PR-AUC breaks ties.
+- B0 thresholds are quantiles of the training clean windows (e.g. a slope lower than 99.9% of normal windows), so no hand-picked physical numbers that might not fit MAST.
+- HistGradientBoosting's early stopping holds out 10% of training windows at random. Windows from one shot can then sit on both sides, which only affects when it stops, never val or test.
+- E4, E5 and E7 compare settings on **validation** only; the test split is used once per main model (E0-E3) and in E6 (SPEC 8.4).
+- Added `src/experiment.py` (not in SPEC 13) so `run_experiment.py` and `run_all.py` share one implementation.
+
+Synthetic rehearsal (300 fake shots: noted quench with a radiation rise, unnoted quench, slow ramp-down): `run_all.py` ran E0-E7 with 0 failures in under 5 minutes on this sandbox. The numbers are meaningless for physics and are not reported anywhere.
+
+VPS and Telegram
+- `src/notify.py` sends messages and files through the Telegram Bot API with `requests` (no new dependency). Token and chat id come from `.env` (git-ignored) or the environment. A failed message never stops a run.
+- `deploy/setup_vps.sh` installs everything, writes `.env`, sends a test message, runs pytest and adds a nightly cron job. `deploy/run_pipeline.sh` pulls, runs pytest, runs `run_all.py --scale full`, sends the log, and skips commits that already ran successfully.

@@ -143,3 +143,25 @@ def feature_names():
               "t_since_start", "pnbi_on"]
     names += [f"has_{name}" for name in SIGNALS]
     return names
+
+
+# signals each cross-signal feature is built from, for the signal ablation (E5)
+DERIVED_INPUTS = {
+    "ip_frac_of_running_max": ["ip_abs"],
+    "prad_over_pnbi": ["prad", "pnbi"],
+    "prad_over_ip": ["prad", "ip_abs"],
+    "neutron_slope_rel": ["neutrons"],
+    "t_since_start": [],
+    "pnbi_on": ["pnbi"],
+}
+
+
+def features_without(signal):
+    """feature_names() minus every feature that uses the given signal (e.g. 'prad')."""
+    kept = []
+    for name in feature_names():
+        uses_signal = name.startswith(f"{signal}_") or name == f"has_{signal}"
+        if uses_signal or signal in DERIVED_INPUTS.get(name, []):
+            continue
+        kept.append(name)
+    return kept

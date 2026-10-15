@@ -57,6 +57,7 @@ def median_filter(x, size=config.MEDIAN_FILTER_SAMPLES):
 
 
 def _result(status, t_disrupt=np.nan, quench_rate=np.nan, peak_ip=np.nan):
+    """The dict detect_disruption returns, built in one place so every exit has the same keys."""
     return {"status": status, "detected": status == "disrupted", "t_disrupt": t_disrupt,
             "quench_rate": quench_rate, "peak_ip": peak_ip}
 
@@ -72,12 +73,15 @@ def _first_quench_candidate(t, x, floor, t_start):
     return None
 
 
-def detect_disruption(time, ip):
+def detect_disruption(time, ip, min_frac_of_peak=None):
     """Find the disruption time of one shot from its plasma current.
 
     Returns a dict with status ('disrupted', 'clean' or 'unknown'), detected (bool), t_disrupt (s),
     quench_rate (A/s) and peak_ip (A). 'unknown' means |Ip| never reached MIN_PEAK_IP.
+    min_frac_of_peak overrides CQ_MIN_FRAC_OF_PEAK (the sensitivity table in label_report.py uses it).
     """
+    if min_frac_of_peak is None:
+        min_frac_of_peak = config.CQ_MIN_FRAC_OF_PEAK
     time = np.asarray(time, dtype=float)
     ip = np.asarray(ip, dtype=float)
     keep = np.isfinite(time) & np.isfinite(ip)
@@ -92,7 +96,7 @@ def detect_disruption(time, ip):
 
     above = np.where(x >= config.IP_ON)[0]
     t_start = t[above[0]]
-    floor = max(config.IP_ON, config.CQ_MIN_FRAC_OF_PEAK * peak)
+    floor = max(config.IP_ON, min_frac_of_peak * peak)
     first = _first_quench_candidate(t, x, floor, t_start)
     if first is None:
         return _result("clean", peak_ip=peak)
@@ -106,8 +110,10 @@ def detect_disruption(time, ip):
     t_disrupt = t[onset]
 
     # an Ip spike just before the fall marks the thermal quench, so use its time instead
-    spike_window = (t >= t[onset] - config.SPIKE_LOOKBACK_MS / 1000) & (t <= t[onset])
-    before = (t >= t[onset] - (config.SPIKE_LOOKBACK_MS + 10) / 1000) & (t < t[onset] - config.SPIKE_LOOKBACK_MS / 1000)
+    lookback = config.SPIKE_LOOKBACK_MS / 1000
+    baseline = config.SPIKE_BASELINE_MS / 1000
+    spike_window = (t >= t[onset] - lookback) & (t <= t[onset])
+    before = (t >= t[onset] - lookback - baseline) & (t < t[onset] - lookback)
     if before.any():
         spike_idx = np.where(spike_window)[0][np.argmax(x[spike_window])]
         if x[spike_idx] >= (1 + config.SPIKE_MIN_RISE) * np.median(x[before]):
@@ -135,15 +141,15 @@ def final_label(note_flag, signal_flag, source=None):
 def shot_label(time, ip, comment, source=None):
     """Final label for one shot under config.LABEL_SOURCE.
 
-    Returns a dict with status ('disrupted', 'clean' or 'unknown'), disrupted (bool), t_disrupt (s or NaN)
-    and the two inputs note (bool) and signal_status. t_disrupt comes from the detector; with source='note'
+    Returns a dict with status ('disrupted', 'clean' or 'unknown'), disrupted (bool), t_disrupt (s or NaN),
+    the two inputs note (bool) and signal_status, and t_quench (detector time whatever the label, or NaN). t_disrupt comes from the detector; with source='note'
     it falls back to the note time when the detector found nothing. 'unknown' shots should be skipped.
     """
     source = source or config.LABEL_SOURCE
     found = detect_disruption(time, ip)
     note = note_label(comment)
-    result = {"note": note, "signal_status": found["status"], "status": "unknown",
-              "disrupted": False, "t_disrupt": np.nan}
+    result = {"note": note, "signal_status": found["status"], "t_quench": found["t_disrupt"],
+              "status": "unknown", "disrupted": False, "t_disrupt": np.nan}
     if found["status"] == "unknown":
         return result
     disrupted = final_label(note, found["detected"], source)
