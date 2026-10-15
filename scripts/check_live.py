@@ -16,9 +16,6 @@ def main():
     if not ok:
         sys.exit(1)
 
-    table = load_shot_table(use_cache=False)
-    print("shot table:", table.shape)
-
     shot = load_shot(config.REFERENCE_SHOT, use_cache=False)
     t = shot["time"].to_numpy()
     ip = np.abs(shot["ip"].to_numpy())
@@ -35,6 +32,15 @@ def main():
         "starts at -0.100 s": abs(t[0] + 0.1) < 1e-6,
         "spike ~850 kA near 0.210 s": abs(ip[peak] - 850e3) < 30e3 and abs(t[peak] - 0.210) < 0.003,
     }
+    # checked last and separately, so an outage of mastapp.site (503 on 2026-10-15) does not hide the shot checks
+    try:
+        table = load_shot_table(use_cache=False)
+        print("shot table:", table.shape)
+        checks["shot table from mastapp.site"] = True
+    except Exception as error:
+        print(f"shot table server unreachable (check {config.SHOT_TABLE_URL} in a browser): "
+              f"{type(error).__name__}: {error}"[:300])
+        checks["shot table from mastapp.site"] = False
     for name, passed in checks.items():
         print(("PASS " if passed else "FAIL ") + name)
     if not all(checks.values()):

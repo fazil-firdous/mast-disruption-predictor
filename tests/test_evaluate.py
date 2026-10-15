@@ -56,6 +56,7 @@ def tiny_project(monkeypatch, tmp_path):
     monkeypatch.setattr(experiment, "load_shot", lambda shot_id: shots[shot_id])
     monkeypatch.setattr(config, "SKIPPED_CSV", str(tmp_path / "skipped.csv"))
     monkeypatch.setattr(config, "RESULTS_DIR", str(tmp_path / "results"))
+    monkeypatch.setattr(config, "MODELS_DIR", str(tmp_path / "models"))
     monkeypatch.setattr(config, "N_BOOTSTRAP", 50)
     monkeypatch.setattr(models, "GRIDS", {**models.GRIDS, "logreg": {"C": [1.0]}})
     labelled = dataset.label_shots(list(table["shot_id"]), table)
