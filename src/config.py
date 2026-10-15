@@ -95,6 +95,7 @@ SIGNAL_VARIABLES = {
     "power_nbi": "power_nbi",
 }
 RETRY_BACKOFF_S = 2.0  # wait 2 s, then 4 s, then 8 s between retries, so a busy server can recover
+TCP_CHECK_TIMEOUT_S = 10  # a server that has not answered a plain connection in 10 s is blocked or down
 CONNECTION_CHECK_ATTEMPTS = 4  # before a big run; one timeout on the VPS (2026-10-15) killed a whole run
 
 # Paths. Public code, private runs: on a personal server MAST_HOME points outside the repo, so downloaded data,
@@ -122,4 +123,7 @@ PIPELINE_RETRY_HOURS = 6  # a failed full run of the same commit is retried at m
 HEARTBEAT_HOURS = 24  # one "still alive" Telegram message a day
 SEED_SWEEP_MAX = 50  # idle work: re-split and re-test with seeds 1..50 for honest mean +- spread (E10)
 TELEGRAM_POLL_S = 25  # long-poll length for bot commands; also the loop's natural tick
+WATCH_SOURCES_HOURS = 24  # check once a day whether mastapp.site is back, FAIR-MAST grew, or DEFUSE went public
+LITERATURE_DAYS = 7  # weekly arXiv check; disruption papers appear a few times a month
+LITERATURE_MAX_RESULTS = 40  # newest matches per check; more than a week ever brings
 UPDATE_CHECK_MINUTES = 10  # look for new commits on GitHub this often; more often is pointless load on GitHub

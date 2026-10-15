@@ -14,6 +14,8 @@ HELP = """MAST research server commands:
 /diagnose - check the network path to the data servers
 /run - start a full pipeline run now
 /fetch - fetch the data again through GitHub (for servers STFC blocks), then run
+/sources - check now whether the shot table is back, FAIR-MAST grew, or DEFUSE went public
+/papers - check arXiv now for new disruption-prediction papers
 /update - pull new code now (the server restarts itself)
 /pause, /resume - stop or allow new jobs
 /stop - kill the running job
@@ -24,7 +26,8 @@ def new_state():
     """State of a server that has never run."""
     return {"offset": 0, "last_ok_commit": None, "failed_commit": None, "failed_at": 0.0, "paused": False,
             "force_pipeline": False, "seeds_done": [], "last_heartbeat": 0.0, "last_update_check": 0.0,
-            "network_down_since": None, "relay_manifest": None, "force_fetch": False, "started_at": time.time()}
+            "network_down_since": None, "relay_manifest": None, "force_fetch": False, "last_probe": None,
+            "last_probe_at": 0.0, "last_literature_at": 0.0, "started_at": time.time()}
 
 
 def read_state(path=STATE_PATH):
@@ -104,9 +107,14 @@ def pipeline_args(scale, mode, manifest=None):
     return args
 
 
+def due(last_time, every_hours, now):
+    """True if more than every_hours have passed since last_time (seconds)."""
+    return now - last_time > every_hours * 3600
+
+
 def heartbeat_due(state, now):
     """True once every HEARTBEAT_HOURS."""
-    return now - state["last_heartbeat"] > config.HEARTBEAT_HOURS * 3600
+    return due(state["last_heartbeat"], config.HEARTBEAT_HOURS, now)
 
 
 def status_text(state, head, job, network):

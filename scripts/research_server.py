@@ -5,6 +5,7 @@ Run it under systemd (deploy/setup_vps.sh installs a service) or inside `screen`
 """
 import argparse
 import fcntl
+import json
 import os
 import shutil
 import subprocess
@@ -14,8 +15,8 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts import predict_shot
-from src import config, experiment, notify, relay, server
-from src.data import check_connection, check_shot_table
+from src import config, experiment, literature, notify, relay, server, sources
+from src.data import check_connection, check_shot_table, host_reachable
 
 PY = sys.executable
 CURRENT = {"job": None, "proc": None, "log": None}  # the running job, shared by the loop and the command handler
@@ -95,6 +96,12 @@ def handle_command(name, arg, state):
     elif name == "run":
         state["force_pipeline"] = True
         notify.send("full run queued")
+    elif name == "sources":
+        state["last_probe_at"] = 0.0
+        notify.send("checking the data sources now")
+    elif name == "papers":
+        state["last_literature_at"] = 0.0
+        notify.send("checking arXiv now")
     elif name == "fetch":
         state.update(force_fetch=True, force_pipeline=True)
         notify.send("data re-fetch through GitHub queued, then a full run")
@@ -140,14 +147,12 @@ def run_job(label, cmd, state):
     return proc.returncode
 
 
-def fetch_via_relay(state, scale):
-    """Have GitHub download the shots, keep answering commands while waiting, then unpack them into DATA_DIR.
+def run_relay(state, task, scale, data_dir):
+    """Start a GitHub relay job, keep answering commands while it runs, then unpack its artifact into data_dir.
 
-    Returns the relay manifest, or None if the GitHub job failed or took too long.
+    Returns the job's manifest, or None if the job failed or took longer than RELAY_TIMEOUT_HOURS.
     """
-    notify.send(f"STFC does not answer this server; asking GitHub to fetch the data ({scale}). This takes 10-60 min.")
-    CURRENT["job"] = "GitHub data relay"
-    requested = relay.trigger(scale)
+    requested = relay.trigger(scale, task)
     run_id, deadline = None, time.time() + config.RELAY_TIMEOUT_HOURS * 3600
     while time.time() < deadline:
         poll_commands(state)
@@ -159,14 +164,22 @@ def fetch_via_relay(state, scale):
         if status != "completed":
             continue
         if conclusion != "success":
-            notify.send(f"GitHub relay job {run_id} ended with '{conclusion}'. See the Actions tab on GitHub.")
+            notify.send(f"GitHub relay job {run_id} ({task}) ended with '{conclusion}'. See the Actions tab on GitHub.")
             return None
-        manifest = relay.download(run_id)
+        return relay.download(run_id, data_dir)
+    notify.send(f"GitHub relay ({task}) took longer than {config.RELAY_TIMEOUT_HOURS} h; giving up for now")
+    return None
+
+
+def fetch_via_relay(state, scale):
+    """Have GitHub download the shots into DATA_DIR. Returns the relay manifest, or None."""
+    notify.send(f"STFC does not answer this server; asking GitHub to fetch the data ({scale}). This takes 10-60 min.")
+    CURRENT["job"] = "GitHub data relay"
+    manifest = run_relay(state, "fetch", scale, config.DATA_DIR)
+    if manifest is not None:
         notify.send(f"relay done: {manifest['available']} of {manifest['requested']} shots now on this server "
                     f"(shot table: {manifest['table_source']})")
-        return manifest
-    notify.send(f"GitHub relay took longer than {config.RELAY_TIMEOUT_HOURS} h; giving up for now")
-    return None
+    return manifest
 
 
 def relay_data(state, scale):
@@ -241,6 +254,67 @@ def wait_for_network(state):
     return None
 
 
+def probe_sources(state):
+    """What the data sources offer now: probed here if STFC answers, else through the GitHub relay, else None."""
+    if host_reachable(sources.BUCKET_URL):
+        return sources.probe()
+    if not relay.configured():
+        return None
+    folder = os.path.join(config.LOGS_DIR, "probe")
+    CURRENT["job"] = "data-source check (GitHub)"
+    try:
+        manifest = run_relay(state, "probe", "small", folder)
+    finally:
+        CURRENT["job"] = None
+    if manifest is None:
+        return None
+    with open(os.path.join(folder, "probe.json")) as f:
+        return json.load(f)
+
+
+def watch_sources(state):
+    """Daily: report changes in the data sources. When the shot table comes back after a run that had to use the
+    400 report shots, queue a fresh fetch so the next run uses the full dataset."""
+    state["last_probe_at"] = time.time()
+    snapshot = probe_sources(state)
+    if snapshot is None:
+        return
+    news = sources.changes(state["last_probe"], snapshot)
+    if state["last_probe"] is None:
+        news = [f"data sources: {snapshot['shot_stores']} shot stores, shot table HTTP "
+                f"{snapshot['shot_table_status'] or 'no answer'}, DEFUSE HTTP {snapshot['defuse_status']}"]
+    state["last_probe"] = snapshot
+    for line in news:
+        notify.send(line)
+    manifest = state["relay_manifest"]
+    if any("mastapp.site is back" in line for line in news) and manifest and manifest.get("table_source") == "report":
+        state.update(force_fetch=True, force_pipeline=True)
+        notify.send("queued a fresh fetch and full run with the complete shot table")
+
+
+def watch_literature(state):
+    """Weekly: send new arXiv papers on disruption prediction."""
+    state["last_literature_at"] = time.time()
+    new = literature.check()
+    if new:
+        notify.send(literature.digest(new))
+
+
+def run_watchers(state):
+    """Run whichever watcher is due. A failing watcher is reported, never fatal."""
+    now = time.time()
+    for name, due, func in [("data sources", server.due(state["last_probe_at"], config.WATCH_SOURCES_HOURS, now),
+                             watch_sources),
+                            ("literature", server.due(state["last_literature_at"], 24 * config.LITERATURE_DAYS, now),
+                             watch_literature)]:
+        if not due:
+            continue
+        try:
+            func(state)
+        except Exception as error:
+            notify.send(f"{name} watcher failed: {type(error).__name__}: {error}"[:400])
+
+
 def acquire_lock():
     """Hold an exclusive lock so a second copy (say one in screen and one under systemd) exits at once."""
     os.makedirs(config.LOGS_DIR, exist_ok=True)
@@ -265,6 +339,7 @@ def main():
         if server.heartbeat_due(state, time.time()):
             notify.send("still alive\n" + server.status_text(state, head(), CURRENT["job"], "not checked"))
             state["last_heartbeat"] = time.time()
+        run_watchers(state)
         job, seed = server.next_job(state, head(), time.time(),
                                     os.path.exists(os.path.join(config.PROCESSED_DIR, "windows.parquet")))
         if job is None:
