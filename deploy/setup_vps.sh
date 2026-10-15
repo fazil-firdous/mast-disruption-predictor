@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # One-time setup on a fresh Ubuntu 22.04/24.04 VPS (re-running it is safe). From the cloned repo:
 #   bash deploy/setup_vps.sh
-# Public code, private runs: the repo stays a clean copy of GitHub; downloaded data, trained models, results
-# and logs go to MAST_HOME (default ~/mast-private), and the bot token stays in the git-ignored .env.
+# Public code, private runs: the repo stays a clean copy of GitHub. Downloaded data, trained models, results, logs
+# and the private settings (~/mast-private/.env: tokens, chat id) live in ~/mast-private, which survives deleting
+# or re-cloning the code folder.
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -15,20 +16,35 @@ python3 -m venv .venv
 .venv/bin/pip install --upgrade pip
 .venv/bin/pip install -r requirements.txt
 
-touch .env
-chmod 600 .env
-if ! grep -q '^TELEGRAM_BOT_TOKEN=' .env; then
-  read -rp "Telegram bot token: " token
-  echo "TELEGRAM_BOT_TOKEN=$token" >> .env
+PRIVATE="$HOME/mast-private"
+ENV_FILE="$PRIVATE/.env"
+mkdir -p "$PRIVATE"
+touch "$ENV_FILE"
+chmod 600 "$ENV_FILE"
+
+# settings from an older setup lived in the repo's .env; copy any missing keys to the permanent folder
+if [ -f .env ]; then
+  while IFS= read -r line || [ -n "$line" ]; do
+    key="${line%%=*}"
+    if [ -n "$key" ] && [ "${key:0:1}" != "#" ] && ! grep -q "^$key=" "$ENV_FILE"; then
+      echo "$line" >> "$ENV_FILE"
+    fi
+  done < .env
+  mv .env "$PRIVATE/.env.from-repo.bak"
 fi
-if ! grep -q '^TELEGRAM_CHAT_ID=' .env; then
-  read -rp "Telegram chat id: " chat
-  echo "TELEGRAM_CHAT_ID=$chat" >> .env
-fi
-if ! grep -q '^MAST_HOME=' .env; then
-  echo "MAST_HOME=$HOME/mast-private" >> .env
-fi
-mkdir -p "$(grep '^MAST_HOME=' .env | cut -d= -f2)"
+
+ask() {
+  if ! grep -q "^$1=" "$ENV_FILE"; then
+    read -rp "$2" value
+    if [ -n "$value" ]; then echo "$1=$value" >> "$ENV_FILE"; fi
+  fi
+}
+ask TELEGRAM_BOT_TOKEN "Telegram bot token: "
+ask TELEGRAM_CHAT_ID "Telegram chat id: "
+ask GITHUB_TOKEN "GitHub fine-grained token for the data relay (Enter to skip): "
+grep -q '^MAST_HOME=' "$ENV_FILE" || echo "MAST_HOME=$PRIVATE" >> "$ENV_FILE"
+repo="$(git remote get-url origin | sed -E 's#^(git@github.com:|https://github.com/)##; s#\.git$##')"
+grep -q '^GITHUB_REPO=' "$ENV_FILE" || echo "GITHUB_REPO=$repo" >> "$ENV_FILE"
 
 # the old nightly cron job is replaced by the research server
 ( crontab -l 2>/dev/null | grep -v run_pipeline.sh ) | crontab - || true
@@ -55,6 +71,7 @@ RestartSec=60
 WantedBy=multi-user.target
 UNIT
 sudo systemctl daemon-reload
-sudo systemctl enable --now mast-research.service
+sudo systemctl enable mast-research.service
+sudo systemctl restart mast-research.service
 echo "Done. The research server is running as a service. Send /help to your bot."
 echo "Logs: journalctl -u mast-research -f    Stop: sudo systemctl stop mast-research"

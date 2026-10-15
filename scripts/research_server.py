@@ -14,7 +14,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts import predict_shot
-from src import config, experiment, notify, server
+from src import config, experiment, notify, relay, server
 from src.data import check_connection, check_shot_table
 
 PY = sys.executable
@@ -50,10 +50,11 @@ def update_code(state, force=False):
 
 
 def network_status():
-    """(ok, text) for the data server and the shot table server."""
+    """(mode, text): how the next run can get its data (see server.access_mode) and what each server said."""
     ok_data, message_data = check_connection(attempts=2)
     ok_table, message_table = check_shot_table()
-    return ok_data and ok_table, f"data: {message_data}; table: {message_table}"
+    mode = server.access_mode(ok_data, ok_table, relay.configured())
+    return mode, f"data: {message_data}; table: {message_table}; mode: {mode or 'waiting'}"
 
 
 def tail(path, n=40):
@@ -94,6 +95,9 @@ def handle_command(name, arg, state):
     elif name == "run":
         state["force_pipeline"] = True
         notify.send("full run queued")
+    elif name == "fetch":
+        state.update(force_fetch=True, force_pipeline=True)
+        notify.send("data re-fetch through GitHub queued, then a full run")
     elif name == "update":
         update_code(state, force=True)
         notify.send(f"already on the latest code ({head()})")
@@ -136,15 +140,66 @@ def run_job(label, cmd, state):
     return proc.returncode
 
 
-def run_pipeline(state, scale):
-    """Tests, then the full pipeline for the current commit. Old seed-sweep results are archived first."""
+def fetch_via_relay(state, scale):
+    """Have GitHub download the shots, keep answering commands while waiting, then unpack them into DATA_DIR.
+
+    Returns the relay manifest, or None if the GitHub job failed or took too long.
+    """
+    notify.send(f"STFC does not answer this server; asking GitHub to fetch the data ({scale}). This takes 10-60 min.")
+    CURRENT["job"] = "GitHub data relay"
+    requested = relay.trigger(scale)
+    run_id, deadline = None, time.time() + config.RELAY_TIMEOUT_HOURS * 3600
+    while time.time() < deadline:
+        poll_commands(state)
+        if run_id is None:
+            run = relay.find_run(requested)
+            run_id = run["id"] if run else None
+            continue
+        status, conclusion = relay.run_status(run_id)
+        if status != "completed":
+            continue
+        if conclusion != "success":
+            notify.send(f"GitHub relay job {run_id} ended with '{conclusion}'. See the Actions tab on GitHub.")
+            return None
+        manifest = relay.download(run_id)
+        notify.send(f"relay done: {manifest['available']} of {manifest['requested']} shots now on this server "
+                    f"(shot table: {manifest['table_source']})")
+        return manifest
+    notify.send(f"GitHub relay took longer than {config.RELAY_TIMEOUT_HOURS} h; giving up for now")
+    return None
+
+
+def relay_data(state, scale):
+    """Make sure relayed data for this scale is on disk. Returns its manifest, or None on failure."""
+    if server.relay_needed(state, scale):
+        try:
+            manifest = fetch_via_relay(state, scale)
+        except Exception as error:
+            notify.send(f"GitHub relay failed: {type(error).__name__}: {error}"[:500])
+            manifest = None
+        finally:
+            CURRENT["job"] = None
+        if manifest is None:
+            return None
+        state.update(relay_manifest=manifest, force_fetch=False)
+    return state["relay_manifest"]
+
+
+def run_pipeline(state, scale, mode):
+    """Tests, then data (directly or through the GitHub relay), then the full pipeline for the current commit.
+    Old seed-sweep results are archived first."""
     commit = head()
     state["force_pipeline"] = False
     if run_job(f"tests {commit}", [PY, "-m", "pytest", "-q"], state) != 0:
         notify.send(f"tests FAILED on {commit}; not running. /log shows why")
         state.update(failed_commit=commit, failed_at=time.time())
         return
-    code = run_job(f"pipeline {commit}", [PY, "scripts/run_all.py", "--scale", scale], state)
+    manifest = relay_data(state, scale) if mode == "relay" else None
+    if mode == "relay" and manifest is None:
+        state.update(failed_commit=commit, failed_at=time.time())
+        return
+    args = server.pipeline_args(scale, mode, manifest)
+    code = run_job(f"pipeline {commit}", [PY, "scripts/run_all.py", *args], state)
     if code == 0:
         old = os.path.join(config.RESULTS_DIR, "E10")
         if os.path.isdir(old):
@@ -168,13 +223,14 @@ def run_seed(state, seed):
 
 
 def wait_for_network(state):
-    """True if the servers answer. Otherwise tell the owner once per outage and wait NETWORK_RETRY_MINUTES."""
-    ok, text = network_status()
-    if ok:
+    """The data access mode if the next run can get data. Otherwise tell the owner once per outage, wait
+    NETWORK_RETRY_MINUTES (still answering commands) and return None."""
+    mode, text = network_status()
+    if mode is not None:
         if state["network_down_since"] is not None:
-            notify.send("data servers reachable again, resuming")
+            notify.send(f"data reachable again ({mode}), resuming")
             state["network_down_since"] = None
-        return True
+        return mode
     if state["network_down_since"] is None:
         state["network_down_since"] = time.time()
         notify.send(f"waiting for the data servers ({text}). Checking every {config.NETWORK_RETRY_MINUTES} min. "
@@ -182,7 +238,7 @@ def wait_for_network(state):
     deadline = time.time() + config.NETWORK_RETRY_MINUTES * 60
     while time.time() < deadline:
         poll_commands(state)
-    return False
+    return None
 
 
 def acquire_lock():
@@ -215,8 +271,10 @@ def main():
             poll_commands(state)
         elif job == "seed":
             run_seed(state, seed)
-        elif wait_for_network(state):
-            run_pipeline(state, args.scale)
+        else:
+            mode = wait_for_network(state)
+            if mode is not None:
+                run_pipeline(state, args.scale, mode)
         server.write_state(state)
 
 

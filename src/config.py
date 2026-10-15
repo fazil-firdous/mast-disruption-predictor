@@ -16,8 +16,11 @@ def _load_env_file(path):
                 os.environ.setdefault(key.strip(), value.strip().strip('"'))
 
 
-# .env is git-ignored: bot token, chat id and MAST_HOME live only on the owner's server
+# Private settings (bot token, chat id, GitHub token, MAST_HOME) live only on the owner's server. The main copy is
+# in the permanent private folder, so deleting or re-cloning the code loses nothing; a repo .env still works too.
+PRIVATE_ENV = os.path.expanduser(os.path.join("~", "mast-private", ".env"))
 _load_env_file(os.path.join(REPO_DIR, ".env"))
+_load_env_file(PRIVATE_ENV)
 
 # Data sources (SPEC 3.1)
 SHOT_TABLE_URL = "https://mastapp.site/parquet/level2/shots"
@@ -105,6 +108,13 @@ MODELS_DIR = os.path.join(HOME_DIR, "models")
 LOGS_DIR = os.path.join(HOME_DIR, "logs")
 SHOT_TABLE_CACHE = os.path.join(DATA_DIR, "shot_table.parquet")  # the table is ~11.5k rows, so one copy avoids re-downloading it
 SKIPPED_CSV = os.path.join(DATA_DIR, "skipped.csv")  # every shot we could not load, with the reason (SPEC 8.1)
+REPORT_CSV = os.path.join(REPO_DIR, "results", "label_report", "per_shot.csv")  # 400 labelled shots; stand-in when mastapp.site is down
+
+# GitHub data relay (ROADMAP H): for servers whose IP range STFC blocks, a GitHub Actions machine downloads the shots
+GITHUB_REPO = os.environ.get("GITHUB_REPO", "fazil-mastu/mastu")
+RELAY_WORKFLOW = "fetch_data.yml"
+RELAY_BRANCH = "main"  # GitHub only runs dispatched workflows that exist on this branch
+RELAY_TIMEOUT_HOURS = 6  # GitHub's own limit for one job
 
 # Research server (scripts/research_server.py)
 NETWORK_RETRY_MINUTES = 30  # when the data server is unreachable, check again this often instead of giving up

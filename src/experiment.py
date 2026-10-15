@@ -136,8 +136,11 @@ def write_json(obj, path):
 
 
 def config_snapshot():
-    """Every UPPERCASE setting in config.py, so each result folder records the settings that made it."""
-    return {k: v for k, v in vars(config).items() if k.isupper()}
+    """Every UPPERCASE setting in config.py, so each result folder records the settings that made it.
+
+    Anything named like a secret is left out, because results get zipped and sent to Telegram.
+    """
+    return {k: v for k, v in vars(config).items() if k.isupper() and "TOKEN" not in k and "SECRET" not in k}
 
 
 def run_model(name, win, split_column, columns, out_dir, use_test=True, save=True, with_importance=True):

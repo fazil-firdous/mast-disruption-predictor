@@ -38,6 +38,8 @@ A plain-English tour of the repo. Read the files in the order below.
 | `src/server.py` | done | The research server's decisions and texts (state file, command parsing, what to run next), kept separate so they are testable. |
 | `src/registry.py` | done | Save / load trained models with their feature list and threshold, in `MODELS_DIR` (private). |
 | `src/predict.py`, `scripts/predict_shot.py` | done | Run a saved model over a whole shot as if live; plot score, alarm and the detector's quench. |
+| `src/relay.py` | done | GitHub data relay, server side: start the fetch job, find and follow its run, download and safely unpack the artifact into `DATA_DIR`. |
+| `scripts/relay_fetch.py`, `.github/workflows/fetch_data.yml` | done | GitHub data relay, GitHub side: download the shots a run needs (live shot table, or the 400 report shots if mastapp.site is down) and write `manifest.json`. |
 | `scripts/diagnose_network.py` | done | DNS, TCP per address, HTTPS and zarr checks, with a plain-language verdict; sent to Telegram. |
 | `scripts/inspect_groups.py` | done | Catalogue of every signal stored for a shot (all groups) from the store metadata. Writes `results/data_catalogue/`. |
 | `scripts/termination_study.py` | done (real data) | Programmed current and solenoid current at the quench, noted vs unnoted. Writes `results/termination_study/`. |
@@ -153,6 +155,12 @@ Read it top to bottom; each function uses only the ones above it.
 - `src/server.py`: `new_state`, `read_state`, `write_state` (the state file in `LOGS_DIR`), `parse_command('/predict 11860')`, `next_job(state, head, now, processed_ready)` -> 'pipeline' for every new commit (a failed one is retried after `PIPELINE_RETRY_HOURS`), else the next E10 seed, else nothing. `status_text`, `HELP`.
 - `scripts/research_server.py`: `main` loops forever: pull code every `UPDATE_CHECK_MINUTES` (and restart itself on new code), heartbeat, pick the next job, wait out network outages (`wait_for_network`), run jobs as child processes (`run_job`) while still answering commands (`poll_commands` -> `handle_command`). A lock file stops a second copy.
 - Commands come only from `TELEGRAM_CHAT_ID`, and each maps to a fixed action; nothing typed in the chat is run as a shell command.
+- Data access (`server.access_mode`): 'direct' (STFC and shot table answer), 'direct-report' (STFC answers, mastapp.site down), 'relay' (STFC blocks this server and `GITHUB_TOKEN` is set), or wait. `server.pipeline_args` turns that into `run_all.py` options (`--offline`, `--from-report`). `relay_needed` fetches again only for a new scale or after `/fetch`.
+
+## The GitHub data relay in detail
+- `scripts/relay_fetch.py` runs on GitHub's machine: `choose_shots(scale)` -> (ids, 'live' or 'report'); downloads them; writes `data/manifest.json` (scale, table source, counts, commit, time).
+- `src/relay.py` runs on the server: `trigger(scale)` -> request time; `find_run(requested_at)` / `pick_run(runs, requested_at)` -> the run that request started (GitHub gives no id back); `run_status(run_id)`; `download(run_id)` -> manifest; `unpack(zip, data_dir)` refuses entries that would land outside `data_dir`. The token is read from the environment at call time and is never part of `config` (so never in results).
+- `build_dataset.build(..., offline=True)` and `run_all.py --offline` use only shots already on disk (`data.is_cached`).
 
 ## Models you can reuse
 - `src/registry.py`: `save(model, tag, ...)`, `load(tag)` -> (model, meta), `saved_tags()`, `best_tag()`. E0-E3 and E6 save their tuned model (tag = experiment folder, e.g. `E3`, `E6_hgb`).
