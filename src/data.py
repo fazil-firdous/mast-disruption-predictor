@@ -24,6 +24,7 @@ def load_shot_table(use_cache=True):
 
 
 def _open_summary(shot_id):
+    """Open one shot's summary group over HTTPS (the only network call for signals, so tests replace it)."""
     # zarr v3 stores since 2026-09-22 (zarr<3 cannot read them). The array list lives only in the root's
     # consolidated metadata and S3 cannot list folders, so consolidated=False sees an empty group.
     url = config.SHOT_ZARR_URL.format(shot_id=shot_id)
@@ -49,6 +50,7 @@ def _summary_to_frame(ds):
 
 
 def _cache_path(shot_id):
+    """Where one shot's cached signals live: data/raw/{shot_id}.parquet."""
     return os.path.join(config.RAW_DIR, f"{shot_id}.parquet")
 
 
@@ -95,7 +97,7 @@ def check_connection(shot_id=config.REFERENCE_SHOT):
     return True, f"read shot {shot_id}: {len(frame)} samples"
 
 
-def _log_skipped(rows):
+def log_skipped(rows):
     """Append (shot_id, reason) rows to data/skipped.csv, writing the header if the file is new."""
     if not rows:
         return
@@ -124,7 +126,7 @@ def download_shots(ids, workers=config.DOWNLOAD_WORKERS, retries=config.DOWNLOAD
 
     skipped_rows = []
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(load_shot, s, True, retries, backoff): s for s in to_fetch}
+        futures = {pool.submit(load_shot, s, use_cache=True, retries=retries, backoff=backoff): s for s in to_fetch}
         for future in tqdm(as_completed(futures), total=len(futures), desc="downloading"):
             shot_id = futures[future]
             try:
@@ -133,5 +135,5 @@ def download_shots(ids, workers=config.DOWNLOAD_WORKERS, retries=config.DOWNLOAD
             except Exception as error:
                 result["failed"].append(shot_id)
                 skipped_rows.append([shot_id, f"{type(error).__name__}: {error}"[:200]])
-    _log_skipped(skipped_rows)
+    log_skipped(skipped_rows)
     return result

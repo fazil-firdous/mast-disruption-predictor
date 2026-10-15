@@ -20,17 +20,20 @@ OUT_DIR = os.path.join(config.RESULTS_DIR, "features")
 
 
 def label_and_windows(shot_id, comment):
-    """Label one shot (LABEL_SOURCE) and build its windows. Disrupted shots stop at t_disrupt (SPEC 6)."""
+    """Label one shot (LABEL_SOURCE) and build its windows. Disrupted shots stop at t_disrupt (SPEC 6).
+
+    Returns (shot, label dict, windows, t_stop).
+    """
     shot = load_shot(shot_id)
     lab = labels.shot_label(shot["time"], shot["ip"], comment)
     t_stop = lab["t_disrupt"] if lab["status"] == "disrupted" else np.inf
     win = features.shot_windows(shot, t_stop=t_stop)
     win.insert(0, "shot_id", shot_id)
     win["status"] = lab["status"]
-    return shot, lab, win
+    return shot, lab, win, t_stop
 
 
-def truncation_check(shot, win, rng):
+def truncation_check(shot, win, t_stop, rng):
     """Cut the shot at a random window end, recompute, and compare the rows up to the cut.
 
     Returns the number of rows compared, or 0 if the shot has too few windows. Raises if any value differs.
@@ -39,7 +42,6 @@ def truncation_check(shot, win, rng):
         return 0
     t_cut = float(rng.choice(win["t_end"].to_numpy()[1:-1]))
     short = shot[shot["time"] <= t_cut + features.EPS]
-    t_stop = win.attrs.get("t_stop", np.inf)
     again = features.shot_windows(short, t_stop=t_stop)
     full = win[win["t_end"] <= t_cut + features.EPS].drop(columns=["shot_id", "status"]).reset_index(drop=True)
     pd.testing.assert_frame_equal(full, again.reset_index(drop=True), check_exact=True)
@@ -104,7 +106,8 @@ def main():
     table = load_shot_table()
     rng = np.random.default_rng(args.seed)
     if args.ids_file:
-        ids = json.load(open(args.ids_file))
+        with open(args.ids_file) as f:
+            ids = json.load(f)
     else:
         ids = [int(i) for i in rng.choice(table["shot_id"].to_numpy(), size=args.n, replace=False)]
     ids = sorted(set(ids) | {config.REFERENCE_SHOT})
@@ -115,9 +118,8 @@ def main():
     for shot_id in ids:
         if shot_id in failed:
             continue
-        shot, lab, win = label_and_windows(shot_id, comments.get(shot_id))
-        win.attrs["t_stop"] = lab["t_disrupt"] if lab["status"] == "disrupted" else np.inf
-        compared += truncation_check(shot, win, rng)
+        shot, lab, win, t_stop = label_and_windows(shot_id, comments.get(shot_id))
+        compared += truncation_check(shot, win, t_stop, rng)
         info.append({"shot_id": shot_id, "status": lab["status"], "n_windows": len(win)})
         windows.append(win)
         if shot_id == config.REFERENCE_SHOT:

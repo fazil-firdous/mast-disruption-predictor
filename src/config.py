@@ -26,6 +26,7 @@ SPIKE_LOOKBACK_MS = 3  # Ip spike within 3 ms before the CQ marks the thermal qu
 MEDIAN_FILTER_SAMPLES = 3  # smallest median filter that removes single-sample glitches
 CQ_MIN_FRAC_OF_PEAK = 0.5  # quench must start above half of peak |Ip|; the last stretch of any linear ramp-down also falls 80% in 10 ms once |Ip| is small
 CQ_ONSET_FRAC = 0.9  # quench onset = last sample still within 90% of the pre-fall level; the 80%-drop search alone can fire up to CQ_MAX_MS too early
+SPIKE_BASELINE_MS = 10  # the "level before the spike" is the median of the 10 ms before the lookback window
 SPIKE_MIN_RISE = 0.03  # a spike counts only if it is 3% above the level just before it, so flat-top noise is not mistaken for one
 
 # Feature offsets (SPEC Section 7)
@@ -39,13 +40,31 @@ N_DISRUPTED = 300  # balanced starting subset: big enough to learn, small enough
 N_CLEAN = 300
 DOWNLOAD_WORKERS = 8  # parallel downloads; more risks being throttled by the server
 DOWNLOAD_RETRIES = 3  # transient HTTP errors are common when streaming many shots
+FULL_N_CLEAN = 3000  # SPEC 8.1 "scale up": all detected disruptions plus ~3000 clean shots (run_all.py --scale full)
+CLEAN_POOL_FACTOR = 1.5  # download 1.5x the clean shots needed, since some turn out unknown or disrupted once labelled
 SPLIT_FRACTIONS = (0.6, 0.2, 0.2)  # train / val / test, split by shot
+TEMPORAL_VAL_FRACTION = 0.2  # in the temporal split, 20% of the M5-M7 shots are held back for tuning
 TEMPORAL_TRAIN_CAMPAIGNS = ("M5", "M6", "M7")  # the table also has "Unknown" (292 shots); it cannot be placed in time, so it is left out
 TEMPORAL_TEST_CAMPAIGNS = ("M8", "M9")
+
+# Phase 4 window policy (NOTES.md 2026-10-15)
+STOP_AT_QUENCH = True  # end every shot's windows at the detector's quench, so clean and disrupted shots end the same way
+NEAR_QUENCH_CLEAN = "keep"  # "keep" or "drop" clean windows in the HORIZON before an unnoted quench, in training only
+
+# Models (SPEC Section 9)
+RF_TREES = 300  # SPEC 9; more trees barely change the scores but cost time
+HGB_VALIDATION_FRACTION = 0.1  # share of training windows HistGradientBoosting holds back to decide when to stop
+N_THRESHOLDS = 201  # alarm thresholds tried from 0 to 1 in steps of 0.005
+PERMUTATION_REPEATS = 5  # shuffles per feature for permutation importance; enough to see which features matter
 
 # Evaluation (SPEC Sections 10-11)
 MAX_FALSE_ALARM_RATE = 0.05  # pick the threshold so at most 5% of clean shots raise an alarm
 N_BOOTSTRAP = 1000  # resamples over shots for the 95% confidence intervals
+PREMATURE_WARNING_MS = 200  # MAST flat-tops last ~200-300 ms, so an alarm earlier than this is unlikely to be about this disruption
+
+# Research extensions (docs/ROADMAP.md)
+CONFORMAL_ALPHAS = (0.01, 0.05, 0.10)  # false-alarm levels to guarantee in E8
+PU_PARAMS = {"learning_rate": 0.1, "max_leaf_nodes": 31}  # fixed HGB settings for E9, so standard and PU models differ only in the labels
 
 # Signals cached per shot (SPEC 8.2): parquet column -> variable name in the summary group
 SIGNAL_VARIABLES = {

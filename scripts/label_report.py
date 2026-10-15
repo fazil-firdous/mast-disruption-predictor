@@ -20,6 +20,12 @@ OUT_DIR = os.path.join(config.RESULTS_DIR, "label_report")
 FLOOR_VALUES = [0.2, 0.35, 0.5, 0.65]  # values of CQ_MIN_FRAC_OF_PEAK tried in the sensitivity table
 
 
+def read_json(path):
+    """Load a JSON file (here always a list of shot ids)."""
+    with open(path) as f:
+        return json.load(f)
+
+
 def choose_shots(table, n, seed, pool_ids=None):
     """Seeded sample of about n shots: every note-disrupted shot in the pool (capped at n // 2),
     then random note-clean shots from the pool to make up n. The pool is the whole table unless pool_ids is given.
@@ -93,20 +99,24 @@ def plot_cases(cases, path, title, show_fall=False):
 
 def sensitivity(df):
     """Share of note-clean and note-disrupted shots flagged by the detector, for several CQ_MIN_FRAC_OF_PEAK values."""
-    original = config.CQ_MIN_FRAC_OF_PEAK
     rows = []
     for value in FLOOR_VALUES:
-        config.CQ_MIN_FRAC_OF_PEAK = value
         flagged = []
         for shot_id in df["shot_id"]:
             shot = load_shot(int(shot_id))
-            flagged.append(labels.detect_disruption(shot["time"], shot["ip"])["detected"])
+            found = labels.detect_disruption(shot["time"], shot["ip"], min_frac_of_peak=value)
+            flagged.append(found["detected"])
         flagged = np.array(flagged)
         rows.append({"CQ_MIN_FRAC_OF_PEAK": value,
                      "flagged, note clean": flagged[~df["note"].to_numpy()].mean(),
                      "flagged, note disrupted": flagged[df["note"].to_numpy()].mean()})
-    config.CQ_MIN_FRAC_OF_PEAK = original
     return pd.DataFrame(rows)
+
+
+def pick_rows(df, k, rng):
+    """Up to k random rows of df, kept in their original order."""
+    chosen = np.sort(rng.permutation(len(df))[:k])
+    return df.iloc[chosen]
 
 
 def md_table(df, index=True):
@@ -200,9 +210,9 @@ def main():
 
     table = load_shot_table()
     if args.ids_file:
-        ids = json.load(open(args.ids_file))
+        ids = read_json(args.ids_file)
     else:
-        pool = json.load(open(args.pool_file)) if args.pool_file else None
+        pool = read_json(args.pool_file) if args.pool_file else None
         ids = choose_shots(table, args.n, args.seed, pool)
     result = download_shots(ids)
     failed = set(result["failed"])
@@ -222,14 +232,13 @@ def main():
     rampdowns = df[~df["note"] & (df["signal"] == "clean") & (df["fall_ms"] >= 5 * config.CQ_MAX_MS)]
 
     rng = np.random.default_rng(args.seed)
-    pick = lambda d, k: d.iloc[np.sort(rng.permutation(len(d))[:k])]
-    plot_cases(pick(note_only, 4), os.path.join(OUT_DIR, "disagreements_note_only.png"),
+    plot_cases(pick_rows(note_only, 4, rng), os.path.join(OUT_DIR, "disagreements_note_only.png"),
                "Note says disrupted, detector finds no quench")
-    plot_cases(pick(signal_only, 4), os.path.join(OUT_DIR, "disagreements_signal_only.png"),
+    plot_cases(pick_rows(signal_only, 4, rng), os.path.join(OUT_DIR, "disagreements_signal_only.png"),
                "Detector finds a quench, note does not mention a disruption")
-    plot_cases(pick(timing, 2), os.path.join(OUT_DIR, "disagreements_timing.png"),
+    plot_cases(pick_rows(timing, 2, rng), os.path.join(OUT_DIR, "disagreements_timing.png"),
                "Both say disrupted but the times differ by more than 20 ms")
-    ramp_pick = pick(rampdowns, 3)
+    ramp_pick = pick_rows(rampdowns, 3, rng)
     plot_cases(ramp_pick, os.path.join(OUT_DIR, "rampdowns.png"),
                "Normal ramp-downs: note clean, detector should not flag", show_fall=True)
 
