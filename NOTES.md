@@ -183,11 +183,11 @@ Built (tested on synthetic shots only; no real-data numbers yet):
 - **A1 PU learning (E9).** Elkan & Noto (2008). Assumes noted disruptions are a random sample of all disruptions (SCAR); operators probably noted the obvious ones more often, so c may be biased high. Weights use 5-fold out-of-fold scores grouped by shot, because in-sample scores of a boosted model are over-confident. Fixed HGB settings (`PU_PARAMS`) for both standard and PU models, so the only difference is the labels. Evaluated on all test shots and on unambiguous ones (disrupted, or no quench at all).
 - Synthetic rehearsal: E8 and E9 run. At alpha = 0.01 the 19 calibration clean shots were too few and the method correctly refused to alarm. In the fake data the unnoted quenches have no radiation precursor, and PU gave them a mean weight of 0.007, which is the expected answer for that data.
 
-## 2026-10-16 - VPS failure, real-data access, termination study, research server
+## 2026-10-15 - VPS failure, real-data access, termination study, research server
 
 VPS run of commit 4f703f1 (owner's report): 99 tests passed, then `build dataset` failed: `ConnectionTimeoutError` to `s3.echo.stfc.ac.uk` while opening shot 11860. GitHub Actions and (today) this sandbox reach that host, so it looks specific to the VPS's network path. Not diagnosed yet: `scripts/diagnose_network.py` (new) tests DNS, TCP to each of the host's 4 IPv4 addresses (no IPv6 records), HTTPS and zarr, and says what to do. The build now retries the connection 4 times (`CONNECTION_CHECK_ATTEMPTS`) instead of once.
 
-Data servers today (2026-10-16, from this sandbox)
+Data servers today (2026-10-15, from this sandbox)
 - `s3.echo.stfc.ac.uk`: reachable for the first time from this sandbox; shot 11860 reads (385 samples).
 - `mastapp.site`: down. TLS resets from here, and HTTP 503 Service Unavailable through an independent fetcher. So the shot table (notes, campaigns) cannot be downloaded by anyone right now. `build_dataset.py --from-report` builds from the 400 Phase 2 shots instead. The report's comments are cut at 90 characters, which changes the parsed note label of 8 shots (13644, 14317, 15007, 18583, 23168, 23319, 29631, 30284) and the parsed note time of 8 (13644, 14317, 15210, 16369, 18583, 20259, 20824, 29631), so the stand-in comment is rebuilt from the stored `note` and `t_note` columns; checked: 0 label and 0 time differences.
 - `level2/defuse/` on the same bucket lists 3,067 HDF5 files (`MASTno<shot>.h5`, shots 12139-30471, 2024-09-13) but every download returns 403 AccessDenied. Not public; not pursued further.
@@ -207,7 +207,7 @@ Infrastructure (owner's request: public code, private runs, run forever)
 - `scripts/research_server.py` replaces the nightly cron job and `deploy/run_pipeline.sh` (removed). Judgement calls: pull at most every 10 min; a failed commit is retried every 6 h; seeds are idle work and do not need the network; a lock file prevents two copies (systemd and screen); Telegram commands only from `TELEGRAM_CHAT_ID`, fixed actions only, `/predict` accepts digits only.
 - Trained models are saved with pickle (`src/registry.py`). Pickle can run code from a file, so only the owner's own models should be loaded.
 
-First full real-data run (2026-10-16, this sandbox, private workspace)
+First full real-data run (2026-10-15, this sandbox, private workspace)
 - `build_dataset.py --from-report` + `run_all.py --skip-build` on the 400 report shots: 400 downloaded from S3, 398 with windows (25424, 25470 have none, as before), 171 disrupted / 227 clean, 26,169 windows. E0-E9 ran with 0 failed steps. Following the owner's wish that training results stay private, the model numbers are not committed; they were reported to the owner directly. What they mean for the plan:
 - Under `LABEL_SOURCE = "both"` no model catches more than a few percent of disruptions at <= 5% false alarms. Expected from the label problem: most clean shots in this sample end in an unnoted quench that looks like a disruption.
 - With "signal" labels (any quench is a disruption) the catch rate at <= 5% false alarms is also near zero (validation, E7), although window PR-AUC is higher. So with only the 4 global signals, the 30 ms before most MAST quenches are hard to tell from normal flat-top. This moves ROADMAP D1 (saddle-coil locked-mode and Mirnov signals) to the top.

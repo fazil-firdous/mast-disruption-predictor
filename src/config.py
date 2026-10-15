@@ -92,7 +92,7 @@ SIGNAL_VARIABLES = {
     "power_nbi": "power_nbi",
 }
 RETRY_BACKOFF_S = 2.0  # wait 2 s, then 4 s, then 8 s between retries, so a busy server can recover
-CONNECTION_CHECK_ATTEMPTS = 4  # before a big run; one timeout on the VPS (2026-10-16) killed a whole run
+CONNECTION_CHECK_ATTEMPTS = 4  # before a big run; one timeout on the VPS (2026-10-15) killed a whole run
 
 # Paths. Public code, private runs: on a personal server MAST_HOME points outside the repo, so downloaded data,
 # trained models, results and logs never end up in git. Unset, everything goes under the current folder as before.

@@ -32,7 +32,7 @@ def main():
         "starts at -0.100 s": abs(t[0] + 0.1) < 1e-6,
         "spike ~850 kA near 0.210 s": abs(ip[peak] - 850e3) < 30e3 and abs(t[peak] - 0.210) < 0.003,
     }
-    # checked last and separately, so an outage of mastapp.site (503 on 2026-10-16) does not hide the shot checks
+    # checked last and separately, so an outage of mastapp.site (503 on 2026-10-15) does not hide the shot checks
     try:
         table = load_shot_table(use_cache=False)
         print("shot table:", table.shape)
