@@ -40,6 +40,11 @@ A plain-English tour of the repo. Read the files in the order below.
 | `src/predict.py`, `scripts/predict_shot.py` | done | Run a saved model over a whole shot as if live; plot score, alarm and the detector's quench. |
 | `src/relay.py` | done | GitHub data relay, server side: start the fetch job, find and follow its run, download and safely unpack the artifact into `DATA_DIR`. |
 | `scripts/relay_fetch.py`, `.github/workflows/fetch_data.yml` | done | GitHub data relay, GitHub side: download the shots a run needs (live shot table, or the 400 report shots if mastapp.site is down) and write `manifest.json`. |
+| `src/extras.py` | done (real data checked) | Magnetics and control signals reduced causally to 1 ms: saddle-coil n=1 (locked mode), Mirnov RMS, programmed current, solenoid current. Cached per shot. |
+| `src/sources.py` | done | Data-source watcher: shot-table status, FAIR-MAST folders and shot-store count, DEFUSE status, and what changed. |
+| `src/literature.py` | done | Weekly arXiv search for new disruption-prediction papers; each reported once on Telegram. |
+| `src/gold.py` | done | Blind hand-labelling on Telegram (/gold, /d /n /u) and agreement report (/goldreport). |
+| `docs/literature_review.md`, `docs/paper/draft.md` | started | Checked references and what they mean for our claims; paper skeleton (numbers TBD from real runs). |
 | `scripts/diagnose_network.py` | done | DNS, TCP per address, HTTPS and zarr checks, with a plain-language verdict; sent to Telegram. |
 | `scripts/inspect_groups.py` | done | Catalogue of every signal stored for a shot (all groups) from the store metadata. Writes `results/data_catalogue/`. |
 | `scripts/termination_study.py` | done (real data) | Programmed current and solenoid current at the quench, noted vs unnoted. Writes `results/termination_study/`. |
@@ -166,3 +171,16 @@ Read it top to bottom; each function uses only the ones above it.
 - `src/registry.py`: `save(model, tag, ...)`, `load(tag)` -> (model, meta), `saved_tags()`, `best_tag()`. E0-E3 and E6 save their tuned model (tag = experiment folder, e.g. `E3`, `E6_hgb`).
 - `src/predict.py`: `predict(shot_df, model, meta)` -> (windows with score, t_alarm). `plot_prediction(...)`.
 - E10 (`experiment.run_seed`, `seed_summary`): one more random split per seed; the summary gives mean and spread over all seeds so far.
+
+## src/extras.py in detail
+- `bin_index`, `bin_mean`, `bin_rms`: fast samples into 1 ms bins ending at each grid time (only past samples).
+- `hold_last`: a slow signal held at its last value (programmed current, solenoid current).
+- `early_offset`, `n1_amplitude`, `saddle_n1`: per-coil offset from its first 5 ms of data, then a cosine fit around the 12 coils at each time; NaN until the offset is known.
+- `mirnov_rms`, `slow_signal`, `compute_extras`, `load_extras`, `download_extras`, `with_extras` (merges cached extras into a shot, NaN if none).
+- In `features.py`: `EXTRA_SIGNALS` (lm, mirnov, sol) and `ip_ref_error`; `feature_names(extended=True)` adds 19 features; the 30 v1 features are unchanged.
+
+## Watchers and the gold tool in detail
+- `sources.probe()` -> snapshot dict; `sources.changes(old, new)` -> sentences for Telegram. On a blocked server the probe runs on GitHub (`relay_fetch.py --task probe`).
+- `literature.search()`, `parse_feed(xml)`, `check()` (new papers only), `digest(papers)`.
+- `gold.build_queue(shots)` (seeded, over-samples unnoted quenches), `next_item`, `record`, `plot_blind`, `evaluate`, `report_text`.
+- Experiments E11 (without t_since_start), E12 (UKAEA-style), E13 (feature sets) are knobs of `experiment.sweep` via `sweep_settings`.

@@ -19,7 +19,12 @@ Beyond v1, the long-term plan is in `docs/ROADMAP.md`. Built so far:
 - **Premature alarms**: catches more than 200 ms early are reported separately.
 - **E10 seed sweep**: the same experiment on many random splits, so every number comes with its spread.
 - **Termination study** (`scripts/termination_study.py`, real data, `results/termination_study/report.md`): quenches the operators did not note happen during the programmed flat-top just like noted disruptions, and slightly closer to the end of the central-solenoid swing.
-- **Data catalogue** (`scripts/inspect_groups.py`, `results/data_catalogue/`): every signal stored per shot, the starting point for magnetic (locked-mode) and equilibrium features.
+- **Data catalogue** (`scripts/inspect_groups.py`, `results/data_catalogue/`): every signal stored per shot.
+- **Magnetics and control signals** (`src/extras.py`, E13): saddle-coil n=1 amplitude (locked modes), Mirnov fluctuations, solenoid current and the gap between measured and programmed current.
+- **Shortcut test** (E11) and **UKAEA-style protocol** (E12).
+- **Gold labels by hand** on Telegram (`/gold`), blind to every automatic label.
+- **Watchers**: daily data-source check (shot table back? new shots? DEFUSE public?) and a weekly arXiv digest of new disruption-prediction papers.
+- **Literature review** with checked references (`docs/literature_review.md`) and a paper skeleton (`docs/paper/draft.md`).
 
 ## How to run (anyone)
 Everything can run from `notebooks/colab_pipeline.ipynb` or a terminal:
@@ -42,7 +47,7 @@ The repository holds only code, docs and small reference results. Everything a t
 1. Make a Telegram bot with @BotFather and note the token and your chat id.
 2. `git clone https://github.com/fazil-mastu/mastu.git && cd mastu && bash deploy/setup_vps.sh`. It installs everything, asks for the bot token, chat id and (optionally) a GitHub token, stores them in `~/mast-private/.env`, runs the tests and the network check, and installs the research server as a systemd service (it restarts after crashes and reboots).
    - **If STFC blocks your server** (its IP range; check with `scripts/diagnose_network.py`), give the setup a GitHub fine-grained token: Settings > Developer settings > Fine-grained tokens, repository `mastu` only, permission **Actions: read and write**. The server then uses the **GitHub data relay**: a GitHub Actions job (`.github/workflows/fetch_data.yml`), which can reach STFC, downloads the shots and hands them over as a one-day artifact; your server unpacks them into `~/mast-private/data` and trains there. Only public MAST data passes through GitHub; nothing is committed.
-3. The research server (`scripts/research_server.py`) then: waits out network outages, runs the full pipeline for every new commit pushed to GitHub, spends idle time on the E10 seed sweep, sends a daily heartbeat, and answers commands from your chat only: `/status`, `/results`, `/log`, `/predict 11860`, `/diagnose`, `/run`, `/fetch`, `/update`, `/pause`, `/resume`, `/stop`, `/help`.
+3. The research server (`scripts/research_server.py`) then: waits out network outages, runs the full pipeline for every new commit pushed to GitHub, spends idle time on the E10 seed sweep, sends a daily heartbeat, and answers commands from your chat only: `/status`, `/results`, `/log`, `/predict 11860`, `/diagnose`, `/run`, `/fetch`, `/sources`, `/papers`, `/gold` (then `/d`, `/n`, `/u`), `/goldreport`, `/update`, `/pause`, `/resume`, `/stop`, `/help`.
 4. Prefer `screen`? Stop the service (`sudo systemctl disable --now mast-research`) and run `screen -S mast .venv/bin/python scripts/research_server.py`. Only one copy can run at a time.
 
 ## Results
