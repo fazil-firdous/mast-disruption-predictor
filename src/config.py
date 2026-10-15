@@ -83,6 +83,10 @@ MAX_FALSE_ALARM_RATE = 0.05  # pick the threshold so at most 5% of clean shots r
 N_BOOTSTRAP = 1000  # resamples over shots for the 95% confidence intervals
 PREMATURE_WARNING_MS = 200  # MAST flat-tops last ~200-300 ms, so an alarm earlier than this is unlikely to be about this disruption
 
+# Extra physics signals (src/extras.py, ROADMAP D1)
+USE_EXTRAS = True  # also fetch magnetics, programmed current and solenoid current (~3-4 MB read per shot)
+EXTRAS_BASELINE_MS = 5  # saddle-coil offsets: mean of each coil's first 5 ms of data (stored only while plasma exists)
+
 # Research extensions (docs/ROADMAP.md)
 CONFORMAL_ALPHAS = (0.01, 0.05, 0.10)  # false-alarm levels to guarantee in E8
 PU_PARAMS = {"learning_rate": 0.1, "max_leaf_nodes": 31}  # fixed HGB settings for E9, so standard and PU models differ only in the labels

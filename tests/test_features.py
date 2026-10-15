@@ -120,7 +120,8 @@ def test_pnbi_on_and_ratios():
 def test_feature_names_match_window_features():
     shot = make_shot("rampdown")
     win = features.shot_windows(shot)
-    assert set(features.feature_names()) == set(win.columns) - {"t_end", "t_start"}
+    assert set(features.feature_names(extended=True)) == set(win.columns) - {"t_end", "t_start"}
+    assert len(features.feature_names()) == 30
 
 
 def test_tiny_shot_has_no_windows():
@@ -155,3 +156,25 @@ def test_breakdown_dip_is_not_a_plasma_end():
     shot.loc[np.isclose(t, 0.004), "ip"] = 1e4
     win = features.shot_windows(shot)
     assert win["t_end"].max() > 0.25
+
+
+@pytest.mark.parametrize("t_end", [0.1, 0.2, 0.219])
+def test_causality_with_extra_signals(t_end):
+    rng = np.random.default_rng(3)
+    shot = make_shot("quench", t_quench=0.22)
+    for column in ["lm_n1", "mirnov_rms", "sol_current", "ip_ref"]:
+        shot[column] = rng.normal(0, 1, len(shot))
+    changed = shot.copy()
+    future = changed["time"] > t_end + 1e-9
+    for column in ["lm_n1", "mirnov_rms", "sol_current", "ip_ref"]:
+        changed.loc[future, column] = 1e9
+    sig_a, sig_b = features.prepare_signals(shot), features.prepare_signals(changed)
+    t_start = features.find_t_start(sig_a)
+    a, b = features.window_features(sig_a, t_end, t_start), features.window_features(sig_b, t_end, t_start)
+    same(a, b)
+    assert a["has_lm"] == 1.0 and np.isfinite(a["ip_ref_error"])
+
+
+def test_missing_extras_give_nan_features():
+    f = features.window_features(features.prepare_signals(make_shot("quench")), 0.15, 0.0)
+    assert f["has_lm"] == 0.0 and np.isnan(f["lm_mean"]) and np.isnan(f["ip_ref_error"])

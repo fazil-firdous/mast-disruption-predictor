@@ -9,7 +9,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts.build_dataset import shot_counts, table_from_report
-from src import config, dataset, sources
+from src import config, dataset, extras, sources
 from src.data import download_shots, load_shot_table
 
 
@@ -45,8 +45,12 @@ def main():
         return
     ids, source = choose_shots(args.scale)
     result = download_shots(ids)
+    have = result["cached"] + result["downloaded"]
+    # the server cannot compute extras itself (it cannot reach STFC), so do it here for every shot it may select
+    extra = extras.download_extras(have) if config.USE_EXTRAS else {"ok": 0, "failed": []}
     manifest = {"task": "fetch", "scale": args.scale, "table_source": source, "requested": len(ids),
                 "available": len(result["cached"]) + len(result["downloaded"]), "failed": len(result["failed"]),
+                "extras": extra["ok"], "extras_failed": len(extra["failed"]),
                 "commit": os.environ.get("GITHUB_SHA", "local")[:7],
                 "created": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())}
     write_json(manifest, "manifest.json")

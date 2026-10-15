@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import pandas as pd
 
-from src import config, dataset
+from src import config, dataset, extras
 from src.data import check_connection, download_shots, is_cached, load_shot_table
 
 
@@ -62,6 +62,8 @@ def build(scale="small", skip_check=False, table=None, offline=False):
         failed = set(download_shots(ids)["failed"])
     labelled = dataset.label_shots([i for i in ids if i not in failed], table)
     shots = dataset.select_shots(labelled, n_disrupted, n_clean)
+    if config.USE_EXTRAS and not offline:
+        extras.download_extras([int(i) for i in shots["shot_id"]])
 
     shots["split"] = shots["shot_id"].map(dataset.random_split(shots))
     shots["split_temporal"] = shots["shot_id"].map(dataset.temporal_split(shots))

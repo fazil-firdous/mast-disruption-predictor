@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from src import config, features, labels
+from src import config, extras, features, labels
 from src.data import load_shot, log_skipped
 
 LABEL_SOURCES = ("both", "signal", "note")
@@ -83,7 +83,8 @@ def build_windows(shots):
     """Window features for every shot, one row per window, with shot_id first. Shots with no windows are logged."""
     tables, empty = [], []
     for _, row in tqdm(shots.iterrows(), total=len(shots), desc="windows"):
-        win = features.shot_windows(load_shot(int(row["shot_id"])), t_stop=stop_time(row))
+        shot_id = int(row["shot_id"])
+        win = features.shot_windows(extras.with_extras(load_shot(shot_id), shot_id), t_stop=stop_time(row))
         if len(win) == 0:
             empty.append([int(row["shot_id"]), "no windows (no visible breakdown, or plasma too short)"])
             continue
