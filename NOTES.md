@@ -223,3 +223,28 @@ First full real-data run (2026-10-15, this sandbox, private workspace)
 - Rehearsed here: `relay_fetch.py --scale full` with mastapp.site down fell back to the 400 report shots and downloaded all 400 (7.9 MB, so ~20 KB per shot and roughly 80 MB for a full run). Unpacked into a fresh workspace and built with `--offline --from-report` while the data URL pointed to an unreachable host: 398 shots, 26,169 windows, identical to the direct build.
 - Private settings moved to `~/mast-private/.env` (config reads it as well as a repo `.env`), so deleting the code folder loses nothing. `setup_vps.sh` copies an old repo `.env` there (keeping a backup) and asks for the optional GitHub token. The token is read from the environment only when used and is filtered out of `config_snapshot`, so it never lands in result files or the results zip sent to Telegram.
 - The owner pasted a GitHub token and the Telegram bot token into the chat. Neither was used, stored or committed by me; advised to revoke both and paste the new ones only into the VPS setup.
+
+## 2026-10-15 - Magnetics (D1), watchers, gold tool, literature check
+
+VPS status (owner's report): the research server started on commit 41b9565 in /root/mast-private; the network diagnosis confirms every TCP connection to both STFC hosts times out from the VPS (IPv4) and IPv6 has no route there at all. So the VPS works only through the GitHub relay. `data.host_reachable` (10 s TCP check) now makes a blocked host fail in seconds; before, the zarr and pandas clients could take minutes per check.
+
+Magnetics data facts (inspected on shots 11860 (M5), 20259 (M7) and 27000 (M8); nothing below is assumed without a check unless marked)
+- `magnetics/b_field_tor_probe_saddle_field`: 12 channels named M01..M012 (voltage channels M01..M12), units T, UDA `ASM/SAD/OUT`, time base `time_saddle` with a 20 us step (50 kHz).
+- Geometry: three rows of 12 saddle coils (lower, middle, upper; `sad_out_l01`.. etc.), all at R = 1.999 m; the middle row spans z = -0.4..0.4 m, each coil covers 20 degrees, centres at 15, 45, ..., 345 degrees. ASSUMPTION (name match only, not confirmed by documentation): measured channel M0k is middle-row coil k. Ask the FAIR-MAST team to confirm.
+- The saddle data is stored only while the plasma exists: NaN before about +2 ms (20259: from 0.0026 s; 27000: from 0.0022 s) and after the plasma ends. So there is no pre-plasma baseline; each coil's offset is its mean over its first 5 ms (`EXTRAS_BASELINE_MS`), and lm_n1 stays NaN until then.
+- Channel M09 is entirely NaN in 20259 and 27000 (dead coil). The n=1 fit skips NaN coils and needs at least 6 (`MIN_SADDLE_CHANNELS`).
+- Centre-column Mirnov coils: 5 poloidal (201, 210, 220, 230, 240) and 3 toroidal (201, 206, 212), units T, 2 us step (500 kHz). In 20259 the first poloidal coil is all NaN; the code takes the first coil with data. Fluctuation RMS is of order 0.02-0.3 uT in flat-top.
+- Shot 20259 (note: "Looks like a locked mode at..."): lm_n1 is ~1.7-2.1 G through the flat-top, falls to 1.2 G at 0.290 s and jumps to 3.5 G at the thermal quench (0.295 s); Mirnov RMS shows bursts at 0.250 s (0.19 uT) and 0.285 s (0.075 uT) against ~0.025 uT normally. The steady ~2 G is probably vacuum pickup from the PF coils plus error fields, not plasma: lm_n1 is a crude locked-mode proxy until vacuum pickup is subtracted (ROADMAP D1 next step).
+- `pulse_schedule/i_plasma` and `pf_active` SOL are held at their last value (causal), as in the termination study.
+
+Watchers
+- The S3 listing returns about 700 folders per page and marks the rest as truncated, so pages are followed by continuation token (a count-based stop first gave 701 instead of 11,573). Full count: 11,573 shot stores, exactly the number of rows in the shot table. `level2/` holds defuse/, netcdf/ and shots/. DEFUSE sample file: 403. Shot table: no answer from this sandbox.
+- arXiv API (export.arxiv.org) works; the first check found 40 matching papers; a second check found 0 new (ids without version suffix, so new versions are not new papers).
+
+Real-data results on the 400-shot report sample (private runs; numbers reported to the owner, not committed)
+- E11 (validation): removing `t_since_start` cuts the HGB catch rate and PR-AUC clearly. Part of the small v1 skill comes from time since start (shot length), not physics. Every model claim must now be checked with and without it.
+- E12 (validation, current-only labels as in the UKAEA benchmark): window PR-AUC rises with horizon, partly because the positive share rises; compare against each horizon's base rate. Shot-level catch at <= 5% false alarms stays near zero.
+
+Literature check (docs/literature_review.md) corrected two of our earlier "possibly new" ideas: conformal prediction has been applied to disruptions (JET, Springer chapter) and survival / time-to-disruption models exist (Keith et al. 2024; arXiv:2609.24443). ROADMAP updated. PU learning for unrecorded disruptions and a label audit of MAST notes were not found.
+
+Gold tool design: blind plots (measured and programmed current, radiated power, solenoid current; no note, no detector time). Seeded queue: 35 unnoted quenches, 30 noted quenches, 30 without a quench, 5 noted without a quench. Answers d / n / u stored in MAST_HOME/gold/labels.csv; a later answer for the same shot replaces the earlier one in the evaluation.

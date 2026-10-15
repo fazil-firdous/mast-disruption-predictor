@@ -9,7 +9,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts.build_dataset import shot_counts, table_from_report
-from src import config, dataset
+from src import config, dataset, extras, sources
 from src.data import download_shots, load_shot_table
 
 
@@ -24,19 +24,36 @@ def choose_shots(scale):
     return dataset.candidate_ids(table, shot_counts(scale)[1]), "live"
 
 
+def write_json(obj, name):
+    """Write obj to DATA_DIR/name (the folder the workflow hands over)."""
+    os.makedirs(config.DATA_DIR, exist_ok=True)
+    with open(os.path.join(config.DATA_DIR, name), "w") as f:
+        json.dump(obj, f, indent=2)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scale", choices=["small", "full"], default="full")
+    parser.add_argument("--task", choices=["fetch", "probe"], default="fetch",
+                        help="fetch: download shots; probe: only report what the data sources offer (src/sources.py)")
     args = parser.parse_args()
+    if args.task == "probe":
+        snapshot = sources.probe()
+        write_json(snapshot, "probe.json")
+        write_json({"task": "probe", "created": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())}, "manifest.json")
+        print(snapshot)
+        return
     ids, source = choose_shots(args.scale)
     result = download_shots(ids)
-    manifest = {"scale": args.scale, "table_source": source, "requested": len(ids),
+    have = result["cached"] + result["downloaded"]
+    # the server cannot compute extras itself (it cannot reach STFC), so do it here for every shot it may select
+    extra = extras.download_extras(have) if config.USE_EXTRAS else {"ok": 0, "failed": []}
+    manifest = {"task": "fetch", "scale": args.scale, "table_source": source, "requested": len(ids),
                 "available": len(result["cached"]) + len(result["downloaded"]), "failed": len(result["failed"]),
+                "extras": extra["ok"], "extras_failed": len(extra["failed"]),
                 "commit": os.environ.get("GITHUB_SHA", "local")[:7],
                 "created": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())}
-    os.makedirs(config.DATA_DIR, exist_ok=True)
-    with open(os.path.join(config.DATA_DIR, "manifest.json"), "w") as f:
-        json.dump(manifest, f, indent=2)
+    write_json(manifest, "manifest.json")
     print(manifest)
 
 

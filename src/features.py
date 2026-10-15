@@ -11,17 +11,26 @@ SIGNALS = {
     "neutrons": "neutron_rates_total",
     "pnbi": "power_nbi",
 }
+# extra physics signals from src/extras.py (ROADMAP D1); NaN when a shot has no extras
+EXTRA_SIGNALS = {
+    "lm": "lm_n1",
+    "mirnov": "mirnov_rms",
+    "sol": "sol_current",
+}
 STATS = ["mean", "std", "last", "slope", "delta"]
 EPS = 1e-9  # s; time values are floats like 0.21000000000000002, so compare with a little slack
 
 
 def prepare_signals(shot_df):
-    """Return a DataFrame with time and the four feature signals (ip_abs, prad, neutrons, pnbi)."""
+    """Return a DataFrame with time, the four summary signals (ip_abs, prad, neutrons, pnbi), the extra signals
+    (lm, mirnov, sol) and ip_ref. Extra columns the shot does not have are NaN."""
     out = pd.DataFrame({"time": shot_df["time"].to_numpy(dtype=float)})
     for name, column in SIGNALS.items():
         values = shot_df[column].to_numpy(dtype=float)
         # abs() because MAST's ip sign depends on field direction
         out[name] = np.abs(values) if name == "ip_abs" else values
+    for name, column in list(EXTRA_SIGNALS.items()) + [("ip_ref", "ip_ref")]:
+        out[name] = shot_df[column].to_numpy(dtype=float) if column in shot_df else np.nan
     return out
 
 
@@ -83,7 +92,7 @@ def window_features(sig, t_end, t_start):
     t = time[in_window]
 
     feats = {}
-    for name in SIGNALS:
+    for name in list(SIGNALS) + list(EXTRA_SIGNALS):
         x = sig[name].to_numpy()
         feats[f"has_{name}"] = float(np.isfinite(x[past]).any())
         for stat, value in _stats(t, x[in_window]).items():
@@ -100,6 +109,9 @@ def window_features(sig, t_end, t_start):
     feats["t_since_start"] = float(t_end - t_start)
     last_pnbi = feats["pnbi_last"]
     feats["pnbi_on"] = float(last_pnbi > config.PNBI_ON_THRESHOLD) if np.isfinite(last_pnbi) else np.nan
+    # how far the current lags the programmed current: losing control of Ip is a classic disruption precursor
+    ip_ref_last = sig["ip_ref"].to_numpy()[past][-1] if past.any() else np.nan
+    feats["ip_ref_error"] = (ip_ref_last - feats["ip_abs_last"]) / (ip_ref_last + config.IP_OFFSET)
     return feats
 
 
@@ -134,14 +146,19 @@ def shot_windows(shot_df, t_stop=np.inf):
     return pd.DataFrame(rows)
 
 
-def feature_names():
-    """Names of the model input columns produced by window_features, in a fixed order."""
+def feature_names(extended=False):
+    """Names of the model input columns, in a fixed order: the 30 v1 features, plus the extra-signal features
+    (ROADMAP D1) when extended is True."""
     names = []
     for name in SIGNALS:
         names += [f"{name}_{stat}" for stat in STATS]
     names += ["ip_frac_of_running_max", "prad_over_pnbi", "prad_over_ip", "neutron_slope_rel",
               "t_since_start", "pnbi_on"]
     names += [f"has_{name}" for name in SIGNALS]
+    if extended:
+        for name in EXTRA_SIGNALS:
+            names += [f"{name}_{stat}" for stat in STATS]
+        names += ["ip_ref_error"] + [f"has_{name}" for name in EXTRA_SIGNALS]
     return names
 
 

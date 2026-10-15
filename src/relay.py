@@ -32,11 +32,12 @@ def _api(path):
     return API.format(repo=config.GITHUB_REPO) + path
 
 
-def trigger(scale):
-    """Start the fetch_data job on GitHub for this scale. Returns the time it was requested (seconds, UTC)."""
+def trigger(scale, task="fetch"):
+    """Start the fetch_data job on GitHub ('fetch' shots for this scale, or 'probe' the sources).
+    Returns the time it was requested (seconds, UTC)."""
     url = _api(f"/actions/workflows/{config.RELAY_WORKFLOW}/dispatches")
     response = requests.post(url, headers=_headers(), timeout=30,
-                             json={"ref": config.RELAY_BRANCH, "inputs": {"scale": scale}})
+                             json={"ref": config.RELAY_BRANCH, "inputs": {"scale": scale, "task": task}})
     response.raise_for_status()
     return time.time()
 

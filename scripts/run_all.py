@@ -12,7 +12,7 @@ from scripts.build_dataset import build, table_from_report
 from src import config, experiment, notify
 
 MAIN_EXPERIMENTS = ["E0", "E1", "E2", "E3"]
-EXTRA_EXPERIMENTS = ["E4", "E5", "E6", "E7", "E8", "E9"]
+EXTRA_EXPERIMENTS = ["E4", "E5", "E6", "E7", "E8", "E9", "E11", "E12", "E13"]
 
 
 def pct(x):

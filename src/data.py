@@ -1,7 +1,9 @@
 """Load the shot table and per-shot summary signals, with a local parquet cache."""
 import csv
 import os
+import socket
 import time
+import urllib.parse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pandas as pd
@@ -23,10 +25,28 @@ def load_shot_table(use_cache=True):
     return table
 
 
+def host_reachable(url, timeout=config.TCP_CHECK_TIMEOUT_S):
+    """True if a plain TCP connection to the URL's host opens within timeout. Local paths count as reachable.
+
+    A blocked server never answers, and the HTTP libraries can take minutes to give up; this takes seconds.
+    """
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        return True
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    try:
+        with socket.create_connection((parsed.hostname, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
 def check_shot_table():
     """(ok, message): the shot table is cached, or can be downloaded now. mastapp.site has had outages (503)."""
     if os.path.exists(config.SHOT_TABLE_CACHE):
         return True, "shot table cached"
+    if not host_reachable(config.SHOT_TABLE_URL):
+        return False, "shot table server does not answer (blocked from here, or down)"
     try:
         table = load_shot_table()
     except Exception as error:
@@ -116,6 +136,9 @@ def check_connection(shot_id=config.REFERENCE_SHOT, attempts=1, backoff=config.R
     Returns (ok, message). The default single attempt fails fast; big runs pass more attempts so one
     timeout does not kill them. If it keeps failing, run scripts/diagnose_network.py.
     """
+    url = config.SHOT_ZARR_URL.format(shot_id=shot_id)
+    if not host_reachable(url):
+        return False, f"{urllib.parse.urlparse(url).hostname} does not answer (blocked from here, or down)"
     message = ""
     for attempt in range(attempts):
         try:

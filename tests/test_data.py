@@ -145,3 +145,16 @@ def test_check_connection_reports_both_outcomes(monkeypatch):
     monkeypatch.setattr(data, "_open_summary", lambda shot_id: xr.Dataset())
     ok, message = data.check_connection(11860)
     assert not ok and "11860" in message
+
+
+@pytest.mark.real_host_check
+def test_host_reachable_on_localhost():
+    import socket
+    server = socket.socket()
+    server.bind(("127.0.0.1", 0))
+    server.listen(1)
+    port = server.getsockname()[1]
+    assert data.host_reachable(f"http://127.0.0.1:{port}/x", timeout=2)
+    server.close()
+    assert not data.host_reachable(f"http://127.0.0.1:{port}/x", timeout=2)
+    assert data.host_reachable("/local/path/{shot_id}.zarr")

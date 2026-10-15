@@ -211,7 +211,41 @@ def run(exp, split="random", model=None, seed=None):
         return run_pu(dataset.labelled_windows(windows, shots), shots, split_column, all_columns, out_dir)
     if exp == "E10":
         return run_seed(name, windows, shots, seed or 1)
+    if exp == "E11":
+        return sweep(name, windows, shots, split_column, out_dir, "drop_feature", [None, "t_since_start"])
+    if exp == "E12":
+        return sweep(name, windows, shots, split_column, out_dir, "ukaea_horizon_ms", [10, 30, 60])
+    if exp == "E13":
+        return sweep(name, windows, shots, split_column, out_dir, "feature_set",
+                     ["v1", "v1+magnetics", "v1+magnetics-no-time"])
     raise ValueError(f"unknown experiment {exp!r}")
+
+
+def sweep_settings(knob, value):
+    """(horizon in ms, label source, feature columns) for one value of a sweep knob.
+
+    E11 'drop_feature' is the shortcut test (does the result survive without t_since_start?). E13 'feature_set'
+    adds the magnetics and control signals of src/extras.py, with and without t_since_start. E12
+    'ukaea_horizon_ms' copies the UKAEA FAIR-MAST benchmark protocol as far as it is public: labels from the
+    current alone and lead times of 10, 30 and 60 ms. Their split and exact labels are not public, so this is a
+    like-for-like protocol, not their numbers.
+    """
+    horizon, source, columns = config.HORIZON_MS, None, features.feature_names()
+    if knob == "horizon_ms":
+        horizon = value
+    elif knob == "label_source":
+        source = value
+    elif knob == "drop_signal" and value:
+        columns = features.features_without(value)
+    elif knob == "drop_feature" and value:
+        columns = [c for c in columns if c != value]
+    elif knob == "ukaea_horizon_ms":
+        horizon, source = value, "signal"
+    elif knob == "feature_set" and value != "v1":
+        columns = features.feature_names(extended=True)
+        if value.endswith("-no-time"):
+            columns = [c for c in columns if c != "t_since_start"]
+    return horizon, source, columns
 
 
 def sweep(name, windows, shots, split_column, out_dir, knob, values):
@@ -221,9 +255,7 @@ def sweep(name, windows, shots, split_column, out_dir, knob, values):
     """
     rows = []
     for value in values:
-        horizon = value if knob == "horizon_ms" else config.HORIZON_MS
-        source = value if knob == "label_source" else None
-        columns = features.features_without(value) if knob == "drop_signal" and value else features.feature_names()
+        horizon, source, columns = sweep_settings(knob, value)
         win = dataset.labelled_windows(windows, shots, source=source, horizon_ms=horizon)
         sub_dir = os.path.join(out_dir, f"{knob}_{value}")
         metrics = run_model(name, win, split_column, columns, sub_dir, use_test=False)

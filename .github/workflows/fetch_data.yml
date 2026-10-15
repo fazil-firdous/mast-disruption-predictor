@@ -11,6 +11,11 @@ on:
         default: full
         type: choice
         options: [small, full]
+      task:
+        description: "fetch (download shots) or probe (only check what the data sources offer)"
+        default: fetch
+        type: choice
+        options: [fetch, probe]
 
 permissions:
   contents: read
@@ -27,8 +32,8 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
-      - name: download shots
-        run: python scripts/relay_fetch.py --scale ${{ inputs.scale }}
+      - name: download shots or probe the sources
+        run: python scripts/relay_fetch.py --scale ${{ inputs.scale }} --task ${{ inputs.task }}
       - uses: actions/upload-artifact@v4
         with:
           name: mast-data

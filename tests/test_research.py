@@ -78,3 +78,18 @@ def test_seed_sweep_accumulates(tiny_project):  # noqa: F811
     second = experiment.run("E10", model="logreg", seed=2)
     assert first["n_seeds"] == 1 and second["n_seeds"] == 2
     assert 0 <= second["catch_rate_mean"] <= 1
+
+
+def test_sweep_settings():
+    from src import features
+    horizon, source, columns = experiment.sweep_settings("drop_feature", "t_since_start")
+    assert "t_since_start" not in columns and len(columns) == len(features.feature_names()) - 1
+    assert experiment.sweep_settings("ukaea_horizon_ms", 60)[:2] == (60, "signal")
+    assert experiment.sweep_settings("drop_feature", None)[2] == features.feature_names()
+
+
+def test_shortcut_and_ukaea_experiments_run(tiny_project):  # noqa: F811
+    e11 = experiment.run("E11", model="logreg")
+    assert [row["drop_feature"] for row in e11] == ["none", "t_since_start"]
+    e12 = experiment.run("E12", model="logreg")
+    assert [row["ukaea_horizon_ms"] for row in e12] == [10, 30, 60]
