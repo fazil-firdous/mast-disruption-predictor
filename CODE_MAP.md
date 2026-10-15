@@ -33,7 +33,14 @@ A plain-English tour of the repo. Read the files in the order below.
 | `scripts/build_dataset.py` | done | `--scale small|full`: download, label, select, window, split. Writes `data/processed/windows.parquet` and `shots.parquet`. |
 | `scripts/run_experiment.py` | done | `--exp E0..E7 [--split temporal] [--model hgb]`. |
 | `scripts/run_all.py` | done | The whole pipeline with Telegram messages, `results/SUMMARY.md` and a results zip. |
-| `deploy/setup_vps.sh`, `deploy/run_pipeline.sh` | done | One-time VPS setup (venv, `.env`, nightly cron) and the run wrapper (pull, test, run, send log). |
+| `deploy/setup_vps.sh` | done | One-time VPS setup: venv, private `.env` (token, chat id, `MAST_HOME`), tests, network check, systemd service for the research server. |
+| `scripts/research_server.py` | done | Runs forever: waits out outages, full run per new commit, E10 seeds when idle, daily heartbeat, Telegram commands from the owner only. |
+| `src/server.py` | done | The research server's decisions and texts (state file, command parsing, what to run next), kept separate so they are testable. |
+| `src/registry.py` | done | Save / load trained models with their feature list and threshold, in `MODELS_DIR` (private). |
+| `src/predict.py`, `scripts/predict_shot.py` | done | Run a saved model over a whole shot as if live; plot score, alarm and the detector's quench. |
+| `scripts/diagnose_network.py` | done | DNS, TCP per address, HTTPS and zarr checks, with a plain-language verdict; sent to Telegram. |
+| `scripts/inspect_groups.py` | done | Catalogue of every signal stored for a shot (all groups) from the store metadata. Writes `results/data_catalogue/`. |
+| `scripts/termination_study.py` | done (real data) | Programmed current and solenoid current at the quench, noted vs unnoted. Writes `results/termination_study/`. |
 | `.github/workflows/ci.yml` | done | On every push: `pytest`, plus `check_live.py` on a fresh machine. |
 | `notebooks/colab_pipeline.ipynb` | done (not yet run in Colab) | Clone, install, every phase in order. |
 | `tests/synthetic.py` | done | `make_shot(kind=...)` builds fake shots. |
@@ -42,12 +49,18 @@ A plain-English tour of the repo. Read the files in the order below.
 | `tests/test_alarms.py` | done | K-in-a-row rule on hand-made sequences, fast version agrees with the loop. |
 | `tests/test_evaluate.py` | done | Outcomes and rates, threshold choice, bootstrap, baseline rule, two tiny end-to-end experiment runs, Telegram without credentials. |
 | `tests/test_research.py` | done | Conformal rank and guarantee (simulated), PU weights, premature rate, E8/E9 end to end. |
+| `tests/test_server.py` | done | Server decisions, command parsing, Telegram parsing, `.env` loading, diagnosis verdicts, connection retries, catalogue. |
 | `tests/__init__.py` | done | Empty. Makes `tests` a package so `from src import ...` works. |
+
+## Where things are written
+`src/config.py` reads the private `.env` (git-ignored) at import. `MAST_HOME` there decides where data, results, models and logs go (`DATA_DIR`, `RESULTS_DIR`, `MODELS_DIR`, `LOGS_DIR`). Unset, it is the current folder, as before.
 
 ## src/data.py in detail
 - `load_shot_table(use_cache=True)` -> DataFrame, one row per shot. Reads `data/shot_table.parquet` if present, otherwise downloads it from mastapp.site and saves it.
 - `load_shot(shot_id, use_cache=True, retries, backoff)` -> DataFrame with columns `time, ip, power_radiated, neutron_rates_total, power_nbi` (float64). Missing signals are NaN columns. Reads `data/raw/{shot_id}.parquet` if present, otherwise streams the zarr `summary` group, retries on errors (but not when the shot does not exist), and saves the result. Raises if the group is empty, has no time, or has none of the four signals. An empty group is retried, because zarr 3 returns one when the connection fails.
-- `check_connection(shot_id=REFERENCE_SHOT)` -> (ok, message). Reads one shot straight from the server with no cache and no retries, so a blocked network fails fast.
+- `check_connection(shot_id=REFERENCE_SHOT, attempts=1)` -> (ok, message). Reads one shot straight from the server with no cache; big runs pass more attempts so one timeout does not kill them.
+- `check_shot_table()` -> (ok, message). The shot table is cached or can be downloaded now.
+- `open_group(shot_id, group)` -> xarray Dataset of any group (pulse_schedule, pf_active, magnetics, ...), not cached.
 - `download_shots(ids, workers, retries, backoff)` -> dict with lists `cached`, `downloaded`, `failed`. Skips shots already on disk, downloads the rest in parallel with a progress bar, and appends failures (shot_id, reason) to `data/skipped.csv`.
 - `log_skipped(rows)` appends (shot_id, reason) rows to `data/skipped.csv`; `dataset.py` uses it too.
 - Private helpers: `_open_summary` (the only function that touches the network for signals, so tests replace it), `_summary_to_frame`, `_fetch_shot`, `_cache_path`.
@@ -135,3 +148,13 @@ Read it top to bottom; each function uses only the ones above it.
 - `run_conformal` (E8): tune on half the validation shots, calibrate on the other half's clean shots, report test false-alarm and catch rate for each alpha, next to the usual tuned threshold.
 - `run_pu` (E9): standard vs PU model with identical settings, on all test shots and on the unambiguous ones (`unambiguous()`: disrupted shots plus shots with no quench at all). Also reports c and the mean weight of unnoted-quench windows, i.e. how disruption-like the model thinks they are.
 - `premature_rate` (in `evaluate.shot_metrics`): share of disrupted shots caught more than `PREMATURE_WARNING_MS` early.
+
+## The research server in detail
+- `src/server.py`: `new_state`, `read_state`, `write_state` (the state file in `LOGS_DIR`), `parse_command('/predict 11860')`, `next_job(state, head, now, processed_ready)` -> 'pipeline' for every new commit (a failed one is retried after `PIPELINE_RETRY_HOURS`), else the next E10 seed, else nothing. `status_text`, `HELP`.
+- `scripts/research_server.py`: `main` loops forever: pull code every `UPDATE_CHECK_MINUTES` (and restart itself on new code), heartbeat, pick the next job, wait out network outages (`wait_for_network`), run jobs as child processes (`run_job`) while still answering commands (`poll_commands` -> `handle_command`). A lock file stops a second copy.
+- Commands come only from `TELEGRAM_CHAT_ID`, and each maps to a fixed action; nothing typed in the chat is run as a shell command.
+
+## Models you can reuse
+- `src/registry.py`: `save(model, tag, ...)`, `load(tag)` -> (model, meta), `saved_tags()`, `best_tag()`. E0-E3 and E6 save their tuned model (tag = experiment folder, e.g. `E3`, `E6_hgb`).
+- `src/predict.py`: `predict(shot_df, model, meta)` -> (windows with score, t_alarm). `plot_prediction(...)`.
+- E10 (`experiment.run_seed`, `seed_summary`): one more random split per seed; the summary gives mean and spread over all seeds so far.

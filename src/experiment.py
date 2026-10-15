@@ -7,18 +7,17 @@ import numpy as np
 import pandas as pd
 from sklearn.inspection import permutation_importance
 
-from src import conformal, config, dataset, evaluate, features, models, pu
+from src import conformal, config, dataset, evaluate, features, models, pu, registry
 from src.data import load_shot
 
-WINDOWS_PATH = os.path.join(config.PROCESSED_DIR, "windows.parquet")
-SHOTS_PATH = os.path.join(config.PROCESSED_DIR, "shots.parquet")
 MODEL_NAMES = {"E0": "baseline", "E1": "logreg", "E2": "forest", "E3": "hgb"}
 MAX_IMPORTANCE_WINDOWS = 20000  # permutation importance on more windows is slow and changes little
 
 
 def load_tables():
     """The window table and shot table written by scripts/build_dataset.py."""
-    return pd.read_parquet(WINDOWS_PATH), pd.read_parquet(SHOTS_PATH)
+    windows = pd.read_parquet(os.path.join(config.PROCESSED_DIR, "windows.parquet"))
+    return windows, pd.read_parquet(os.path.join(config.PROCESSED_DIR, "shots.parquet"))
 
 
 def split_frames(win, split_column):
@@ -141,8 +140,11 @@ def config_snapshot():
     return {k: v for k, v in vars(config).items() if k.isupper()}
 
 
-def run_model(name, win, split_column, columns, out_dir, use_test=True):
-    """Tune one model, optionally test it, write metrics.json and config.json to out_dir, return the metrics."""
+def run_model(name, win, split_column, columns, out_dir, use_test=True, save=True, with_importance=True):
+    """Tune one model, optionally test it, write metrics.json and config.json to out_dir, return the metrics.
+
+    With use_test and save, the fitted model is also saved to MODELS_DIR (see src/registry.py).
+    """
     os.makedirs(out_dir, exist_ok=True)
     train, val, test = split_frames(win, split_column)
     best = tune(name, train, val, columns)
@@ -153,7 +155,12 @@ def run_model(name, win, split_column, columns, out_dir, use_test=True):
                "trials": best["trials"]}
     if use_test:
         metrics["test"] = test_once(best, test, columns, out_dir)
-    if name != "baseline":
+    if use_test and save:
+        tag = os.path.relpath(out_dir, config.RESULTS_DIR).replace(os.sep, "_")
+        registry.save(best["model"], tag, name, columns, best["threshold"],
+                      {"val_catch_rate": best["val_catch_rate"], "test_catch_rate": metrics["test"]["catch_rate"],
+                       "test_false_alarm_rate": metrics["test"]["false_alarm_rate"], "params": best["params"]})
+    if name != "baseline" and with_importance:
         imp = importance(best["model"], val, columns)
         imp.to_csv(os.path.join(out_dir, "importance.csv"), index=False)
         evaluate.plot_importance(imp, os.path.join(out_dir, "importance.png"))
@@ -175,7 +182,7 @@ def best_model_name():
     return best
 
 
-def run(exp, split="random", model=None):
+def run(exp, split="random", model=None, seed=None):
     """Run one experiment id from SPEC 14 and return a dict of its headline numbers."""
     windows, shots = load_tables()
     split_column = "split" if split == "random" else "split_temporal"
@@ -199,6 +206,8 @@ def run(exp, split="random", model=None):
         return run_conformal(name, dataset.labelled_windows(windows, shots), split_column, all_columns, out_dir)
     if exp == "E9":
         return run_pu(dataset.labelled_windows(windows, shots), shots, split_column, all_columns, out_dir)
+    if exp == "E10":
+        return run_seed(name, windows, shots, seed or 1)
     raise ValueError(f"unknown experiment {exp!r}")
 
 
@@ -292,3 +301,38 @@ def run_pu(win, shots, split_column, columns, out_dir):
     pd.DataFrame(rows).to_csv(os.path.join(out_dir, "pu.csv"), index=False)
     write_json(summary, os.path.join(out_dir, "metrics.json"))
     return summary
+
+
+def run_seed(name, windows, shots, seed):
+    """E10: one more random split with this seed, tuned and tested like E1-E3, then the summary over all seeds so far.
+
+    One split gives one number; many splits show how much of a result is luck of the split.
+    """
+    split = dataset.random_split(shots, seed=seed)
+    resplit = windows.assign(split=windows["shot_id"].map(split))
+    win = dataset.labelled_windows(resplit, shots)
+    out_dir = os.path.join(config.RESULTS_DIR, "E10", f"seed_{seed}")
+    run_model(name, win, "split", features.feature_names(), out_dir, save=False, with_importance=False)
+    return seed_summary()
+
+
+def seed_summary():
+    """Mean, spread and count of the E10 test metrics over every seed run so far; also writes E10/summary.csv."""
+    folder = os.path.join(config.RESULTS_DIR, "E10")
+    rows = []
+    for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+        path = os.path.join(folder, name, "metrics.json")
+        if name.startswith("seed_") and os.path.exists(path):
+            with open(path) as f:
+                test = json.load(f)["test"]
+            rows.append({"seed": int(name[5:]), "catch_rate": test["catch_rate"],
+                         "false_alarm_rate": test["false_alarm_rate"], "warning_median_ms": test["warning_median_ms"]})
+    if not rows:
+        return {"n_seeds": 0}
+    table = pd.DataFrame(rows).sort_values("seed")
+    table.to_csv(os.path.join(folder, "summary.csv"), index=False)
+    out = {"n_seeds": len(table)}
+    for column in ["catch_rate", "false_alarm_rate", "warning_median_ms"]:
+        out[f"{column}_mean"] = float(table[column].mean())
+        out[f"{column}_std"] = float(table[column].std(ddof=1)) if len(table) > 1 else 0.0
+    return out

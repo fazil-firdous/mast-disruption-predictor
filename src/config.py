@@ -1,6 +1,24 @@
 """Every tunable parameter in one place, so each choice can be found and explained."""
 import os
 
+REPO_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _load_env_file(path):
+    """Copy KEY=VALUE lines from a private .env file into os.environ. Variables already set in the shell win."""
+    if not os.path.exists(path):
+        return
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
+                os.environ.setdefault(key.strip(), value.strip().strip('"'))
+
+
+# .env is git-ignored: bot token, chat id and MAST_HOME live only on the owner's server
+_load_env_file(os.path.join(REPO_DIR, ".env"))
+
 # Data sources (SPEC 3.1)
 SHOT_TABLE_URL = "https://mastapp.site/parquet/level2/shots"
 # env override lets tests and offline work point at a local copy of the stores
@@ -74,11 +92,24 @@ SIGNAL_VARIABLES = {
     "power_nbi": "power_nbi",
 }
 RETRY_BACKOFF_S = 2.0  # wait 2 s, then 4 s, then 8 s between retries, so a busy server can recover
+CONNECTION_CHECK_ATTEMPTS = 4  # before a big run; one timeout on the VPS (2026-10-16) killed a whole run
 
-# Paths
-DATA_DIR = "data"
-RAW_DIR = "data/raw"
-PROCESSED_DIR = "data/processed"
-RESULTS_DIR = "results"
-SHOT_TABLE_CACHE = "data/shot_table.parquet"  # the table is ~11.5k rows, so one copy avoids re-downloading it
-SKIPPED_CSV = "data/skipped.csv"  # every shot we could not load, with the reason (SPEC 8.1)
+# Paths. Public code, private runs: on a personal server MAST_HOME points outside the repo, so downloaded data,
+# trained models, results and logs never end up in git. Unset, everything goes under the current folder as before.
+HOME_DIR = os.environ.get("MAST_HOME", ".")
+DATA_DIR = os.path.join(HOME_DIR, "data")
+RAW_DIR = os.path.join(DATA_DIR, "raw")
+PROCESSED_DIR = os.path.join(DATA_DIR, "processed")
+RESULTS_DIR = os.path.join(HOME_DIR, "results")
+MODELS_DIR = os.path.join(HOME_DIR, "models")
+LOGS_DIR = os.path.join(HOME_DIR, "logs")
+SHOT_TABLE_CACHE = os.path.join(DATA_DIR, "shot_table.parquet")  # the table is ~11.5k rows, so one copy avoids re-downloading it
+SKIPPED_CSV = os.path.join(DATA_DIR, "skipped.csv")  # every shot we could not load, with the reason (SPEC 8.1)
+
+# Research server (scripts/research_server.py)
+NETWORK_RETRY_MINUTES = 30  # when the data server is unreachable, check again this often instead of giving up
+PIPELINE_RETRY_HOURS = 6  # a failed full run of the same commit is retried at most this often
+HEARTBEAT_HOURS = 24  # one "still alive" Telegram message a day
+SEED_SWEEP_MAX = 50  # idle work: re-split and re-test with seeds 1..50 for honest mean +- spread (E10)
+TELEGRAM_POLL_S = 25  # long-poll length for bot commands; also the loop's natural tick
+UPDATE_CHECK_MINUTES = 10  # look for new commits on GitHub this often; more often is pointless load on GitHub

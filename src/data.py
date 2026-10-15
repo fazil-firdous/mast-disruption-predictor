@@ -23,12 +23,32 @@ def load_shot_table(use_cache=True):
     return table
 
 
+def check_shot_table():
+    """(ok, message): the shot table is cached, or can be downloaded now. mastapp.site has had outages (503)."""
+    if os.path.exists(config.SHOT_TABLE_CACHE):
+        return True, "shot table cached"
+    try:
+        table = load_shot_table()
+    except Exception as error:
+        return False, f"shot table server unavailable: {type(error).__name__}: {error}"[:300]
+    return True, f"shot table downloaded: {len(table)} shots"
+
+
 def _open_summary(shot_id):
     """Open one shot's summary group over HTTPS (the only network call for signals, so tests replace it)."""
     # zarr v3 stores since 2026-09-22 (zarr<3 cannot read them). The array list lives only in the root's
     # consolidated metadata and S3 cannot list folders, so consolidated=False sees an empty group.
     url = config.SHOT_ZARR_URL.format(shot_id=shot_id)
     return xr.open_zarr(url, group=config.SUMMARY_GROUP, consolidated=True)
+
+
+def open_group(shot_id, group):
+    """Open any group of one shot's store (e.g. 'pulse_schedule', 'pf_active', 'magnetics') as an xarray Dataset.
+
+    Not cached: used for studies and for checking a group before it becomes a feature.
+    """
+    url = config.SHOT_ZARR_URL.format(shot_id=shot_id)
+    return xr.open_zarr(url, group=group, consolidated=True)
 
 
 def _summary_to_frame(ds):
@@ -85,16 +105,22 @@ def load_shot(shot_id, use_cache=True, retries=config.DOWNLOAD_RETRIES, backoff=
     return frame
 
 
-def check_connection(shot_id=config.REFERENCE_SHOT):
-    """Try to read one known shot straight from the server (no cache, no retries).
+def check_connection(shot_id=config.REFERENCE_SHOT, attempts=1, backoff=config.RETRY_BACKOFF_S):
+    """Try to read one known shot straight from the server (no cache), up to attempts times.
 
-    Returns (ok, message). Use it before a big download so a blocked network fails fast with a clear reason.
+    Returns (ok, message). The default single attempt fails fast; big runs pass more attempts so one
+    timeout does not kill them. If it keeps failing, run scripts/diagnose_network.py.
     """
-    try:
-        frame = _summary_to_frame(_open_summary(shot_id))
-    except Exception as error:
-        return False, f"could not read shot {shot_id}: {type(error).__name__}: {error}"[:300]
-    return True, f"read shot {shot_id}: {len(frame)} samples"
+    message = ""
+    for attempt in range(attempts):
+        try:
+            frame = _summary_to_frame(_open_summary(shot_id))
+            return True, f"read shot {shot_id}: {len(frame)} samples"
+        except Exception as error:
+            message = f"could not read shot {shot_id} ({attempt + 1} attempts): {type(error).__name__}: {error}"[:300]
+        if attempt < attempts - 1:
+            time.sleep(backoff * 2**attempt)
+    return False, message
 
 
 def log_skipped(rows):

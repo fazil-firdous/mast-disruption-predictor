@@ -1,36 +1,60 @@
 #!/usr/bin/env bash
-# One-time setup on a fresh Ubuntu 22.04/24.04 VPS. Run as a normal user with sudo:
-#   curl -fsSL https://raw.githubusercontent.com/fazil-mastu/mastu/main/deploy/setup_vps.sh | bash
-# (or clone the repo first and run: bash deploy/setup_vps.sh)
+# One-time setup on a fresh Ubuntu 22.04/24.04 VPS (re-running it is safe). From the cloned repo:
+#   bash deploy/setup_vps.sh
+# Public code, private runs: the repo stays a clean copy of GitHub; downloaded data, trained models, results
+# and logs go to MAST_HOME (default ~/mast-private), and the bot token stays in the git-ignored .env.
 set -euo pipefail
 
-REPO_URL="${REPO_URL:-https://github.com/fazil-mastu/mastu.git}"
-BRANCH="${BRANCH:-main}"
-APP_DIR="$HOME/mastu"
+APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$APP_DIR"
 
 sudo apt-get update -y
-sudo apt-get install -y git python3 python3-venv python3-pip tmux
+sudo apt-get install -y git python3 python3-venv python3-pip screen
 
-if [ ! -d "$APP_DIR/.git" ]; then
-  git clone --branch "$BRANCH" "$REPO_URL" "$APP_DIR"
-fi
-cd "$APP_DIR"
 python3 -m venv .venv
 .venv/bin/pip install --upgrade pip
 .venv/bin/pip install -r requirements.txt
 
-# the bot token lives only on this machine, never in git (.env is in .gitignore)
-if [ ! -f .env ]; then
+touch .env
+chmod 600 .env
+if ! grep -q '^TELEGRAM_BOT_TOKEN=' .env; then
   read -rp "Telegram bot token: " token
-  read -rp "Telegram chat id: " chat
-  printf 'TELEGRAM_BOT_TOKEN=%s\nTELEGRAM_CHAT_ID=%s\n' "$token" "$chat" > .env
-  chmod 600 .env
+  echo "TELEGRAM_BOT_TOKEN=$token" >> .env
 fi
+if ! grep -q '^TELEGRAM_CHAT_ID=' .env; then
+  read -rp "Telegram chat id: " chat
+  echo "TELEGRAM_CHAT_ID=$chat" >> .env
+fi
+if ! grep -q '^MAST_HOME=' .env; then
+  echo "MAST_HOME=$HOME/mast-private" >> .env
+fi
+mkdir -p "$(grep '^MAST_HOME=' .env | cut -d= -f2)"
 
-.venv/bin/python -c "from src import notify; notify.send('VPS setup finished, bot works')"
+# the old nightly cron job is replaced by the research server
+( crontab -l 2>/dev/null | grep -v run_pipeline.sh ) | crontab - || true
+
 .venv/bin/python -m pytest -q
+.venv/bin/python -c "from src import notify; notify.send('VPS setup finished, bot works')"
+.venv/bin/python scripts/diagnose_network.py || echo "Network check failed: read the Telegram report."
 
-# re-run every night at 03:10 if the code changed (run_pipeline.sh skips otherwise)
-( crontab -l 2>/dev/null | grep -v run_pipeline.sh ; echo "10 3 * * * $APP_DIR/deploy/run_pipeline.sh >> $APP_DIR/logs/cron.log 2>&1" ) | crontab -
-mkdir -p logs
-echo "Setup done. Start the first run with:  tmux new -s mast '$APP_DIR/deploy/run_pipeline.sh --force'"
+# a systemd service restarts the server after crashes and reboots
+sudo tee /etc/systemd/system/mast-research.service > /dev/null <<UNIT
+[Unit]
+Description=MAST disruption research server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=$(id -un)
+WorkingDirectory=$APP_DIR
+ExecStart=$APP_DIR/.venv/bin/python scripts/research_server.py --scale full
+Restart=always
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+sudo systemctl daemon-reload
+sudo systemctl enable --now mast-research.service
+echo "Done. The research server is running as a service. Send /help to your bot."
+echo "Logs: journalctl -u mast-research -f    Stop: sudo systemctl stop mast-research"

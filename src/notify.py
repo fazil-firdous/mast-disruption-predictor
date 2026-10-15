@@ -3,25 +3,13 @@ import os
 
 import requests
 
+from src import config  # noqa: F401  (importing config loads the private .env)
+
 API = "https://api.telegram.org/bot{token}/{method}"
-ENV_FILE = ".env"
-
-
-def _load_env_file(path=ENV_FILE):
-    """Read KEY=VALUE lines from .env into os.environ (values already set in the environment win)."""
-    if not os.path.exists(path):
-        return
-    with open(path) as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith("#") and "=" in line:
-                key, value = line.split("=", 1)
-                os.environ.setdefault(key.strip(), value.strip().strip('"'))
 
 
 def _credentials():
-    """(token, chat_id) from the environment or .env, or (None, None)."""
-    _load_env_file()
+    """(token, chat_id) from the environment (filled from .env by config), or (None, None)."""
     return os.environ.get("TELEGRAM_BOT_TOKEN"), os.environ.get("TELEGRAM_CHAT_ID")
 
 
@@ -52,3 +40,38 @@ def send_file(path, caption=""):
     method, field = ("sendPhoto", "photo") if path.endswith(".png") else ("sendDocument", "document")
     with open(path, "rb") as f:
         return _call(method, {"caption": caption[:1000]}, files={field: f})
+
+
+def get_updates(offset, timeout=25):
+    """New bot messages since offset, as a list of (update_id, chat_id, text). Empty if not configured or offline.
+
+    Long polling: Telegram holds the request open for up to timeout seconds until a message arrives.
+    """
+    token, _ = _credentials()
+    if not token:
+        return []
+    try:
+        response = requests.get(API.format(token=token, method="getUpdates"),
+                                params={"offset": offset, "timeout": timeout}, timeout=timeout + 10)
+        return parse_updates(response.json())
+    except (requests.RequestException, ValueError) as error:
+        print(f"[notify] getUpdates failed: {error}")
+        return []
+
+
+def parse_updates(payload):
+    """Turn a getUpdates JSON reply into (update_id, chat_id, text) tuples, skipping non-text updates."""
+    out = []
+    for update in payload.get("result", []):
+        message = update.get("message") or {}
+        text = message.get("text")
+        if text:
+            out.append((update["update_id"], str(message.get("chat", {}).get("id")), text))
+        else:
+            out.append((update["update_id"], None, None))
+    return out
+
+
+def owner_chat_id():
+    """The only chat whose commands the research server obeys."""
+    return _credentials()[1]

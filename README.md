@@ -2,7 +2,7 @@
 
 A machine-learning project that watches a MAST tokamak plasma pulse as it unfolds and tries to raise an alarm before a disruption, using only information available up to that moment. Work is staged by phase (see `docs/SPEC.md` and `the project rules`).
 
-**Status: the whole v1 pipeline is written and tested on synthetic shots (Phases 0 to 7: data layer, labels, causal features, dataset and splits, alarm logic, four models, shot-level evaluation, experiments E0-E7). It has not yet been run on real data, so there are no model results yet.**
+**Status: the v1 pipeline (Phases 0 to 7) and the first research extensions (E8-E10) are written, tested (114 tests) and have run end to end on real MAST shots. Trained models and their results live on the owner's private server, not in this repository (see "Public code, private runs").**
 
 ## How it works
 1. **Data**: four global signals per shot from FAIR-MAST (`|Ip|`, radiated power, neutron rate, NBI power), 1 ms sampling.
@@ -13,35 +13,42 @@ A machine-learning project that watches a MAST tokamak plasma pulse as it unfold
 6. **Evaluation** per shot: catch rate, tardy rate, miss rate, false-alarm rate, warning time, with bootstrap 95% intervals, on a test split touched once. Also a temporal split (train on M5-M7, test on M8-M9).
 
 ## Research track
-Beyond v1, the long-term plan is in `docs/ROADMAP.md`. Built so far (synthetic tests only, no real-data numbers yet):
+Beyond v1, the long-term plan is in `docs/ROADMAP.md`. Built so far:
 - **E8 conformal alarm threshold**: a provable limit on the false-alarm rate for new clean shots, and a test of where it breaks (later campaigns).
 - **E9 positive-unlabelled learning**: shots that end in a fast quench without an operator note are treated as unlabelled instead of clean, and the model estimates how disruption-like they are.
 - **Premature alarms**: catches more than 200 ms early are reported separately.
+- **E10 seed sweep**: the same experiment on many random splits, so every number comes with its spread.
+- **Termination study** (`scripts/termination_study.py`, real data, `results/termination_study/report.md`): quenches the operators did not note happen during the programmed flat-top just like noted disruptions, and slightly closer to the end of the central-solenoid swing.
+- **Data catalogue** (`scripts/inspect_groups.py`, `results/data_catalogue/`): every signal stored per shot, the starting point for magnetic (locked-mode) and equilibrium features.
 
-## How to run
-Everything can run from `notebooks/colab_pipeline.ipynb` (not yet run in Colab). From a terminal:
+## How to run (anyone)
+Everything can run from `notebooks/colab_pipeline.ipynb` or a terminal:
 
 ```
 pip install -r requirements.txt
 pytest
 python scripts/build_dataset.py --scale small      # 300 disrupted + 300 clean shots -> data/processed/
-python scripts/run_experiment.py --exp E3          # one experiment -> results/E3/
-python scripts/run_all.py --scale small            # everything, E0-E7, with Telegram messages if configured
+python scripts/run_experiment.py --exp E3          # one experiment -> results/E3/, model -> models/E3/
+python scripts/run_all.py --scale small            # everything, E0-E9
+python scripts/predict_shot.py --shot 11860        # run the best trained model on one shot, as if live
 ```
 
-Earlier phase checks: `scripts/inspect_shots.py`, `scripts/download.py`, `scripts/label_report.py`, `scripts/feature_check.py`.
+If `mastapp.site` (the shot table) is down, `python scripts/build_dataset.py --from-report results/label_report/per_shot.csv` builds a dataset from the 400 shots of the Phase 2 report instead. `python scripts/diagnose_network.py` explains any connection problem.
 
-### Running unattended on a VPS with Telegram updates
+## Public code, private runs
+The repository holds only code, docs and small reference results. Everything a training run produces (downloaded data, trained models, results, logs) goes to the folder named by `MAST_HOME`; unset, that is the current folder (git-ignored). On a personal server, `MAST_HOME` points outside the repo, so your own runs never end up on GitHub, and the Telegram token stays in the git-ignored `.env`. Anyone who clones the repo gets the same pipeline and trains their own models.
+
+## Running forever on a personal VPS
 1. Make a Telegram bot with @BotFather and note the token and your chat id.
-2. On a fresh Ubuntu VPS: `git clone https://github.com/fazil-mastu/mastu.git && cd mastu && bash deploy/setup_vps.sh`. It installs everything, asks for the token and chat id (stored in `.env`, never committed), sends a test message, runs the tests and adds a nightly job.
-3. Start the first full run: `tmux new -s mast 'deploy/run_pipeline.sh --force'`. Detach with Ctrl-b d. Telegram gets a message when each step starts and finishes, the headline numbers and trade-off plot for each model, any error with its traceback, and finally a zip of `results/` and the full log.
-4. After that, the nightly job re-runs the pipeline only when new code has been pushed.
+2. `git clone https://github.com/fazil-mastu/mastu.git && cd mastu && bash deploy/setup_vps.sh`. It installs everything, asks for the token and chat id, sets `MAST_HOME=~/mast-private`, runs the tests and the network check, and installs the research server as a systemd service (it restarts after crashes and reboots).
+3. The research server (`scripts/research_server.py`) then: waits out network outages, runs the full pipeline for every new commit pushed to GitHub, spends idle time on the E10 seed sweep, sends a daily heartbeat, and answers commands from your chat only: `/status`, `/results`, `/log`, `/predict 11860`, `/diagnose`, `/run`, `/update`, `/pause`, `/resume`, `/stop`, `/help`.
+4. Prefer `screen`? Stop the service (`sudo systemctl disable --now mast-research`) and run `screen -S mast .venv/bin/python scripts/research_server.py`. Only one copy can run at a time.
 
 ## Results
-TBD - not yet run on real data. Only the label comparison exists so far (`results/label_report/report.md`, from code that ran on 400 real shots): the current-quench detector confirms 97.7% of note-disrupted shots but also flags 74.2% of note-clean shots, because most MAST shots end with a fast current quench whether or not anyone called it a disruption. That is why `LABEL_SOURCE = "both"`.
+Model results: TBD in this repository; they are produced on the owner's private server. Real-data analyses committed here: the label comparison (`results/label_report/report.md`, from code that ran on 400 real shots): the current-quench detector confirms 97.7% of note-disrupted shots but also flags 74.2% of note-clean shots, because most MAST shots end with a fast current quench whether or not anyone called it a disruption. That is why `LABEL_SOURCE = "both"`. The termination study adds that both kinds of quench happen while the programmed current is still at its flat-top value (median 1.00 of its maximum in both groups).
 
 ## Limitations
-Labels are algorithmic and imperfect. Only 4 global signals are used, with no magnetics or profiles. MAST (2000 to 2013), not MAST-U. Offline evaluation, not real-time control. Results come from a subset of shots unless stated otherwise. The model code has only been tested on synthetic shots so far.
+Labels are algorithmic and imperfect. Only 4 global signals are used, with no magnetics or profiles. MAST (2000 to 2013), not MAST-U. Offline evaluation, not real-time control. Results come from a subset of shots unless stated otherwise.
 
 ## Credits
 Data: FAIR-MAST, UKAEA, licence CC BY-SA 4.0 (https://mastapp.site).

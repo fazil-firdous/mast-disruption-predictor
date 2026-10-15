@@ -59,3 +59,22 @@ def test_conformal_and_pu_experiments_run(tiny_project):  # noqa: F811
     summary = experiment.run("E9")
     assert 0 < summary["label_frequency_c"] <= 1
     assert {r["method"] for r in summary["rows"]} == {"standard", "pu"}
+
+
+def test_models_saved_and_live_prediction(tiny_project):  # noqa: F811
+    from src import predict, registry
+    from tests.synthetic import make_shot
+    experiment.run("E1")
+    assert registry.saved_tags() == ["E1"] and registry.best_tag() == "E1"
+    model, meta = registry.load("E1")
+    shot = make_shot("quench", t_quench=0.22)
+    win, t_alarm = predict.predict(shot, model, meta)
+    assert len(win) > 0 and "score" in win
+    assert np.isnan(t_alarm) or t_alarm < 0.22 + 0.005
+
+
+def test_seed_sweep_accumulates(tiny_project):  # noqa: F811
+    first = experiment.run("E10", model="logreg", seed=1)
+    second = experiment.run("E10", model="logreg", seed=2)
+    assert first["n_seeds"] == 1 and second["n_seeds"] == 2
+    assert 0 <= second["catch_rate_mean"] <= 1
