@@ -12,10 +12,12 @@ import subprocess
 import sys
 import time
 
+import pandas as pd
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts import predict_shot
-from src import config, experiment, literature, notify, relay, server, sources
+from src import config, experiment, gold, literature, notify, relay, server, sources
 from src.data import check_connection, check_shot_table, host_reachable
 
 PY = sys.executable
@@ -96,6 +98,16 @@ def handle_command(name, arg, state):
     elif name == "run":
         state["force_pipeline"] = True
         notify.send("full run queued")
+    elif name == "gold":
+        send_next_gold(state)
+    elif name in gold.ANSWERS and state["gold_current"] is not None:
+        item = state["gold_current"]
+        gold.record(item["shot_id"], name, item["stratum"])
+        notify.send(f"shot {item['shot_id']}: {gold.ANSWERS[name]}")
+        send_next_gold(state)
+    elif name == "goldreport":
+        shots = pd.read_parquet(os.path.join(config.PROCESSED_DIR, "shots.parquet"))
+        notify.send(gold.report_text(shots, gold.read_labels()))
     elif name == "sources":
         state["last_probe_at"] = 0.0
         notify.send("checking the data sources now")
@@ -116,6 +128,23 @@ def handle_command(name, arg, state):
         notify.send(f"stopping {CURRENT['job']}")
     else:
         notify.send(server.HELP)
+
+
+def send_next_gold(state):
+    """Send the next unlabelled shot of the gold queue as a blind plot (needs a built dataset)."""
+    if not os.path.exists(os.path.join(config.PROCESSED_DIR, "shots.parquet")):
+        notify.send("no dataset on this server yet: the gold queue is built from it after the first full run")
+        return
+    items, labels = gold.queue(), gold.read_labels()
+    item = gold.next_item(items, labels)
+    state["gold_current"] = item
+    if item is None:
+        notify.send("gold queue finished. /goldreport shows how the automatic labels compare")
+        return
+    path = os.path.join(config.LOGS_DIR, "gold_current.png")
+    gold.plot_blind(item["shot_id"], path)
+    done = len(labels.drop_duplicates("shot_id"))
+    notify.send_file(path, f"gold {done + 1}/{len(items)}: shot {item['shot_id']}. /d disruption, /n normal end, /u unsure")
 
 
 def poll_commands(state):

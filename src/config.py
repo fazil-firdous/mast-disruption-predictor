@@ -87,6 +87,9 @@ PREMATURE_WARNING_MS = 200  # MAST flat-tops last ~200-300 ms, so an alarm earli
 USE_EXTRAS = True  # also fetch magnetics, programmed current and solenoid current (~3-4 MB read per shot)
 EXTRAS_BASELINE_MS = 5  # saddle-coil offsets: mean of each coil's first 5 ms of data (stored only while plasma exists)
 
+# Gold labels by hand (src/gold.py, ROADMAP A2): over-sample the unnoted quenches, the case that matters most
+GOLD_PLAN = {"unnoted_quench": 35, "noted_quench": 30, "no_quench": 30, "noted_no_quench": 5}
+
 # Research extensions (docs/ROADMAP.md)
 CONFORMAL_ALPHAS = (0.01, 0.05, 0.10)  # false-alarm levels to guarantee in E8
 PU_PARAMS = {"learning_rate": 0.1, "max_leaf_nodes": 31}  # fixed HGB settings for E9, so standard and PU models differ only in the labels
