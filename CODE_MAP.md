@@ -21,6 +21,9 @@ A plain-English tour of the repo. Read the files in the order below.
 | `src/models.py` | done | Physics baseline B0 and the three ML models with their small grids. |
 | `src/evaluate.py` | done | Shot outcomes, metrics, trade-off curve, threshold choice, bootstrap CIs, plots. |
 | `src/experiment.py` | done | Tune on validation, test once, write `results/<exp>/`. Shared by `run_experiment.py` and `run_all.py`. |
+| `src/conformal.py` | built | Conformal alarm threshold with a provable false-alarm limit (E8, ROADMAP B1). |
+| `src/pu.py` | built | Positive-unlabelled learning for unnoted quenches (E9, ROADMAP A1). |
+| `docs/ROADMAP.md` | done | The agreed long-term research plan. Read it after SPEC. |
 | `src/notify.py` | done | Telegram messages and files. Prints only if no bot is configured. |
 | `scripts/download.py` | done | CLI: `--n 50` random shots (seeded) or `--ids ...`. Checks the connection first. |
 | `scripts/inspect_shots.py` | done | Time step, time range, ip sign, missing signals for ~20 shots spread over campaigns. |
@@ -38,6 +41,7 @@ A plain-English tour of the repo. Read the files in the order below.
 | `tests/test_dataset.py` | done | Labels and selection, no window at or after t_disrupt, horizon labels, near-quench flag, splits (no shot in two splits, stratified, temporal). |
 | `tests/test_alarms.py` | done | K-in-a-row rule on hand-made sequences, fast version agrees with the loop. |
 | `tests/test_evaluate.py` | done | Outcomes and rates, threshold choice, bootstrap, baseline rule, two tiny end-to-end experiment runs, Telegram without credentials. |
+| `tests/test_research.py` | done | Conformal rank and guarantee (simulated), PU weights, premature rate, E8/E9 end to end. |
 | `tests/__init__.py` | done | Empty. Makes `tests` a package so `from src import ...` works. |
 
 ## src/data.py in detail
@@ -117,3 +121,17 @@ Read it top to bottom; each function uses only the ones above it.
 
 ## src/notify.py in detail
 - `send(text)` and `send_file(path, caption)` post to Telegram using `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` from the environment or `.env`. They never raise, so a network hiccup cannot kill a training run.
+
+## src/conformal.py in detail
+- `shot_alarm_levels(windows, scores)` -> per shot, the highest threshold at which it would still alarm.
+- `conformal_threshold(clean_levels, alpha)` -> threshold so a new clean shot alarms with probability <= alpha (if shots are exchangeable). Uses the ceil((n+1)(1-alpha))-th smallest calibration level; +inf if there are too few shots.
+- `min_calibration_shots(alpha)` -> how many clean calibration shots that needs (19 for 5%, 99 for 1%).
+
+## src/pu.py in detail
+- `fit_pu(params, train, holdout, columns)` -> (model, c, weights). Elkan & Noto: g learns "labelled positive vs rest", c = mean g on held-out positives, each unlabelled window is used as positive with weight w = (1-c)/c * g/(1-g) and as negative with weight 1-w. g for the weights is out-of-fold (grouped by shot).
+- `label_frequency`, `unlabelled_weights` are the two formulas on their own, so they can be tested.
+
+## E8 and E9 in src/experiment.py
+- `run_conformal` (E8): tune on half the validation shots, calibrate on the other half's clean shots, report test false-alarm and catch rate for each alpha, next to the usual tuned threshold.
+- `run_pu` (E9): standard vs PU model with identical settings, on all test shots and on the unambiguous ones (`unambiguous()`: disrupted shots plus shots with no quench at all). Also reports c and the mean weight of unnoted-quench windows, i.e. how disruption-like the model thinks they are.
+- `premature_rate` (in `evaluate.shot_metrics`): share of disrupted shots caught more than `PREMATURE_WARNING_MS` early.

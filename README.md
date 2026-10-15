@@ -12,6 +12,12 @@ A machine-learning project that watches a MAST tokamak plasma pulse as it unfold
 5. **Alarm**: two windows in a row above a threshold. The threshold is chosen on validation shots so that at most 5% of clean shots raise an alarm.
 6. **Evaluation** per shot: catch rate, tardy rate, miss rate, false-alarm rate, warning time, with bootstrap 95% intervals, on a test split touched once. Also a temporal split (train on M5-M7, test on M8-M9).
 
+## Research track
+Beyond v1, the long-term plan is in `docs/ROADMAP.md`. Built so far (synthetic tests only, no real-data numbers yet):
+- **E8 conformal alarm threshold**: a provable limit on the false-alarm rate for new clean shots, and a test of where it breaks (later campaigns).
+- **E9 positive-unlabelled learning**: shots that end in a fast quench without an operator note are treated as unlabelled instead of clean, and the model estimates how disruption-like they are.
+- **Premature alarms**: catches more than 200 ms early are reported separately.
+
 ## How to run
 Everything can run from `notebooks/colab_pipeline.ipynb` (not yet run in Colab). From a terminal:
 
@@ -39,3 +45,4 @@ Labels are algorithmic and imperfect. Only 4 global signals are used, with no ma
 
 ## Credits
 Data: FAIR-MAST, UKAEA, licence CC BY-SA 4.0 (https://mastapp.site).
+Related work: UKAEA FAIR-MAST event-prediction benchmarks (IAEA FEC poster, https://conferences.iaea.org/event/392/contributions/36328/). PU learning: Elkan & Noto, KDD 2008.

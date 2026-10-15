@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from sklearn.inspection import permutation_importance
 
-from src import config, dataset, evaluate, features, models
+from src import conformal, config, dataset, evaluate, features, models, pu
 from src.data import load_shot
 
 WINDOWS_PATH = os.path.join(config.PROCESSED_DIR, "windows.parquet")
@@ -195,6 +195,10 @@ def run(exp, split="random", model=None):
                 for m in ("baseline", name)}
     if exp == "E7":
         return sweep(name, windows, shots, split_column, out_dir, "label_source", list(dataset.LABEL_SOURCES))
+    if exp == "E8":
+        return run_conformal(name, dataset.labelled_windows(windows, shots), split_column, all_columns, out_dir)
+    if exp == "E9":
+        return run_pu(dataset.labelled_windows(windows, shots), shots, split_column, all_columns, out_dir)
     raise ValueError(f"unknown experiment {exp!r}")
 
 
@@ -215,3 +219,76 @@ def sweep(name, windows, shots, split_column, out_dir, knob, values):
     table = pd.DataFrame(rows)
     table.to_csv(os.path.join(out_dir, "summary.csv"), index=False)
     return table.to_dict(orient="records")
+
+
+def metrics_at(frame, window_scores, threshold):
+    """Shot metrics of one split at one threshold (inf means never alarm)."""
+    shots, alarm_matrix = evaluate.shot_alarm_table(frame, window_scores, np.array([threshold]))
+    result, warning_ms = evaluate.outcomes(shots, alarm_matrix[:, 0])
+    return evaluate.shot_metrics(result, warning_ms)
+
+
+def split_validation(val, seed=config.RANDOM_SEED):
+    """Split validation windows by shot into a tuning half and a calibration half (stratified by label)."""
+    val_shots = val.groupby("shot_id")["disrupted"].first().reset_index()
+    halves = dataset.random_split(val_shots, fractions=(0.5, 0.5, 0.0), seed=seed)
+    half = val["shot_id"].map(halves)
+    return val[half == "train"].reset_index(drop=True), val[half != "train"].reset_index(drop=True)
+
+
+def run_conformal(name, win, split_column, columns, out_dir):
+    """E8: tune on half the validation shots, calibrate a conformal threshold on the other half's clean shots,
+    then check on the test shots whether the false-alarm rate really stays under each alpha."""
+    os.makedirs(out_dir, exist_ok=True)
+    train, val, test = split_frames(win, split_column)
+    val_tune, val_cal = split_validation(val)
+    best = tune(name, train, val_tune, columns)
+    cal_levels = conformal.shot_alarm_levels(val_cal, models.scores(best["model"], val_cal[columns]))
+    clean_levels = cal_levels.loc[~cal_levels["disrupted"], "level"]
+    test_scores = models.scores(best["model"], test[columns])
+    rows = []
+    for alpha in config.CONFORMAL_ALPHAS:
+        threshold = conformal.conformal_threshold(clean_levels, alpha)
+        m = metrics_at(test, test_scores, threshold)
+        rows.append({"method": "conformal", "alpha": alpha, "threshold": threshold, "n_cal_clean": len(clean_levels),
+                     "test_false_alarm_rate": m["false_alarm_rate"], "test_catch_rate": m["catch_rate"],
+                     "guarantee_holds": m["false_alarm_rate"] <= alpha})
+    m = metrics_at(test, test_scores, best["threshold"])
+    rows.append({"method": "tuned on validation", "alpha": config.MAX_FALSE_ALARM_RATE, "threshold": best["threshold"],
+                 "n_cal_clean": len(clean_levels), "test_false_alarm_rate": m["false_alarm_rate"],
+                 "test_catch_rate": m["catch_rate"], "guarantee_holds": m["false_alarm_rate"] <= config.MAX_FALSE_ALARM_RATE})
+    table = pd.DataFrame(rows)
+    table.to_csv(os.path.join(out_dir, "conformal.csv"), index=False)
+    write_json({"model": name, "split": split_column, "rows": rows}, os.path.join(out_dir, "metrics.json"))
+    return rows
+
+
+def unambiguous(frame, shots):
+    """Windows of shots that are disrupted or have no quench at all, i.e. leaving out unnoted quenches."""
+    no_quench = set(shots.loc[~np.isfinite(shots["t_quench"].astype(float)), "shot_id"])
+    keep = frame["disrupted"] | frame["shot_id"].isin(no_quench)
+    return frame[keep].reset_index(drop=True)
+
+
+def run_pu(win, shots, split_column, columns, out_dir):
+    """E9: standard HGB vs PU-weighted HGB (same settings), each with a validation-tuned threshold, on all test
+    shots and on the unambiguous ones. Also estimates how many unnoted-quench windows look like disruptions."""
+    os.makedirs(out_dir, exist_ok=True)
+    train, val, test = split_frames(win, split_column)
+    fit_rows = training_rows(train)
+    standard = models.make_model("hgb", config.PU_PARAMS).fit(fit_rows[columns], fit_rows["label"])
+    pu_model, c, weights = pu.fit_pu(config.PU_PARAMS, fit_rows, val, columns)
+    near = fit_rows.loc[fit_rows["label"] == 0, "near_quench"].to_numpy()
+    rows = []
+    for method, model in [("standard", standard), ("pu", pu_model)]:
+        threshold = evaluate.choose_threshold(score_split(model, val, columns)[1])
+        for subset, frame in [("all test shots", test), ("unambiguous test shots", unambiguous(test, shots))]:
+            m = metrics_at(frame, models.scores(model, frame[columns]), threshold)
+            rows.append({"method": method, "test_set": subset, "threshold": threshold, **m})
+    summary = {"label_frequency_c": c,
+               "mean_weight_unnoted_quench_windows": float(weights[near].mean()) if near.any() else None,
+               "mean_weight_other_unlabelled_windows": float(weights[~near].mean()) if (~near).any() else None,
+               "rows": rows}
+    pd.DataFrame(rows).to_csv(os.path.join(out_dir, "pu.csv"), index=False)
+    write_json(summary, os.path.join(out_dir, "metrics.json"))
+    return summary

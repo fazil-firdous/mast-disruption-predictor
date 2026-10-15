@@ -170,3 +170,15 @@ Synthetic rehearsal (300 fake shots: noted quench with a radiation rise, unnoted
 VPS and Telegram
 - `src/notify.py` sends messages and files through the Telegram Bot API with `requests` (no new dependency). Token and chat id come from `.env` (git-ignored) or the environment. A failed message never stops a run.
 - `deploy/setup_vps.sh` installs everything, writes `.env`, sends a test message, runs pytest and adds a nightly cron job. `deploy/run_pipeline.sh` pulls, runs pytest, runs `run_all.py --scale full`, sends the log, and skips commits that already ran successfully.
+
+## 2026-10-15 - Research track started (docs/ROADMAP.md)
+
+The owner wants this treated as long-term, research-grade work aimed at a career in fusion, not a school project. `the project rules` now says so and points to `docs/ROADMAP.md`, the agreed plan. Readability rules stay: the owner studies the code daily and explains it back.
+
+Literature check (two quick web searches, not a review): a UKAEA group already has a FAIR-MAST disruption benchmark (stacked BiLSTM, 417 shots, labels auto-detected from the plasma current; IAEA FEC poster). No tokamak disruption work using PU learning or conformal false-alarm guarantees turned up. Claims of novelty must wait for a proper review (ROADMAP G1).
+
+Built (tested on synthetic shots only; no real-data numbers yet):
+- **C1 premature alarms.** `premature_rate` = share of disrupted shots caught more than `PREMATURE_WARNING_MS` = 200 ms early. They still count as caught (SPEC 4). 200 ms is a judgement call: MAST flat-tops last ~200-300 ms.
+- **B1 conformal threshold (E8).** Validation shots are split in half by shot: one half tunes the model, the other half's clean shots calibrate the threshold. Using the same shots for both would break the exchangeability argument. The guarantee is marginal (on average over calibration sets), so one test set can exceed alpha by chance; `guarantee_holds` in `conformal.csv` is an empirical check, not the theorem. Needs at least 19 clean calibration shots for 5% and 99 for 1%; otherwise the threshold is +inf (never alarm). Expected to break on the temporal split, which is the point of running it there.
+- **A1 PU learning (E9).** Elkan & Noto (2008). Assumes noted disruptions are a random sample of all disruptions (SCAR); operators probably noted the obvious ones more often, so c may be biased high. Weights use 5-fold out-of-fold scores grouped by shot, because in-sample scores of a boosted model are over-confident. Fixed HGB settings (`PU_PARAMS`) for both standard and PU models, so the only difference is the labels. Evaluated on all test shots and on unambiguous ones (disrupted, or no quench at all).
+- Synthetic rehearsal: E8 and E9 run. At alpha = 0.01 the 19 calibration clean shots were too few and the method correctly refused to alarm. In the fake data the unnoted quenches have no radiation precursor, and PU gave them a mean weight of 0.007, which is the expected answer for that data.

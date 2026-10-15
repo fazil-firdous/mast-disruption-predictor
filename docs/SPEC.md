@@ -286,6 +286,10 @@ mast-disruption/
 | E5 | Signal ablation: drop one signal at a time | which physics signals matter |
 | E6 | Temporal split M5–M7 → M8–M9 | does it generalise to later campaigns? |
 | E7 | Note labels vs signal labels | how much label quality changes the result |
+| E8 | Conformal threshold (ROADMAP B1) | a provable false-alarm limit, and where it breaks |
+| E9 | Positive-unlabelled learning (ROADMAP A1) | treat unnoted quenches as unlabelled, not clean |
+
+Research extensions beyond v1 are planned in `docs/ROADMAP.md`.
 
 ## 15. Out of scope for v1
 Deep learning (LSTM, transformers), real-time deployment, MAST-U data, cross-machine transfer, profile/diagnostic groups beyond `summary`. These can be Phase 10+ once v1 is solid and understood.

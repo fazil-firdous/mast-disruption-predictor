@@ -60,6 +60,11 @@ PERMUTATION_REPEATS = 5  # shuffles per feature for permutation importance; enou
 # Evaluation (SPEC Sections 10-11)
 MAX_FALSE_ALARM_RATE = 0.05  # pick the threshold so at most 5% of clean shots raise an alarm
 N_BOOTSTRAP = 1000  # resamples over shots for the 95% confidence intervals
+PREMATURE_WARNING_MS = 200  # MAST flat-tops last ~200-300 ms, so an alarm earlier than this is unlikely to be about this disruption
+
+# Research extensions (docs/ROADMAP.md)
+CONFORMAL_ALPHAS = (0.01, 0.05, 0.10)  # false-alarm levels to guarantee in E8
+PU_PARAMS = {"learning_rate": 0.1, "max_leaf_nodes": 31}  # fixed HGB settings for E9, so standard and PU models differ only in the labels
 
 # Signals cached per shot (SPEC 8.2): parquet column -> variable name in the summary group
 SIGNAL_VARIABLES = {

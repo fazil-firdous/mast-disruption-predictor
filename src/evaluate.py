@@ -50,12 +50,15 @@ def shot_metrics(result, warning_ms):
     n_clean = int(np.isin(result, ["false_alarm", "quiet"]).sum())
     caught_warning = warning_ms[result == "caught"]
     has_caught = len(caught_warning) > 0
+    # premature catches still count as caught (SPEC 4), but are reported so very early alarms are not hidden
+    premature = int((caught_warning > config.PREMATURE_WARNING_MS).sum())
     return {
         "n_disrupted": n_disrupted, "n_clean": n_clean,
         "catch_rate": float((result == "caught").sum() / max(n_disrupted, 1)),
         "tardy_rate": float((result == "tardy").sum() / max(n_disrupted, 1)),
         "miss_rate": float((result == "missed").sum() / max(n_disrupted, 1)),
         "false_alarm_rate": float((result == "false_alarm").sum() / max(n_clean, 1)),
+        "premature_rate": float(premature / max(n_disrupted, 1)),
         "warning_median_ms": float(np.median(caught_warning)) if has_caught else np.nan,
         "warning_q25_ms": float(np.percentile(caught_warning, 25)) if has_caught else np.nan,
         "warning_q75_ms": float(np.percentile(caught_warning, 75)) if has_caught else np.nan,
@@ -101,7 +104,7 @@ def bootstrap_ci(result, warning_ms, n=config.N_BOOTSTRAP, seed=config.RANDOM_SE
         idx = np.concatenate([rng.choice(disrupted_idx, len(disrupted_idx)), rng.choice(clean_idx, len(clean_idx))])
         samples.append(shot_metrics(result[idx], warning_ms[idx]))
     samples = pd.DataFrame(samples)
-    keys = ["catch_rate", "tardy_rate", "miss_rate", "false_alarm_rate", "warning_median_ms"]
+    keys = ["catch_rate", "tardy_rate", "miss_rate", "false_alarm_rate", "premature_rate", "warning_median_ms"]
     return {k: [float(samples[k].quantile(0.025)), float(samples[k].quantile(0.975))] for k in keys}
 
 

@@ -11,7 +11,7 @@ from src import experiment
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--exp", required=True, choices=["E0", "E1", "E2", "E3", "E4", "E5", "E6", "E7"])
+    parser.add_argument("--exp", required=True, choices=["E0", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9"])
     parser.add_argument("--split", choices=["random", "temporal"], default="random")
     parser.add_argument("--model", choices=["logreg", "forest", "hgb"],
                         help="model for E4-E7 (default: best validation catch rate among E1-E3)")
