@@ -138,6 +138,9 @@ def test_sweep_temporal_conformal_pu_seed_and_dataset_messages():
     seeds = {"n_seeds": 5, "catch_rate_mean": 0.1, "catch_rate_std": 0.04, "false_alarm_rate_mean": 0.05,
              "false_alarm_rate_std": 0.02}
     assert "5 different random splits" in explain.describe("E10", seeds)
+    seeds["false_alarms_by_ending"] = {"unnoted_quench": {"n_clean": 170, "false_alarms": 17},
+                                       "no_quench": {"n_clean": 60, "false_alarms": 1}}
+    assert "17 of 170" in explain.describe("E10", seeds) and "(10.0%)" in explain.describe("E10", seeds)
     counts = {"shots": 398, "disrupted": 171, "clean": 227, "windows": 26169, "reused": True,
               "split_counts": {"train": 238, "val": 80, "test": 80}}
     assert "26,169 windows" in explain.dataset_text(counts) and "reused" in explain.dataset_text(counts)

@@ -175,6 +175,7 @@ Read it top to bottom; each function uses only the ones above it.
 - `label_frequency`, `unlabelled_weights` are the two formulas on their own, so they can be tested.
 
 ## E8 and E9 in src/experiment.py
+- `seed_summary()` (E10) -> mean and spread over every seed so far, plus the false alarms by shot ending added up over all seeds (`add_endings`), the strongest test of whether false alarms sit on unnoted current drops.
 - `run_conformal` (E8): tune on half the validation shots, calibrate on the other half's clean shots, report test false-alarm and catch rate for each alpha, next to the usual tuned threshold.
 - `run_pu` (E9): standard vs PU model with identical settings, on all test shots and on the unambiguous ones (`unambiguous()`: disrupted shots plus shots with no quench at all). Also reports c and the mean weight of unnoted-quench windows, i.e. how disruption-like the model thinks they are.
 - `premature_rate` (in `evaluate.shot_metrics`): share of disrupted shots caught more than `PREMATURE_WARNING_MS` early.

@@ -226,7 +226,18 @@ def seed_text(summary):
             f"validation and test).\nCaught in time: {pct(summary['catch_rate_mean'])} on average, give or take "
             f"{pct(summary['catch_rate_std'])}.\nFalse alarms: {pct(summary['false_alarm_rate_mean'])} on average, "
             f"give or take {pct(summary['false_alarm_rate_std'])}.\nThe 'give or take' is how much one split's "
-            "result is luck. A difference between two methods smaller than it is not a real difference.")
+            "result is luck. A difference between two methods smaller than it is not a real difference."
+            + pooled_endings_text(summary.get("false_alarms_by_ending")))
+
+
+def pooled_endings_text(endings):
+    """False alarms by shot ending, added up over every repeat run (the same shot can count in several runs)."""
+    if not endings or "unnoted_quench" not in endings:
+        return ""
+    q, n = endings["unnoted_quench"], endings["no_quench"]
+    return (f"\nAll runs together, false alarms hit {q['false_alarms']} of {q['n_clean']} test 'normal' shots that "
+            f"ended in an unnoted current drop ({pct(q['false_alarms'] / max(q['n_clean'], 1))}) and "
+            f"{n['false_alarms']} of {n['n_clean']} that ended smoothly ({pct(n['false_alarms'] / max(n['n_clean'], 1))}).")
 
 
 def dataset_text(counts):

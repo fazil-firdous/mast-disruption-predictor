@@ -364,7 +364,7 @@ def run_seed(name, windows, shots, seed):
 def seed_summary():
     """Mean, spread and count of the E10 test metrics over every seed run so far; also writes E10/summary.csv."""
     folder = os.path.join(config.RESULTS_DIR, "E10")
-    rows = []
+    rows, endings = [], {}
     for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
         path = os.path.join(folder, name, "metrics.json")
         if name.startswith("seed_") and os.path.exists(path):
@@ -372,12 +372,21 @@ def seed_summary():
                 test = json.load(f)["test"]
             rows.append({"seed": int(name[5:]), "catch_rate": test["catch_rate"],
                          "false_alarm_rate": test["false_alarm_rate"], "warning_median_ms": test["warning_median_ms"]})
+            add_endings(endings, test.get("false_alarms_by_ending", {}))
     if not rows:
         return {"n_seeds": 0}
     table = pd.DataFrame(rows).sort_values("seed")
     table.to_csv(os.path.join(folder, "summary.csv"), index=False)
-    out = {"n_seeds": len(table)}
+    out = {"n_seeds": len(table), "false_alarms_by_ending": endings}
     for column in ["catch_rate", "false_alarm_rate", "warning_median_ms"]:
         out[f"{column}_mean"] = float(table[column].mean())
         out[f"{column}_std"] = float(table[column].std(ddof=1)) if len(table) > 1 else 0.0
     return out
+
+
+def add_endings(total, by_ending):
+    """Add one run's false-alarm counts by shot ending into total (pooled over the seed sweep)."""
+    for group, counts in by_ending.items():
+        pooled = total.setdefault(group, {"n_clean": 0, "false_alarms": 0})
+        pooled["n_clean"] += counts["n_clean"]
+        pooled["false_alarms"] += counts["false_alarms"]
