@@ -164,7 +164,7 @@ Read it top to bottom; each function uses only the ones above it.
 
 ## The GitHub data relay in detail
 - `scripts/relay_fetch.py` runs on GitHub's machine: `choose_shots(scale)` -> (ids, 'live' or 'report'); downloads them; writes `data/manifest.json` (scale, table source, counts, commit, time).
-- `src/relay.py` runs on the server: `trigger(scale)` -> request time; `find_run(requested_at)` / `pick_run(runs, requested_at)` -> the run that request started (GitHub gives no id back); `run_status(run_id)`; `download(run_id)` -> manifest; `unpack(zip, data_dir)` refuses entries that would land outside `data_dir`. The token is read from the environment at call time and is never part of `config` (so never in results).
+- `src/relay.py` runs on the server: `trigger(scale)` -> request time; `find_run(requested_at)` / `pick_run(runs, requested_at)` -> the run that request started (GitHub gives no id back); `run_status(run_id)`; `download(run_id)` -> manifest; `unpack(zip, data_dir)` refuses entries that would land outside `data_dir`. `check(response)` turns a failed GitHub call into a plain error with GitHub's message and, for 401/403, what to change on the token. The token is read from the environment at call time and is never part of `config` (so never in results).
 - `build_dataset.build(..., offline=True)` and `run_all.py --offline` use only shots already on disk (`data.is_cached`).
 
 ## Models you can reuse

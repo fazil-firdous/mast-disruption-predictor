@@ -248,3 +248,18 @@ Real-data results on the 400-shot report sample (private runs; numbers reported 
 Literature check (docs/literature_review.md) corrected two of our earlier "possibly new" ideas: conformal prediction has been applied to disruptions (JET, Springer chapter) and survival / time-to-disruption models exist (Keith et al. 2024; arXiv:2609.24443). ROADMAP updated. PU learning for unrecorded disruptions and a label audit of MAST notes were not found.
 
 Gold tool design: blind plots (measured and programmed current, radiated power, solenoid current; no note, no detector time). Seeded queue: 35 unnoted quenches, 30 noted quenches, 30 without a quench, 5 noted without a quench. Answers d / n / u stored in MAST_HOME/gold/labels.csv; a later answer for the same shot replaces the earlier one in the evaluation.
+
+E13 on the 400-shot sample (2026-10-15, private run; numbers given to the owner)
+- Extras computed for all 398 shots on real data in ~16 min (0 failures). Coverage over windows: lm_n1 92%, Mirnov 94%, solenoid 100%, ip_ref_error 99.6%.
+- Validation result: adding the magnetics did not raise the catch rate with time-since-start present; without time-since-start, the magnetics set did better than v1 without it (E11). With 34 disrupted validation shots, one shot is ~3 percentage points, so every difference here is within a few shots: not significant.
+- Reading: (1) lm_n1 still contains vacuum pickup from the PF coils, so it is mostly noise for now; (2) 19 more features on 238 training shots invites overfitting; (3) the "both" labels still call most quenches clean, which caps every model. Next: vacuum-pickup subtraction for the saddle coils, normalised physics features (e.g. lm_n1 relative to its flat-top level, log Mirnov RMS), the seed sweep with extended features for error bars, and the full dataset once mastapp.site is back.
+
+## 2026-10-16 - Relay refused by GitHub (403), not a data-server problem
+
+VPS report: the first data-source check failed with `403 Forbidden` on `POST /repos/fazil-mastu/mastu/actions/workflows/fetch_data.yml/dispatches`. That request goes to GitHub, not to STFC or mastapp.site, so the mastapp.site outage plays no part. A 403 (not 401) means GitHub accepted the token as valid but refused this action: the fine-grained token needs repository access to `mastu` and the repository permission "Actions: Read and write". The account is a personal one, so no organisation token-approval policy is involved. The same refusal blocks the relay fetch, so the server cannot run the pipeline until the token is fixed; it retries the data-source check after 24 h, or at once on `/sources`.
+
+`relay.check(response)` now replaces `raise_for_status()` for GitHub API calls: the Telegram message carries GitHub's own message, the permission GitHub names in `X-Accepted-GitHub-Permissions`, and what to change.
+
+The relay workflow had never run before; a first `probe` run was started from this session (run 38858508318) to check the GitHub side independently of the VPS token.
+
+Result of that first relay run (probe, 2026-10-16 05:57-06:02 UTC, success): from GitHub's machine the S3 bucket answers (11,573 shot stores; level2 holds defuse/, netcdf/, shots/), the shot table gave no answer (status 0, so mastapp.site is down from GitHub as well, not only from the sandbox and the VPS), DEFUSE still 403. Install + probe took about 5 minutes, about 4 of them waiting on mastapp.site. So the GitHub side of the relay works; only the VPS token's permission stands in the way.
