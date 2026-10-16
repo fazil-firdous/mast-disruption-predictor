@@ -19,7 +19,7 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts import predict_shot
-from src import config, experiment, explain, gold, literature, notify, relay, resume, server, sources
+from src import config, experiment, explain, gold, literature, notify, relay, resume, server, sources, status_card
 from src.data import check_connection, check_shot_table, host_reachable
 
 PY = sys.executable
@@ -48,7 +48,7 @@ def update_code(state, force=False):
     if head() == before:
         return
     subprocess.run([PY, "-m", "pip", "install", "-q", "-r", "requirements.txt"], cwd=config.REPO_DIR)
-    notify.send(f"new code {before} -> {head()}, restarting the server")
+    notify.log(f"new code {before} -> {head()}, restarting the server")
     server.write_state(state)
     # replace this process with a fresh one, so the new code is what runs from now on
     os.execv(PY, [PY] + sys.argv)
@@ -70,27 +70,30 @@ def tail(path, n=40):
         return "".join(f.readlines()[-n:])
 
 
-def results_text():
-    """Headline results for /results."""
-    summary_path = os.path.join(config.RESULTS_DIR, "SUMMARY.md")
-    text = "no full run finished yet\n"
-    if os.path.exists(summary_path):
-        with open(summary_path) as f:
-            text = f.read()
-    seeds = experiment.seed_summary()
-    if seeds["n_seeds"]:
-        text += "\n" + explain.seed_text(seeds)
-    return text
+def send_report():
+    """/report: every experiment described in words (REPORT.md) and all result files as a zip."""
+    report = os.path.join(config.RESULTS_DIR, "REPORT.md")
+    if not os.path.exists(report):
+        notify.send("no report yet: it is written at the end of the first full run")
+        return
+    notify.send_file(report, "every experiment in words")
+    archive = shutil.make_archive(os.path.join(config.DATA_DIR, "results"), "zip", config.RESULTS_DIR)
+    notify.send_file(archive, "all result files")
 
 
 def handle_command(name, arg, state):
     """Carry out one owner command. Commands are a fixed list; nothing from the chat is ever run as a shell command."""
     if name == "status":
+        mode = network_status()[0]
+        status_card.send(f"now: {CURRENT['job'] or 'idle'} | data: {mode or 'not reachable'}", state)
+    elif name == "details":
         notify.send(server.status_text(state, head(), CURRENT["job"], network_status()[1]))
     elif name == "results":
-        notify.send(results_text())
+        status_card.send("results so far. /report for every experiment in words", state)
+    elif name == "report":
+        send_report()
     elif name == "log":
-        notify.send(tail(CURRENT["log"]))
+        notify.send(tail(CURRENT["log"] or os.path.join(config.LOGS_DIR, "messages.log")))
     elif name == "predict" and arg.isdigit():
         notify.send(predict_shot.run(int(arg), telegram=True))
     elif name == "diagnose":
@@ -189,8 +192,8 @@ def stop_leftover_job(state):
         os.kill(pid, signal.SIGTERM)
     except ProcessLookupError:
         return
-    notify.send(f"stopped a job left running by the previous server (pid {pid}). Finished parts are kept and "
-                "reused; only the unfinished part runs again.")
+    notify.log(f"stopped a job left running by the previous server (pid {pid}). Finished parts are kept and "
+               "reused; only the unfinished part runs again.")
 
 
 def run_relay(state, task, scale, data_dir):
@@ -219,11 +222,11 @@ def run_relay(state, task, scale, data_dir):
 
 def fetch_via_relay(state, scale):
     """Have GitHub download the shots into DATA_DIR. Returns the relay manifest, or None."""
-    notify.send(f"STFC does not answer this server; asking GitHub to fetch the data ({scale}). This takes 10-60 min.")
+    notify.log(f"STFC does not answer this server; asking GitHub to fetch the data ({scale}). This takes 10-60 min.")
     CURRENT["job"] = "GitHub data relay"
     manifest = run_relay(state, "fetch", scale, config.DATA_DIR)
     if manifest is not None:
-        notify.send(f"relay done: {manifest['available']} of {manifest['requested']} shots now on this server "
+        notify.log(f"relay done: {manifest['available']} of {manifest['requested']} shots now on this server "
                     f"(shot table: {manifest['table_source']})")
     return manifest
 
@@ -283,10 +286,13 @@ def run_seed(state, seed):
     """One E10 seed; report the running mean +- spread."""
     code = run_job(f"E10 seed {seed}", [PY, "scripts/run_experiment.py", "--exp", "E10", "--seed", str(seed)], state)
     state["seeds_done"].append(seed)
-    if code == 0:
-        notify.send(explain.seed_text(experiment.seed_summary()))
-    else:
-        notify.send(f"E10 seed {seed} failed (exit {code}); skipping it")
+    if code != 0:
+        notify.log(f"E10 seed {seed} failed (exit {code}); skipping it")
+        return
+    notify.log(explain.seed_text(experiment.seed_summary()))
+    n = len(state["seeds_done"])
+    if n % config.CARD_EVERY_SEEDS == 0 or n >= config.SEED_SWEEP_MAX:
+        status_card.send(f"repeat runs {n}/{config.SEED_SWEEP_MAX}", state)
 
 
 def wait_for_network(state):
@@ -388,11 +394,11 @@ def main():
     state = server.read_state()
     state["started_at"] = time.time()
     stop_leftover_job(state)
-    notify.send(f"research server started on commit {head()} (workspace {os.path.abspath(config.HOME_DIR)}). /help")
+    notify.send(f"server started (code {head()}). /status for the picture, /help for commands")
     while True:
         update_code(state)
         if server.heartbeat_due(state, time.time()):
-            notify.send("still alive\n" + server.status_text(state, head(), CURRENT["job"], "not checked"))
+            status_card.send("daily update: still running", state)
             state["last_heartbeat"] = time.time()
         run_watchers(state)
         job, seed = server.next_job(state, head(), time.time(),

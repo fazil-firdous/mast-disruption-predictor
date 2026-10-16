@@ -30,7 +30,13 @@ def test_stamp_follows_science_code_and_data_but_not_server_code(monkeypatch, tm
     second = resume.stamp([str(data)])
     assert second != first
     data.write_bytes(b"abd")
-    assert resume.stamp([str(data)]) != second
+    third = resume.stamp([str(data)])
+    assert third != second
+    monkeypatch.setattr(config, "HEARTBEAT_HOURS", 1)
+    monkeypatch.setattr(config, "NEXT_STEP", "something else")
+    assert resume.stamp([str(data)]) == third
+    monkeypatch.setattr(config, "HORIZON_MS", 31)
+    assert resume.stamp([str(data)]) != third
 
 
 def test_saved_outcome_is_reused_only_under_the_same_stamp(tmp_path):
@@ -144,3 +150,35 @@ def test_every_real_outcome_can_be_described(tiny_project, exp):  # noqa: F811
     assert exp in text and "None" not in text and "nan" not in text
     if exp == "E1":
         assert os.path.exists(tiny_project / "results" / "E1" / "metrics.json")
+
+
+def test_status_card_numbers_and_picture(monkeypatch, tmp_path):
+    from src import status_card
+    seeds = tmp_path / "seeds.csv"
+    seeds.write_text("seed,catch_rate,false_alarm_rate\n1,0.06,0.07\n2,0.09,0.05\n3,0.05,0.08\n4,0.07,0.07\n")
+    assert status_card.skill(str(seeds))["verdict"] == "same"
+    seeds.write_text("seed,catch_rate,false_alarm_rate\n1,0.60,0.05\n2,0.55,0.04\n3,0.62,0.06\n")
+    assert status_card.skill(str(seeds))["verdict"] == "better"
+    e5 = tmp_path / "e5.csv"
+    e5.write_text("drop_signal,pr_auc\nnone,0.26\nprad,0.18\npnbi,0.28\n")
+    useful = status_card.signal_usefulness(str(e5))
+    assert useful["radiated power"] == pytest.approx(0.08) and useful["beam heating power"] < 0
+    monkeypatch.setattr(config, "RESULTS_DIR", str(tmp_path / "results"))
+    monkeypatch.setattr(config, "PROCESSED_DIR", str(tmp_path / "processed"))
+    info = status_card.collect(server.new_state())
+    assert info["shots"] == 0 and info["experiments"] == 0 and info["skill"] is None
+    todo = [text for ok, text in status_card.needs({**info, "table_source": "report"}) if not ok]
+    assert any("mastapp.site" in t for t in todo) and any("/gold" in t for t in todo)
+    for case in (info, {**info, "skill": status_card.skill(str(seeds)), "signals": useful, "all_shots": 11573}):
+        path = status_card.draw(case, str(tmp_path / "card.png"), "abc1234")
+        assert os.path.getsize(path) > 10000
+
+
+def test_log_keeps_messages_off_telegram(monkeypatch, tmp_path):
+    from src import notify
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    notify.log("seed 3 done")
+    notify.send("server started")
+    with open(os.path.join(config.LOGS_DIR, "messages.log")) as f:
+        lines = f.read().splitlines()
+    assert lines[0].endswith("seed 3 done") and lines[1].endswith("server started")

@@ -135,7 +135,8 @@ def sweep_text(rows):
     best = max(rows, key=lambda r: (r["catch_rate"] or 0, r["pr_auc"] or 0))
     worst = min(rows, key=lambda r: (r["catch_rate"] or 0, r["pr_auc"] or 0))
     nd = best.get("n_disrupted")
-    if nd and best is not worst:
+    # label sources disagree on which shots are disrupted, so their rates are not on the same shots
+    if nd and best is not worst and knob != "label_source":
         gap = round(((best["catch_rate"] or 0) - (worst["catch_rate"] or 0)) * nd)
         lines.append(f"Best: {value_words(knob, best[knob])}. Best and worst differ by {gap} caught shot(s).")
     lines.append("Ranking score = PR-AUC: how well the model puts the moments just before a disruption above all "

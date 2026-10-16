@@ -1,8 +1,8 @@
 """Skip work that is already done. A saved result is reused only when the science code and the data that made it
 are exactly the same as now, so a server restart or a docs-only commit never retrains, and no number is stale.
 
-A stamp is a short fingerprint (sha256) of every science source file plus the input data files. Any change to
-them, even a comment in a science file, gives a new stamp and the work is redone once.
+A stamp is a short fingerprint (sha256) of every science source file, the science settings in config.py and the
+input data files. Any change to them, even a comment in a science file, gives a new stamp and the work is redone once.
 """
 import hashlib
 import json
@@ -12,19 +12,35 @@ import numpy as np
 
 from src import config
 
-# these files run the server, talk to Telegram or GitHub, or word the messages: they cannot change a number
-NOT_SCIENCE = {"__init__.py", "server.py", "notify.py", "relay.py", "sources.py", "literature.py", "gold.py",
-               "explain.py", "resume.py"}
+# these files run the server, talk to Telegram or GitHub, or word the messages: they cannot change a number.
+# config.py is left out too; its science values are stamped one by one (science_settings), so comments do not count
+NOT_SCIENCE = {"__init__.py", "config.py", "server.py", "notify.py", "relay.py", "sources.py", "literature.py",
+               "gold.py", "explain.py", "resume.py", "status_card.py"}
+# config settings that only steer the server, downloads, Telegram or where files go: changing them changes no number
+NOT_SCIENCE_SETTINGS = {
+    "REPO_DIR", "PRIVATE_ENV", "HOME_DIR", "DATA_DIR", "RAW_DIR", "PROCESSED_DIR", "RESULTS_DIR", "MODELS_DIR",
+    "LOGS_DIR", "SHOT_TABLE_CACHE", "SKIPPED_CSV", "REPORT_CSV", "DOWNLOAD_WORKERS", "DOWNLOAD_RETRIES",
+    "RETRY_BACKOFF_S", "TCP_CHECK_TIMEOUT_S", "CONNECTION_CHECK_ATTEMPTS", "GITHUB_REPO", "RELAY_WORKFLOW",
+    "RELAY_BRANCH", "RELAY_TIMEOUT_HOURS", "NETWORK_RETRY_MINUTES", "PIPELINE_RETRY_HOURS", "HEARTBEAT_HOURS",
+    "SEED_SWEEP_MAX", "TELEGRAM_POLL_S", "WATCH_SOURCES_HOURS", "LITERATURE_DAYS", "LITERATURE_MAX_RESULTS",
+    "CARD_EVERY_SEEDS", "NEXT_STEP", "UPDATE_CHECK_MINUTES"}
 SCIENCE_SCRIPTS = ["build_dataset.py"]  # scripts with science logic in them (shot selection, splits)
 STAMP_FILE = "stamp.json"
 
 
 def science_files():
-    """Every science source file (src/*.py minus NOT_SCIENCE, config.py included, plus SCIENCE_SCRIPTS), sorted."""
+    """Every science source file (src/*.py minus NOT_SCIENCE, plus SCIENCE_SCRIPTS), sorted."""
     src = os.path.join(config.REPO_DIR, "src")
     files = [os.path.join(src, name) for name in os.listdir(src) if name.endswith(".py") and name not in NOT_SCIENCE]
     files += [os.path.join(config.REPO_DIR, "scripts", name) for name in SCIENCE_SCRIPTS]
     return sorted(files)
+
+
+def science_settings():
+    """Every UPPERCASE value in config except NOT_SCIENCE_SETTINGS (and anything secret), as sorted JSON text."""
+    values = {k: v for k, v in vars(config).items()
+              if k.isupper() and k not in NOT_SCIENCE_SETTINGS and "TOKEN" not in k and "SECRET" not in k}
+    return json.dumps(values, sort_keys=True, default=str)
 
 
 def processed_files():
@@ -33,8 +49,8 @@ def processed_files():
 
 
 def stamp(data_files, extra=""):
-    """Fingerprint of the science code, the given data files (path and content) and any extra text."""
-    digest = hashlib.sha256()
+    """Fingerprint of the science code and settings, the given data files (name and content) and any extra text."""
+    digest = hashlib.sha256(science_settings().encode())
     for path in science_files() + sorted(data_files):
         digest.update(os.path.basename(path).encode())
         with open(path, "rb") as f:

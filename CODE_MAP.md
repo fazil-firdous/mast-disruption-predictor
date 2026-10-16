@@ -3,6 +3,7 @@
 A plain-English tour of the repo. Read the files in the order below. 
 
 ## Reading order
+0. `docs/GUIDE.md` - the whole project as a story in simple words. Start here.
 1. `docs/SPEC.md` and `the project rules` - what to build and how to work.
 2. `src/config.py` - every tunable number, each with a why-comment.
 3. `src/data.py` -> `src/labels.py` -> `src/features.py` -> `src/dataset.py` -> `src/alarms.py` -> `src/models.py` -> `src/evaluate.py` -> `src/experiment.py` - the pipeline in the order the data flows. `src/notify.py` is separate (Telegram).
@@ -24,7 +25,7 @@ A plain-English tour of the repo. Read the files in the order below.
 | `src/conformal.py` | built | Conformal alarm threshold with a provable false-alarm limit (E8, ROADMAP B1). |
 | `src/pu.py` | built | Positive-unlabelled learning for unnoted quenches (E9, ROADMAP A1). |
 | `docs/ROADMAP.md` | done | The agreed long-term research plan. Read it after SPEC. |
-| `src/notify.py` | done | Telegram messages and files. Prints only if no bot is configured. |
+| `src/notify.py` | done | Telegram messages and files, and `logs/messages.log` with every message. Prints only if no bot is configured. |
 | `scripts/download.py` | done | CLI: `--n 50` random shots (seeded) or `--ids ...`. Checks the connection first. |
 | `scripts/inspect_shots.py` | done | Time step, time range, ip sign, missing signals for ~20 shots spread over campaigns. |
 | `scripts/label_report.py` | done | Phase 2 report. Writes `results/label_report/`. |
@@ -37,7 +38,8 @@ A plain-English tour of the repo. Read the files in the order below.
 | `scripts/research_server.py` | done | Runs forever: waits out outages, full run per new commit, E10 seeds when idle, daily heartbeat, Telegram commands from the owner only. |
 | `src/server.py` | done | The research server's decisions and texts (state file, command parsing, what to run next), kept separate so they are testable. |
 | `src/resume.py` | done | Reuse finished work: a result is reused only when the science code and data that made it are unchanged (a fingerprint, the "stamp"). Restarts and docs-only commits never retrain. |
-| `src/explain.py` | done | Plain-English Telegram messages for every result: what the experiment asks, the numbers as shot counts, chance level, and what they mean. |
+| `src/explain.py` | done | Every result in plain English: what the experiment asks, the numbers as shot counts, chance level, and what they mean. Goes to the log and `results/REPORT.md`. |
+| `src/status_card.py` | done | The one picture Telegram gets: training progress, what the model can do against a random guess, signals it relies on, what is needed next. |
 | `src/registry.py` | done | Save / load trained models with their feature list and threshold, in `MODELS_DIR` (private). |
 | `src/predict.py`, `scripts/predict_shot.py` | done | Run a saved model over a whole shot as if live; plot score, alarm and the detector's quench. |
 | `src/relay.py` | done | GitHub data relay, server side: start the fetch job, find and follow its run, download and safely unpack the artifact into `DATA_DIR`. |
@@ -144,7 +146,7 @@ Read it top to bottom; each function uses only the ones above it.
 - `run(exp, split, model)` -> one experiment id. E0-E3 one model each; E4 horizon sweep, E5 signal ablation, E7 label source (all three on validation only, via `sweep`); E6 baseline and best model on the temporal split.
 
 ## src/notify.py in detail
-- `send(text)` and `send_file(path, caption)` post to Telegram using `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` from the environment or `.env`. They never raise, so a network hiccup cannot kill a training run.
+- `send(text)` and `send_file(path, caption)` post to Telegram using `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` from the environment or `.env`. They never raise, so a network hiccup cannot kill a training run. `log(text)` keeps a message off Telegram; every message, sent or not, is appended to `LOGS_DIR/messages.log`.
 
 ## src/resume.py in detail
 - `science_files()` -> every file whose change can change a number: `src/*.py` except the server, Telegram, GitHub, watcher and message files (`NOT_SCIENCE`), plus `scripts/build_dataset.py`.
@@ -157,6 +159,11 @@ Read it top to bottom; each function uses only the ones above it.
 - `describe(exp, outcome)` -> the message for any experiment; it dispatches to `model_text` (E0-E3), `sweep_text` (E4, E5, E7, E11, E12, E13), `temporal_text` (E6), `conformal_text` (E8), `pu_text` (E9), `seed_text` (E10).
 - `of(rate, n)` -> '3 of 34 (8.8%)'. `chance_text` compares the catch rate with an alarm that fires at random as often. `ending_text` says where the false alarms fell.
 - Every sentence is computed from the numbers; conditional wording ("real skill", "campaign drift", "lean towards the unnoted drops") only appears when the numbers support it.
+
+## src/status_card.py in detail
+- `collect(state)` -> the numbers on the picture, all read from disk: dataset counts (`dataset_info`, from the build's `stamp.json`), experiments finished with the current code (`experiments_done`), repeat runs and hand labels done, `skill()` (average catch and false-alarm rate over the E10 seeds and a verdict against a random alarm), `signal_usefulness()` (from E5).
+- `needs(info)` -> the to-do list (more shots, repeat runs, your labels, `config.NEXT_STEP`). `draw(info, path)` -> the PNG. `send(caption, state)` draws it and sends it.
+- Why a picture: the owner reads on a phone; one picture replaces dozens of messages. Every number on it comes from a file that code wrote.
 
 ## src/conformal.py in detail
 - `shot_alarm_levels(windows, scores)` -> per shot, the highest threshold at which it would still alarm.

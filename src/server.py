@@ -6,20 +6,18 @@ import time
 from src import config
 
 STATE_PATH = os.path.join(config.LOGS_DIR, "server_state.json")
-HELP = """MAST research server commands:
-/status - what is running, commit, network, seeds done
-/results - headline test numbers and the seed-sweep summary
-/log - last lines of the current job's log
-/predict 11860 - run the best saved model on one shot and send the plot
-/diagnose - check the network path to the data servers
-/run - start a full pipeline run now
-/fetch - fetch the data again through GitHub (for servers STFC blocks), then run
-/sources - check now whether the shot table is back, FAIR-MAST grew, or DEFUSE went public
-/papers - check arXiv now for new disruption-prediction papers
-/gold - label shots by hand, blind (answer /d disruption, /n normal end, /u unsure); /goldreport - how labels compare
-/update - pull new code now (the server restarts itself)
-/pause, /resume - stop or allow new jobs
-/stop - kill the running job
+HELP = """MAST research server
+/status - the picture: training, what it can do, what is needed
+/report - every experiment in words, plus all result files
+/details - text status (commit, network, disk)
+/log - last lines of the running job
+/predict 11860 - run the best model on one shot
+/gold - label shots by hand (/d disruption, /n normal, /u unsure); /goldreport
+/run - full run now; /fetch - fetch data again through GitHub, then run
+/sources, /papers - check data sources / arXiv now
+/diagnose - check the network
+/update - pull new code now
+/pause, /resume, /stop
 /help - this list"""
 
 

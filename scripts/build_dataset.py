@@ -50,6 +50,7 @@ def build(scale="small", skip_check=False, table=None, offline=False):
         if not ok:
             raise RuntimeError(message + "\nRun: python scripts/diagnose_network.py")
 
+    from_live_table = table is None
     if table is None:
         table = load_shot_table()
         ids = dataset.candidate_ids(table, n_clean)
@@ -81,7 +82,8 @@ def build(scale="small", skip_check=False, table=None, offline=False):
     counts = {"candidates": len(ids), "download_failed": len(failed), "labelled": len(labelled),
               "shots": len(shots), "disrupted": int(shots["disrupted"].sum()),
               "clean": int((~shots["disrupted"]).sum()), "windows": len(windows),
-              "split_counts": shots["split"].value_counts().to_dict()}
+              "split_counts": shots["split"].value_counts().to_dict(),
+              "table_source": "live" if from_live_table else "report"}
     resume.save(config.PROCESSED_DIR, current, counts)
     return counts
 
