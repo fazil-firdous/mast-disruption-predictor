@@ -32,13 +32,35 @@ def _api(path):
     return API.format(repo=config.GITHUB_REPO) + path
 
 
+def check(response):
+    """Raise a readable error for a failed GitHub API call: GitHub's own message, the permission it wanted, and
+    for 401/403 what to change. Does nothing if the call worked."""
+    if response.ok:
+        return
+    try:
+        message = response.json().get("message", "")
+    except ValueError:
+        message = response.text[:200]
+    text = f"GitHub said {response.status_code}: {message}"
+    # GitHub names the missing fine-grained permission here, e.g. "actions=write"
+    wanted = response.headers.get("X-Accepted-GitHub-Permissions")
+    if wanted:
+        text += f" (needs {wanted})"
+    if response.status_code == 401:
+        text += ". The GitHub token is wrong, expired or revoked: make a new one."
+    elif response.status_code == 403:
+        text += (". The token is valid but not allowed to do this: give it access to this repository with the "
+                 "permission 'Actions: Read and write'.")
+    raise RuntimeError(text)
+
+
 def trigger(scale, task="fetch"):
     """Start the fetch_data job on GitHub ('fetch' shots for this scale, or 'probe' the sources).
     Returns the time it was requested (seconds, UTC)."""
     url = _api(f"/actions/workflows/{config.RELAY_WORKFLOW}/dispatches")
     response = requests.post(url, headers=_headers(), timeout=30,
                              json={"ref": config.RELAY_BRANCH, "inputs": {"scale": scale, "task": task}})
-    response.raise_for_status()
+    check(response)
     return time.time()
 
 
@@ -65,14 +87,14 @@ def find_run(requested_at):
     """The run started by trigger(), or None if GitHub has not listed it yet."""
     url = _api(f"/actions/workflows/{config.RELAY_WORKFLOW}/runs")
     response = requests.get(url, headers=_headers(), params={"event": "workflow_dispatch", "per_page": 10}, timeout=30)
-    response.raise_for_status()
+    check(response)
     return pick_run(response.json().get("workflow_runs", []), requested_at)
 
 
 def run_status(run_id):
     """(status, conclusion) of a run, e.g. ('in_progress', None) or ('completed', 'success')."""
     response = requests.get(_api(f"/actions/runs/{run_id}"), headers=_headers(), timeout=30)
-    response.raise_for_status()
+    check(response)
     run = response.json()
     return run["status"], run["conclusion"]
 
@@ -98,7 +120,7 @@ def download(run_id, data_dir=None):
     """Download the run's artifact and unpack it into data_dir (default DATA_DIR). Returns the manifest."""
     data_dir = data_dir or config.DATA_DIR
     response = requests.get(_api(f"/actions/runs/{run_id}/artifacts"), headers=_headers(), timeout=30)
-    response.raise_for_status()
+    check(response)
     artifacts = [a for a in response.json().get("artifacts", []) if a["name"] == ARTIFACT_NAME]
     if not artifacts:
         raise RuntimeError(f"run {run_id} has no '{ARTIFACT_NAME}' artifact")

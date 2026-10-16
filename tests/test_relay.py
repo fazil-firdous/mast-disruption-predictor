@@ -4,6 +4,7 @@ import os
 import zipfile
 
 import pytest
+import requests
 
 from src import config, relay, server
 
@@ -101,3 +102,29 @@ def test_offline_build_uses_only_cached_shots(monkeypatch, tmp_path):
     counts = build_dataset.build("small", table=table, offline=True)
     assert counts["download_failed"] == 6 and counts["labelled"] == 6
     assert os.path.exists(tmp_path / "processed" / "windows.parquet")
+
+
+def fake_response(status, body, headers=None):
+    response = requests.Response()
+    response.status_code = status
+    response._content = body.encode()
+    response.headers.update(headers or {})
+    return response
+
+
+def test_check_explains_a_token_without_actions_permission():
+    response = fake_response(403, '{"message": "Resource not accessible by personal access token"}',
+                             {"X-Accepted-GitHub-Permissions": "actions=write"})
+    with pytest.raises(RuntimeError) as error:
+        relay.check(response)
+    text = str(error.value)
+    assert "403" in text and "Resource not accessible" in text
+    assert "actions=write" in text and "Actions: Read and write" in text
+
+
+def test_check_tells_a_bad_token_from_a_missing_permission():
+    with pytest.raises(RuntimeError, match="expired or revoked"):
+        relay.check(fake_response(401, '{"message": "Bad credentials"}'))
+    with pytest.raises(RuntimeError, match="GitHub said 502"):
+        relay.check(fake_response(502, "<html>bad gateway</html>"))
+    relay.check(fake_response(204, ""))
