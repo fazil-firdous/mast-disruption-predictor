@@ -34,7 +34,7 @@ pip install -r requirements.txt
 pytest
 python scripts/build_dataset.py --scale small      # 300 disrupted + 300 clean shots -> data/processed/
 python scripts/run_experiment.py --exp E3          # one experiment -> results/E3/, model -> models/E3/
-python scripts/run_all.py --scale small            # everything, E0-E9
+python scripts/run_all.py --scale small            # everything, E0-E13 (unchanged results are reused)
 python scripts/predict_shot.py --shot 11860        # run the best trained model on one shot, as if live
 ```
 
@@ -49,12 +49,14 @@ The repository holds only code, docs and small reference results. Everything a t
    - **If STFC blocks your server** (its IP range; check with `scripts/diagnose_network.py`), give the setup a GitHub fine-grained token: Settings > Developer settings > Fine-grained tokens, repository `mastu` only, permission **Actions: read and write**. The server then uses the **GitHub data relay**: a GitHub Actions job (`.github/workflows/fetch_data.yml`), which can reach STFC, downloads the shots and hands them over as a one-day artifact; your server unpacks them into `~/mast-private/data` and trains there. Only public MAST data passes through GitHub; nothing is committed.
 3. The research server (`scripts/research_server.py`) then: waits out network outages, runs the full pipeline for every new commit pushed to GitHub, spends idle time on the E10 seed sweep, sends a daily heartbeat, and answers commands from your chat only: `/status`, `/results`, `/log`, `/predict 11860`, `/diagnose`, `/run`, `/fetch`, `/sources`, `/papers`, `/gold` (then `/d`, `/n`, `/u`), `/goldreport`, `/update`, `/pause`, `/resume`, `/stop`, `/help`.
 4. Prefer `screen`? Stop the service (`sudo systemctl disable --now mast-research`) and run `screen -S mast .venv/bin/python scripts/research_server.py`. Only one copy can run at a time.
+5. Restarts and updates never retrain for nothing. Every result is stored with a fingerprint of the science code and data that made it (`src/resume.py`); after a restart, or a commit that only touches docs, the server or the messages, the run reuses those results and says so. Only work whose inputs changed runs again, and a job left running by a killed server is stopped so two runs never clash.
+6. Results arrive on Telegram in plain words (`src/explain.py`): what each experiment asks, the numbers as shot counts ("caught 3 of 34"), the chance level, and what they mean.
 
 ## Results
 Model results: TBD in this repository; they are produced on the owner's private server. Real-data analyses committed here: the label comparison (`results/label_report/report.md`, from code that ran on 400 real shots): the current-quench detector confirms 97.7% of note-disrupted shots but also flags 74.2% of note-clean shots, because most MAST shots end with a fast current quench whether or not anyone called it a disruption. That is why `LABEL_SOURCE = "both"`. The termination study adds that both kinds of quench happen while the programmed current is still at its flat-top value (median 1.00 of its maximum in both groups).
 
 ## Limitations
-Labels are algorithmic and imperfect. Only 4 global signals are used, with no magnetics or profiles. MAST (2000 to 2013), not MAST-U. Offline evaluation, not real-time control. Results come from a subset of shots unless stated otherwise.
+Labels are algorithmic and imperfect. The main models use 4 global signals; the magnetics (E13) are a first version whose saddle-coil signal still contains pickup from the PF coils, and there are no profiles. MAST (2000 to 2013), not MAST-U. Offline evaluation, not real-time control. Results come from a subset of shots unless stated otherwise.
 
 ## Credits
 Data: FAIR-MAST, UKAEA, licence CC BY-SA 4.0 (https://mastapp.site).

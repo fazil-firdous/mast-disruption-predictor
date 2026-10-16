@@ -65,6 +65,18 @@ def shot_metrics(result, warning_ms):
     }
 
 
+def false_alarms_by_ending(shot_ids, result, quench_ids):
+    """False alarms on clean shots, split by how the shot ended: with a current quench that no note calls a
+    disruption ('unnoted_quench'), or without one ('no_quench'). If false alarms pile up on the first group,
+    those 'clean' labels are suspect. Returns {group: {'n_clean', 'false_alarms'}}."""
+    clean = np.isin(result, ["false_alarm", "quiet"])
+    quench = np.isin(np.asarray(shot_ids), list(quench_ids))
+    out = {}
+    for group, members in [("unnoted_quench", clean & quench), ("no_quench", clean & ~quench)]:
+        out[group] = {"n_clean": int(members.sum()), "false_alarms": int((members & (result == "false_alarm")).sum())}
+    return out
+
+
 def tradeoff_curve(shots, alarm_matrix, thresholds=THRESHOLDS):
     """Catch rate and false-alarm rate (and the rest of shot_metrics) at every threshold."""
     rows = []

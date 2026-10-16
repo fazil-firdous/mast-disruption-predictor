@@ -32,10 +32,12 @@ A plain-English tour of the repo. Read the files in the order below.
 | `scripts/check_live.py` | done | Loads the shot table and shot 11860 from the real servers. Run by CI. |
 | `scripts/build_dataset.py` | done | `--scale small|full`: download, label, select, window, split. Writes `data/processed/windows.parquet` and `shots.parquet`. |
 | `scripts/run_experiment.py` | done | `--exp E0..E7 [--split temporal] [--model hgb]`. |
-| `scripts/run_all.py` | done | The whole pipeline with Telegram messages, `results/SUMMARY.md` and a results zip. |
+| `scripts/run_all.py` | done | The whole pipeline with plain-English Telegram messages, `results/SUMMARY.md` and a results zip; reuses every result whose code and data are unchanged. |
 | `deploy/setup_vps.sh` | done | One-time VPS setup: venv, private `.env` (token, chat id, `MAST_HOME`), tests, network check, systemd service for the research server. |
 | `scripts/research_server.py` | done | Runs forever: waits out outages, full run per new commit, E10 seeds when idle, daily heartbeat, Telegram commands from the owner only. |
 | `src/server.py` | done | The research server's decisions and texts (state file, command parsing, what to run next), kept separate so they are testable. |
+| `src/resume.py` | done | Reuse finished work: a result is reused only when the science code and data that made it are unchanged (a fingerprint, the "stamp"). Restarts and docs-only commits never retrain. |
+| `src/explain.py` | done | Plain-English Telegram messages for every result: what the experiment asks, the numbers as shot counts, chance level, and what they mean. |
 | `src/registry.py` | done | Save / load trained models with their feature list and threshold, in `MODELS_DIR` (private). |
 | `src/predict.py`, `scripts/predict_shot.py` | done | Run a saved model over a whole shot as if live; plot score, alarm and the detector's quench. |
 | `src/relay.py` | done | GitHub data relay, server side: start the fetch job, find and follow its run, download and safely unpack the artifact into `DATA_DIR`. |
@@ -56,6 +58,7 @@ A plain-English tour of the repo. Read the files in the order below.
 | `tests/test_alarms.py` | done | K-in-a-row rule on hand-made sequences, fast version agrees with the loop. |
 | `tests/test_evaluate.py` | done | Outcomes and rates, threshold choice, bootstrap, baseline rule, two tiny end-to-end experiment runs, Telegram without credentials. |
 | `tests/test_research.py` | done | Conformal rank and guarantee (simulated), PU weights, premature rate, E8/E9 end to end. |
+| `tests/test_resume.py` | done | Stamps follow science code and data (not server code), saved outcomes reused only under the same stamp, dataset rebuilt only when inputs change, leftover-job check, false-alarm breakdown, every message type on real experiment outputs. |
 | `tests/test_server.py` | done | Server decisions, command parsing, Telegram parsing, `.env` loading, diagnosis verdicts, connection retries, catalogue. |
 | `tests/__init__.py` | done | Empty. Makes `tests` a package so `from src import ...` works. |
 
@@ -131,16 +134,29 @@ Read it top to bottom; each function uses only the ones above it.
 - `tradeoff_curve(shots, alarm_matrix)` -> metrics at every threshold. `choose_threshold(curve)` -> lowest threshold with <= 5% false alarms. `meets_limit(rate)`.
 - `bootstrap_ci(result, warning_ms)` -> 95% intervals, resampling disrupted and clean shots separately.
 - `window_metrics(y, scores, threshold)` -> precision, recall, F1, PR-AUC.
+- `false_alarms_by_ending(shot_ids, result, quench_ids)` -> false alarms on clean shots that ended in an unnoted current quench vs the rest. Tests whether false alarms sit on shots whose 'clean' label may be wrong.
 - Plots: `plot_tradeoff`, `plot_warning_hist`, `plot_importance`, `plot_example`.
 
 ## src/experiment.py in detail
 - `tune(name, train, val, columns)` -> best grid combination by validation catch rate at the chosen threshold.
 - `test_once(best, test, columns, out_dir)` -> test metrics with CIs, writes the trade-off, warning-time and example plots.
-- `run_model(...)` -> tune, optionally test, permutation importance, `metrics.json`, `config.json`.
+- `run_model(...)` -> tune, optionally test, permutation importance, `metrics.json`, `config.json`. The validation part also records the shot counts and the share of positive windows (what random guessing scores in PR-AUC), so messages can give counts and a chance level.
 - `run(exp, split, model)` -> one experiment id. E0-E3 one model each; E4 horizon sweep, E5 signal ablation, E7 label source (all three on validation only, via `sweep`); E6 baseline and best model on the temporal split.
 
 ## src/notify.py in detail
 - `send(text)` and `send_file(path, caption)` post to Telegram using `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` from the environment or `.env`. They never raise, so a network hiccup cannot kill a training run.
+
+## src/resume.py in detail
+- `science_files()` -> every file whose change can change a number: `src/*.py` except the server, Telegram, GitHub, watcher and message files (`NOT_SCIENCE`), plus `scripts/build_dataset.py`.
+- `stamp(data_files, extra)` -> 16-character fingerprint of the science files, the data files and any extra text. Same stamp means same inputs, so the result would be the same (everything is seeded).
+- `save(folder, stamp, outcome)` writes `stamp.json` last and atomically; `load(folder, stamp)` returns the saved outcome only if the stamp matches. `clean_json` turns NaN into None so the file is valid JSON.
+- Where it is used: `build_dataset.build` skips rebuilding windows if `build_stamp` (selected shots' files, their labels, scale) matches; `run_all.run_or_reuse` skips an experiment whose stamp (science code + processed dataset) matches; the research server keeps the E10 seed sweep unless that stamp changed (`keep_or_restart_seeds`).
+- Why so strict: a reused number must come from exactly the code that is in the repo now (the project rules: never a stale or made-up result). Even a comment change in a science file reruns once; changes to the server, messages or docs never do.
+
+## src/explain.py in detail
+- `describe(exp, outcome)` -> the message for any experiment; it dispatches to `model_text` (E0-E3), `sweep_text` (E4, E5, E7, E11, E12, E13), `temporal_text` (E6), `conformal_text` (E8), `pu_text` (E9), `seed_text` (E10).
+- `of(rate, n)` -> '3 of 34 (8.8%)'. `chance_text` compares the catch rate with an alarm that fires at random as often. `ending_text` says where the false alarms fell.
+- Every sentence is computed from the numbers; conditional wording ("real skill", "campaign drift", "lean towards the unnoted drops") only appears when the numbers support it.
 
 ## src/conformal.py in detail
 - `shot_alarm_levels(windows, scores)` -> per shot, the highest threshold at which it would still alarm.
@@ -158,6 +174,7 @@ Read it top to bottom; each function uses only the ones above it.
 
 ## The research server in detail
 - `src/server.py`: `new_state`, `read_state`, `write_state` (the state file in `LOGS_DIR`), `parse_command('/predict 11860')`, `next_job(state, head, now, processed_ready)` -> 'pipeline' for every new commit (a failed one is retried after `PIPELINE_RETRY_HOURS`), else the next E10 seed, else nothing. `status_text`, `HELP`.
+- Restarts: the server remembers the pid of the job it started (`job_pid`); a new server stops a job left over from a killed one (`stop_leftover_job`, checked with `server.is_our_job` so an unrelated process is never touched). Finished experiments are reused, so only the unfinished part runs again.
 - `scripts/research_server.py`: `main` loops forever: pull code every `UPDATE_CHECK_MINUTES` (and restart itself on new code), heartbeat, pick the next job, wait out network outages (`wait_for_network`), run jobs as child processes (`run_job`) while still answering commands (`poll_commands` -> `handle_command`). A lock file stops a second copy.
 - Commands come only from `TELEGRAM_CHAT_ID`, and each maps to a fixed action; nothing typed in the chat is run as a shell command.
 - Data access (`server.access_mode`): 'direct' (STFC and shot table answer), 'direct-report' (STFC answers, mastapp.site down), 'relay' (STFC blocks this server and `GITHUB_TOKEN` is set), or wait. `server.pipeline_args` turns that into `run_all.py` options (`--offline`, `--from-report`). `relay_needed` fetches again only for a new scale or after `/fetch`.

@@ -28,7 +28,8 @@ def new_state():
     return {"offset": 0, "last_ok_commit": None, "failed_commit": None, "failed_at": 0.0, "paused": False,
             "force_pipeline": False, "seeds_done": [], "last_heartbeat": 0.0, "last_update_check": 0.0,
             "network_down_since": None, "relay_manifest": None, "force_fetch": False, "last_probe": None,
-            "last_probe_at": 0.0, "last_literature_at": 0.0, "gold_current": None, "started_at": time.time()}
+            "last_probe_at": 0.0, "last_literature_at": 0.0, "gold_current": None, "seeds_stamp": None,
+            "job_pid": None, "started_at": time.time()}
 
 
 def read_state(path=STATE_PATH):
@@ -75,6 +76,25 @@ def next_job(state, head, now, processed_ready):
             if seed not in done:
                 return "seed", seed
     return None, None
+
+
+def job_command(pid, proc_dir="/proc"):
+    """The command line of a running process ('' if it is gone), read from Linux's /proc."""
+    try:
+        with open(os.path.join(proc_dir, str(pid), "cmdline"), "rb") as f:
+            return f.read().replace(b"\0", b" ").decode(errors="replace")
+    except OSError:
+        return ""
+
+
+def is_our_job(command):
+    """True if a command line is one of the jobs this server starts (so a reused pid is never killed by mistake)."""
+    return any(name in command for name in ("scripts/run_all.py", "scripts/run_experiment.py", "pytest"))
+
+
+def seeds_still_valid(state, stamp):
+    """True if the seed-sweep results were made with the same science code and data as the stamp."""
+    return state["seeds_stamp"] == stamp
 
 
 def access_mode(data_ok, table_ok, relay_ok):

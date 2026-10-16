@@ -1,0 +1,146 @@
+"""Tests for reusing unchanged work (src/resume.py), the plain-English messages (src/explain.py), the false-alarm
+breakdown and the server's leftover-job handling. No network."""
+import os
+
+import numpy as np
+import pytest
+
+from src import config, evaluate, experiment, explain, resume, server
+from tests.test_evaluate import tiny_project  # noqa: F401  (pytest fixture)
+
+
+def fake_repo(tmp_path):
+    for name in ["src/models.py", "src/server.py", "scripts/build_dataset.py"]:
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("x = 1\n")
+    return tmp_path
+
+
+def test_stamp_follows_science_code_and_data_but_not_server_code(monkeypatch, tmp_path):
+    repo = fake_repo(tmp_path / "repo")
+    monkeypatch.setattr(config, "REPO_DIR", str(repo))
+    data = tmp_path / "windows.parquet"
+    data.write_bytes(b"abc")
+    first = resume.stamp([str(data)])
+    assert resume.stamp([str(data)]) == first
+    (repo / "src" / "server.py").write_text("x = 2\n")
+    assert resume.stamp([str(data)]) == first
+    (repo / "src" / "models.py").write_text("x = 2\n")
+    second = resume.stamp([str(data)])
+    assert second != first
+    data.write_bytes(b"abd")
+    assert resume.stamp([str(data)]) != second
+
+
+def test_saved_outcome_is_reused_only_under_the_same_stamp(tmp_path):
+    outcome = {"catch_rate": np.float64(0.25), "warning_median_ms": float("nan"), "rows": (1, np.int64(2))}
+    resume.save(str(tmp_path), "abc", outcome)
+    assert resume.load(str(tmp_path), "abc") == {"catch_rate": 0.25, "warning_median_ms": None, "rows": [1, 2]}
+    assert resume.load(str(tmp_path), "other") is None
+    assert resume.load(str(tmp_path / "missing"), "abc") is None
+
+
+def test_second_build_reuses_the_dataset_and_a_label_change_rebuilds(monkeypatch, tmp_path):
+    from scripts import build_dataset
+    from src import dataset
+    from tests.test_dataset import fake_shots
+    shots, table = fake_shots(6, 6)
+    monkeypatch.setattr(build_dataset, "is_cached", lambda shot_id: True)
+    monkeypatch.setattr(dataset, "load_shot", lambda shot_id: shots[shot_id])
+    monkeypatch.setattr(config, "SKIPPED_CSV", str(tmp_path / "skipped.csv"))
+    monkeypatch.setattr(config, "PROCESSED_DIR", str(tmp_path / "processed"))
+    first = build_dataset.build("small", table=table, offline=True)
+    again = build_dataset.build("small", table=table, offline=True)
+    assert "reused" not in first and again["reused"] is True and again["windows"] == first["windows"]
+    table.loc[table.index[-1], "shot_postshot_comment"] = "disruption at 0.2 s"  # a clean shot gets a note
+    assert "reused" not in build_dataset.build("small", table=table, offline=True)
+
+
+def test_run_all_reuses_an_unchanged_experiment(monkeypatch, tmp_path):
+    from scripts import run_all
+    calls = []
+    monkeypatch.setattr(config, "RESULTS_DIR", str(tmp_path))
+    monkeypatch.setattr(experiment, "run", lambda exp: calls.append(exp) or [{"horizon_ms": 10, "catch_rate": 0.5,
+                                                                             "false_alarm_rate": 0.0, "pr_auc": 0.3}])
+    reused = []
+    first = run_all.run_or_reuse("E4", "stamp1", reused)
+    assert run_all.run_or_reuse("E4", "stamp1", reused) == first
+    assert calls == ["E4"] and reused == ["E4"]
+    run_all.run_or_reuse("E4", "stamp2", reused)
+    assert calls == ["E4", "E4"]
+
+
+def test_leftover_job_is_recognised_from_its_command_line(tmp_path):
+    (tmp_path / "123").mkdir()
+    (tmp_path / "123" / "cmdline").write_bytes(b"/root/mastu/.venv/bin/python\0scripts/run_all.py\0--scale\0full\0")
+    command = server.job_command(123, proc_dir=str(tmp_path))
+    assert "scripts/run_all.py --scale full" in command and server.is_our_job(command)
+    assert server.job_command(999, proc_dir=str(tmp_path)) == ""
+    assert not server.is_our_job("/usr/sbin/sshd -D")
+
+
+def test_seed_sweep_kept_only_under_the_same_stamp():
+    state = server.new_state()
+    assert state["job_pid"] is None and not server.seeds_still_valid(state, "abc")
+    state["seeds_stamp"] = "abc"
+    assert server.seeds_still_valid(state, "abc") and not server.seeds_still_valid(state, "xyz")
+
+
+def test_false_alarms_split_by_how_the_clean_shot_ended():
+    result = np.array(["false_alarm", "quiet", "false_alarm", "quiet", "caught"], dtype=object)
+    out = evaluate.false_alarms_by_ending([1, 2, 3, 4, 5], result, {1, 2, 5})
+    assert out == {"unnoted_quench": {"n_clean": 2, "false_alarms": 1}, "no_quench": {"n_clean": 2, "false_alarms": 1}}
+
+
+def model_metrics(catch, ci_low, false_alarm):
+    test = {"n_disrupted": 34, "n_clean": 46, "catch_rate": catch, "tardy_rate": 1 / 34, "miss_rate": 1 - catch - 1 / 34,
+            "false_alarm_rate": false_alarm, "warning_median_ms": None,
+            "ci95": {"catch_rate": [ci_low, 0.2], "false_alarm_rate": [0.0, 0.1]},
+            "false_alarms_by_ending": {"unnoted_quench": {"n_clean": 20, "false_alarms": 2},
+                                       "no_quench": {"n_clean": 26, "false_alarms": 0}}}
+    return {"model": "hgb", "test": test, "val": {"meets_false_alarm_limit": True}}
+
+
+def test_model_message_counts_shots_and_compares_with_chance():
+    text = explain.model_text("E3", model_metrics(3 / 34, 0.0, 2 / 46))
+    assert "3 of 34 (8.8%)" in text and "2 of 46 (4.3%)" in text and "none caught" in text
+    assert "cannot yet call this real skill" in text and "lean towards the unnoted drops" in text
+    assert "real skill." in explain.model_text("E3", model_metrics(12 / 34, 0.2, 2 / 46))
+
+
+def test_sweep_temporal_conformal_pu_seed_and_dataset_messages():
+    rows = [{"drop_signal": "none", "model": "hgb", "catch_rate": 6 / 34, "false_alarm_rate": 2 / 46, "pr_auc": 0.26,
+             "n_disrupted": 34, "n_clean": 46, "positive_share": 0.03},
+            {"drop_signal": "prad", "model": "hgb", "catch_rate": 3 / 34, "false_alarm_rate": 1 / 46, "pr_auc": 0.18,
+             "n_disrupted": 34, "n_clean": 46, "positive_share": 0.03}]
+    text = explain.describe("E5", rows)
+    assert "without radiated power: caught 3 of 34" in text and "differ by 3 caught shot(s)" in text
+    drift = {"baseline": model_metrics(0.0, 0.0, 0.0)["test"],
+             "hgb": {**model_metrics(1 / 32, 0.0, 8 / 68)["test"], "n_disrupted": 32, "n_clean": 68,
+                     "ci95": {"catch_rate": [0.0, 0.1], "false_alarm_rate": [0.059, 0.206]}}}
+    assert "campaign drift" in explain.describe("E6", drift)
+    conformal = [{"method": "conformal", "alpha": 0.01, "threshold": None, "n_cal_clean": 23},
+                 {"method": "conformal", "alpha": 0.1, "threshold": 0.7, "n_cal_clean": 23, "guarantee_holds": False,
+                  "test_false_alarm_rate": 6 / 46, "test_catch_rate": 2 / 34, "n_test_disrupted": 34, "n_test_clean": 46}]
+    text = explain.describe("E8", conformal)
+    assert "needs at least 99 calibration shots, we have 23" in text and "6 of 46 (13.0%) -> BROKEN" in text
+    pu = {"label_frequency_c": 0.4, "mean_weight_unnoted_quench_windows": 0.3, "mean_weight_other_unlabelled_windows": 0.01,
+          "rows": [{"method": "pu", "test_set": "all test shots", "catch_rate": 0.1, "n_disrupted": 30,
+                    "false_alarm_rate": 0.05, "n_clean": 40}]}
+    assert "3 of 30" in explain.describe("E9", pu) and "40.0%" in explain.describe("E9", pu)
+    seeds = {"n_seeds": 5, "catch_rate_mean": 0.1, "catch_rate_std": 0.04, "false_alarm_rate_mean": 0.05,
+             "false_alarm_rate_std": 0.02}
+    assert "5 different random splits" in explain.describe("E10", seeds)
+    counts = {"shots": 398, "disrupted": 171, "clean": 227, "windows": 26169, "reused": True,
+              "split_counts": {"train": 238, "val": 80, "test": 80}}
+    assert "26,169 windows" in explain.dataset_text(counts) and "reused" in explain.dataset_text(counts)
+
+
+@pytest.mark.parametrize("exp", ["E1", "E6", "E8", "E9", "E11"])
+def test_every_real_outcome_can_be_described(tiny_project, exp):  # noqa: F811
+    outcome = resume.clean_json(experiment.run(exp))
+    text = explain.describe(exp, outcome)
+    assert exp in text and "None" not in text and "nan" not in text
+    if exp == "E1":
+        assert os.path.exists(tiny_project / "results" / "E1" / "metrics.json")

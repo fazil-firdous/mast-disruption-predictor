@@ -104,7 +104,7 @@ def window_labels(t_end, t_disrupt, horizon_ms=config.HORIZON_MS):
 
 
 def labelled_windows(windows, shots, source=None, horizon_ms=config.HORIZON_MS):
-    """Windows with label, disrupted, t_disrupt and near_quench columns for one label source.
+    """Windows with label, disrupted, t_disrupt, t_quench and near_quench columns for one label source.
 
     Windows at or after t_disrupt are dropped (SPEC 6). near_quench marks clean-shot windows within the horizon
     before an unnoted quench; training may drop them (NEAR_QUENCH_CLEAN), evaluation always keeps them.
@@ -122,6 +122,7 @@ def labelled_windows(windows, shots, source=None, horizon_ms=config.HORIZON_MS):
     t_disrupt = out["t_disrupt"].to_numpy()
     out["label"] = ((t_end >= t_disrupt - horizon - features.EPS) & (t_end < t_disrupt - features.EPS)).astype(int)
     t_quench = out["shot_id"].map(info["t_quench"]).to_numpy(dtype=float)
+    out["t_quench"] = t_quench
     near = (t_end >= t_quench - horizon - features.EPS) & (t_end < t_quench - features.EPS)
     out["near_quench"] = near & ~out["disrupted"].to_numpy()
     return out

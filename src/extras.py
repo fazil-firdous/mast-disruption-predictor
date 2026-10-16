@@ -153,14 +153,15 @@ def compute_extras(shot_id):
     return out[COLUMNS]
 
 
-def _cache_path(shot_id):
+def cache_path(shot_id):
+    """Where one shot's extra signals are cached: data/extras/{shot_id}.parquet."""
     return os.path.join(config.DATA_DIR, "extras", f"{shot_id}.parquet")
 
 
 def load_extras(shot_id, allow_download=True):
     """Extras for one shot from data/extras/, computed and cached on first use. None if not cached and
     allow_download is False (offline runs)."""
-    path = _cache_path(shot_id)
+    path = cache_path(shot_id)
     if os.path.exists(path):
         return pd.read_parquet(path)
     if not allow_download:
@@ -176,7 +177,7 @@ def download_extras(ids, workers=config.DOWNLOAD_WORKERS):
 
     Each shot reads ~3-4 MB of fast magnetics from STFC, so this runs in parallel like download_shots.
     """
-    todo = [i for i in ids if not os.path.exists(_cache_path(i))]
+    todo = [i for i in ids if not os.path.exists(cache_path(i))]
     failed = []
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {pool.submit(load_extras, i): i for i in todo}

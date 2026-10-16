@@ -1,5 +1,6 @@
 """Always-on research server for a personal VPS: waits out network outages, re-runs the full pipeline for every
-new commit, spends idle time on the E10 seed sweep, and obeys Telegram commands from the owner's chat only.
+new commit (reusing every result whose code and data did not change), spends idle time on the E10 seed sweep,
+and obeys Telegram commands from the owner's chat only.
 
 Run it under systemd (deploy/setup_vps.sh installs a service) or inside `screen`. Only one copy can run at a time.
 """
@@ -8,6 +9,7 @@ import fcntl
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -17,7 +19,7 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts import predict_shot
-from src import config, experiment, gold, literature, notify, relay, server, sources
+from src import config, experiment, explain, gold, literature, notify, relay, resume, server, sources
 from src.data import check_connection, check_shot_table, host_reachable
 
 PY = sys.executable
@@ -77,9 +79,7 @@ def results_text():
             text = f.read()
     seeds = experiment.seed_summary()
     if seeds["n_seeds"]:
-        text += (f"\nE10 over {seeds['n_seeds']} split seeds: catch {seeds['catch_rate_mean']:.3f} "
-                 f"+- {seeds['catch_rate_std']:.3f}, false alarms {seeds['false_alarm_rate_mean']:.3f} "
-                 f"+- {seeds['false_alarm_rate_std']:.3f}")
+        text += "\n" + explain.seed_text(seeds)
     return text
 
 
@@ -170,10 +170,27 @@ def run_job(label, cmd, state):
     with open(log_path, "w") as log:
         proc = subprocess.Popen(cmd, cwd=config.REPO_DIR, stdout=log, stderr=subprocess.STDOUT)
         CURRENT.update(job=label, proc=proc, log=log_path)
+        state["job_pid"] = proc.pid
+        server.write_state(state)
         while proc.poll() is None:
             poll_commands(state)
     CURRENT.update(job=None, proc=None)
+    state["job_pid"] = None
     return proc.returncode
+
+
+def stop_leftover_job(state):
+    """If an earlier server was killed while a job ran, that job may still be running and would clash with new
+    work on the same files. Stop it; its finished experiments are kept and reused (src/resume.py)."""
+    pid, state["job_pid"] = state["job_pid"], None
+    if pid is None or not server.is_our_job(server.job_command(pid)):
+        return
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    notify.send(f"stopped a job left running by the previous server (pid {pid}). Finished parts are kept and "
+                "reused; only the unfinished part runs again.")
 
 
 def run_relay(state, task, scale, data_dir):
@@ -243,13 +260,23 @@ def run_pipeline(state, scale, mode):
     args = server.pipeline_args(scale, mode, manifest)
     code = run_job(f"pipeline {commit}", [PY, "scripts/run_all.py", *args], state)
     if code == 0:
-        old = os.path.join(config.RESULTS_DIR, "E10")
-        if os.path.isdir(old):
-            shutil.move(old, os.path.join(config.RESULTS_DIR, f"E10_before_{commit}"))
-        state.update(last_ok_commit=commit, seeds_done=[], failed_commit=None)
+        keep_or_restart_seeds(state, commit)
+        state.update(last_ok_commit=commit, failed_commit=None)
     else:
         state.update(failed_commit=commit, failed_at=time.time())
         notify.send(f"full run of {commit} failed (exit {code}); retrying in {config.PIPELINE_RETRY_HOURS} h. /log for details")
+
+
+def keep_or_restart_seeds(state, commit):
+    """Keep the seed sweep if the science code and data are unchanged; otherwise archive it and start again,
+    because seeds made with old code cannot be averaged with new ones."""
+    stamp = resume.stamp(resume.processed_files())
+    if server.seeds_still_valid(state, stamp):
+        return
+    old = os.path.join(config.RESULTS_DIR, "E10")
+    if os.path.isdir(old):
+        shutil.move(old, os.path.join(config.RESULTS_DIR, f"E10_before_{commit}"))
+    state.update(seeds_done=[], seeds_stamp=stamp)
 
 
 def run_seed(state, seed):
@@ -257,9 +284,7 @@ def run_seed(state, seed):
     code = run_job(f"E10 seed {seed}", [PY, "scripts/run_experiment.py", "--exp", "E10", "--seed", str(seed)], state)
     state["seeds_done"].append(seed)
     if code == 0:
-        s = experiment.seed_summary()
-        notify.send(f"E10 seed {seed} done. Over {s['n_seeds']} seeds: catch {s['catch_rate_mean']:.3f} +- "
-                    f"{s['catch_rate_std']:.3f}, false alarms {s['false_alarm_rate_mean']:.3f} +- {s['false_alarm_rate_std']:.3f}")
+        notify.send(explain.seed_text(experiment.seed_summary()))
     else:
         notify.send(f"E10 seed {seed} failed (exit {code}); skipping it")
 
@@ -362,6 +387,7 @@ def main():
     lock = acquire_lock()  # noqa: F841  (kept open for the life of the process)
     state = server.read_state()
     state["started_at"] = time.time()
+    stop_leftover_job(state)
     notify.send(f"research server started on commit {head()} (workspace {os.path.abspath(config.HOME_DIR)}). /help")
     while True:
         update_code(state)
