@@ -22,21 +22,33 @@ def test_stamp_follows_science_code_and_data_but_not_server_code(monkeypatch, tm
     monkeypatch.setattr(config, "REPO_DIR", str(repo))
     data = tmp_path / "windows.parquet"
     data.write_bytes(b"abc")
-    first = resume.stamp([str(data)])
-    assert resume.stamp([str(data)]) == first
+
+    def now():
+        return resume.stamp([str(data)], code=resume.code_digest())
+    first = now()
+    assert now() == first
     (repo / "src" / "server.py").write_text("x = 2\n")
-    assert resume.stamp([str(data)]) == first
+    assert now() == first
     (repo / "src" / "models.py").write_text("x = 2\n")
-    second = resume.stamp([str(data)])
+    second = now()
     assert second != first
     data.write_bytes(b"abd")
-    third = resume.stamp([str(data)])
+    third = now()
     assert third != second
     monkeypatch.setattr(config, "HEARTBEAT_HOURS", 1)
     monkeypatch.setattr(config, "NEXT_STEP", "something else")
-    assert resume.stamp([str(data)]) == third
+    assert now() == third
     monkeypatch.setattr(config, "HORIZON_MS", 31)
-    assert resume.stamp([str(data)]) != third
+    assert now() != third
+
+
+def test_stamp_uses_the_code_loaded_at_start(monkeypatch, tmp_path):
+    repo = fake_repo(tmp_path / "repo")
+    monkeypatch.setattr(config, "REPO_DIR", str(repo))
+    before = resume.stamp([])
+    (repo / "src" / "models.py").write_text("edited while running\n")
+    assert resume.stamp([]) == before
+    assert resume.stamp([], code=resume.code_digest()) != before
 
 
 def test_saved_outcome_is_reused_only_under_the_same_stamp(tmp_path):

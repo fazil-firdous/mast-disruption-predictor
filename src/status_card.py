@@ -60,6 +60,17 @@ def skill(seeds_csv=None):
             "false_alarm": float(table["false_alarm_rate"].mean()), "verdict": verdict}
 
 
+def one_test(current):
+    """Catch and false-alarm rate of the single E3 test (before any repeat runs), or None."""
+    if current is None:
+        return None
+    saved = resume.load(os.path.join(config.RESULTS_DIR, "E3"), current)
+    if saved is None:
+        return None
+    test = saved["test"]
+    return {"n": 1, "catch": test["catch_rate"], "false_alarm": test["false_alarm_rate"], "verdict": "one"}
+
+
 def e5_current(current):
     """True if the saved E5 result was made with the current code and dataset."""
     return current is not None and resume.load(os.path.join(config.RESULTS_DIR, "E5"), current) is not None
@@ -101,7 +112,8 @@ def collect(state=None):
     return {"shots": data.get("shots", 0), "disrupted": data.get("disrupted", 0),
             "table_source": data.get("table_source", "live"), "all_shots": probe.get("shot_stores"),
             "experiments": experiments_done(current), "seeds": len(state["seeds_done"]) if seeds_valid else 0,
-            "gold": int(labels["shot_id"].nunique()), "skill": skill() if seeds_valid else None,
+            "gold": int(labels["shot_id"].nunique()),
+            "skill": (skill() if seeds_valid else None) or one_test(current),
             "signals": signal_usefulness() if e5_current(current) else {}}
 
 
@@ -179,11 +191,12 @@ def draw(info, path, commit=""):
         tile(ax, 0.2, f"{100 * s['catch']:.0f}%", "Catches", "of disruptions\nin time")
         tile(ax, 0.5, f"{100 * s['false_alarm']:.0f}%", "False alarms", "on normal\nshots")
         tile(ax, 0.8, f"{100 * s['false_alarm']:.0f}%", "A random guess", "would catch\nas many")
-        better = s["verdict"] == "better"
-        mark(ax, 0.075, 0.425, better)
-        verdict = {"better": "Better than guessing", "same": "Not better than guessing yet",
-                   "worse": "Worse than guessing"}[s["verdict"]]
-        ax.text(0.105, 0.425, f"{verdict}  (average of {s['n']} runs)", fontsize=12, color=INK, va="center")
+        mark(ax, 0.075, 0.425, s["verdict"] == "better")
+        verdict = {"better": f"Better than guessing  (average of {s['n']} runs)",
+                   "same": f"Not better than guessing yet  (average of {s['n']} runs)",
+                   "worse": f"Worse than guessing  (average of {s['n']} runs)",
+                   "one": "One test only: wait for the repeat runs"}[s["verdict"]]
+        ax.text(0.105, 0.425, verdict, fontsize=12, color=INK, va="center")
     if info["signals"]:
         ax.text(0.06, 0.34, "Signals it\nrelies on", fontsize=11, color=INK_2, va="center")
         ax.text(0.36, 0.235, "longer bar = worse without it", fontsize=9, color=MUTED)

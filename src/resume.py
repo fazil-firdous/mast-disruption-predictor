@@ -48,14 +48,33 @@ def processed_files():
     return [os.path.join(config.PROCESSED_DIR, name) for name in ("shots.parquet", "windows.parquet")]
 
 
-def stamp(data_files, extra=""):
-    """Fingerprint of the science code and settings, the given data files (name and content) and any extra text."""
-    digest = hashlib.sha256(science_settings().encode())
-    for path in science_files() + sorted(data_files):
+def file_digest(paths):
+    """sha256 (hex) over the names and contents of the given files, in the given order."""
+    digest = hashlib.sha256()
+    for path in paths:
         digest.update(os.path.basename(path).encode())
         with open(path, "rb") as f:
             for chunk in iter(lambda: f.read(1 << 20), b""):
                 digest.update(chunk)
+    return digest.hexdigest()
+
+
+def code_digest():
+    """Digest of the science source files as they are on disk now."""
+    return file_digest(science_files())
+
+
+# taken when the program starts, i.e. from the code it actually loaded; a file edited while it runs must not
+# lend its fingerprint to results made by the old code still in memory
+CODE_AT_START = code_digest()
+
+
+def stamp(data_files, extra="", code=None):
+    """Fingerprint of the science code (as loaded at start, unless code is given), the science settings, the given
+    data files (name and content) and any extra text."""
+    digest = hashlib.sha256((code or CODE_AT_START).encode())
+    digest.update(science_settings().encode())
+    digest.update(file_digest(sorted(data_files)).encode())
     digest.update(extra.encode())
     return digest.hexdigest()[:16]
 

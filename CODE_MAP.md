@@ -150,7 +150,8 @@ Read it top to bottom; each function uses only the ones above it.
 
 ## src/resume.py in detail
 - `science_files()` -> every file whose change can change a number: `src/*.py` except the server, Telegram, GitHub, watcher and message files (`NOT_SCIENCE`), plus `scripts/build_dataset.py`.
-- `stamp(data_files, extra)` -> 16-character fingerprint of the science files, the data files and any extra text. Same stamp means same inputs, so the result would be the same (everything is seeded).
+- `stamp(data_files, extra)` -> 16-character fingerprint of the science code, the science settings (`science_settings`, config values minus server/path settings), the data files and any extra text. Same stamp means same inputs, so the result would be the same (everything is seeded).
+- The code part is taken once when the program starts (`CODE_AT_START`), from the code it actually loaded, so a file edited during a run cannot lend its fingerprint to results made by the old code.
 - `save(folder, stamp, outcome)` writes `stamp.json` last and atomically; `load(folder, stamp)` returns the saved outcome only if the stamp matches. `clean_json` turns NaN into None so the file is valid JSON.
 - Where it is used: `build_dataset.build` skips rebuilding windows if `build_stamp` (selected shots' files, their labels, scale) matches; `run_all.run_or_reuse` skips an experiment whose stamp (science code + processed dataset) matches; the research server keeps the E10 seed sweep unless that stamp changed (`keep_or_restart_seeds`).
 - Why so strict: a reused number must come from exactly the code that is in the repo now (the project rules: never a stale or made-up result). Even a comment change in a science file reruns once; changes to the server, messages or docs never do.
@@ -162,6 +163,7 @@ Read it top to bottom; each function uses only the ones above it.
 
 ## src/status_card.py in detail
 - `collect(state)` -> the numbers on the picture, all read from disk: dataset counts (`dataset_info`, from the build's `stamp.json`), experiments finished with the current code (`experiments_done`), repeat runs and hand labels done, `skill()` (average catch and false-alarm rate over the E10 seeds and a verdict against a random alarm), `signal_usefulness()` (from E5).
+- Repeat-run numbers are shown only if they were made with the current code and data (`seeds_still_valid`); before any repeat run, the single E3 test is shown, labelled as one test only (`one_test`).
 - `needs(info)` -> the to-do list (more shots, repeat runs, your labels, `config.NEXT_STEP`). `draw(info, path)` -> the PNG. `send(caption, state)` draws it and sends it.
 - Why a picture: the owner reads on a phone; one picture replaces dozens of messages. Every number on it comes from a file that code wrote.
 
