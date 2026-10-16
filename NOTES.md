@@ -261,3 +261,5 @@ VPS report: the first data-source check failed with `403 Forbidden` on `POST /re
 `relay.check(response)` now replaces `raise_for_status()` for GitHub API calls: the Telegram message carries GitHub's own message, the permission GitHub names in `X-Accepted-GitHub-Permissions`, and what to change.
 
 The relay workflow had never run before; a first `probe` run was started from this session (run 38858508318) to check the GitHub side independently of the VPS token.
+
+Result of that first relay run (probe, 2026-10-16 05:57-06:02 UTC, success): from GitHub's machine the S3 bucket answers (11,573 shot stores; level2 holds defuse/, netcdf/, shots/), the shot table gave no answer (status 0, so mastapp.site is down from GitHub as well, not only from the sandbox and the VPS), DEFUSE still 403. Install + probe took about 5 minutes, about 4 of them waiting on mastapp.site. So the GitHub side of the relay works; only the VPS token's permission stands in the way.
