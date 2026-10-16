@@ -1,5 +1,7 @@
-"""Send progress messages and result files to Telegram. Prints instead if no bot is configured."""
+"""Telegram messages and pictures for the owner, and a log of everything (LOGS_DIR/messages.log). Prints instead
+of sending if no bot is configured."""
 import os
+import time
 
 import requests
 
@@ -27,9 +29,26 @@ def _call(method, data, files=None):
         return False
 
 
+def remember(text):
+    """Append a message to LOGS_DIR/messages.log with the time, so everything stays on record. Never raises."""
+    try:
+        os.makedirs(config.LOGS_DIR, exist_ok=True)
+        with open(os.path.join(config.LOGS_DIR, "messages.log"), "a") as f:
+            f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {text}\n")
+    except OSError as error:
+        print(f"[notify] could not write messages.log: {error}")
+
+
+def log(text):
+    """Keep a message off Telegram: print it (it lands in the job's log) and keep it in messages.log."""
+    print(f"[log] {text}")
+    remember(text)
+
+
 def send(text):
-    """Send a text message (Telegram's limit is 4096 characters, so longer text is cut)."""
+    """Send a text message (Telegram's limit is 4096 characters, so longer text is cut); also kept in messages.log."""
     print(f"[notify] {text}")
+    remember(text)
     return _call("sendMessage", {"text": text[:4000]})
 
 

@@ -1,7 +1,11 @@
-"""Whole pipeline in one go for a VPS: build the dataset, run E0-E7, report each step to Telegram."""
+"""Whole pipeline in one go for a VPS: build the dataset, run E0-E13, describe each result in plain words in the log
+and results/REPORT.md, and send one status picture to Telegram at the end.
+
+Work whose code and data have not changed since the last run is reused, not redone (src/resume.py), so a restart
+or a commit that only touches docs or the server never retrains anything.
+"""
 import argparse
 import os
-import shutil
 import sys
 import time
 import traceback
@@ -9,51 +13,66 @@ import traceback
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts.build_dataset import build, table_from_report
-from src import config, experiment, notify
+from src import config, experiment, explain, notify, resume, status_card
 
 MAIN_EXPERIMENTS = ["E0", "E1", "E2", "E3"]
 EXTRA_EXPERIMENTS = ["E4", "E5", "E6", "E7", "E8", "E9", "E11", "E12", "E13"]
 
 
-def pct(x):
-    """0.734 -> '73.4%'; None -> 'n/a'."""
-    return "n/a" if x is None else f"{100 * x:.1f}%"
-
-
-def headline(exp, metrics):
-    """One-paragraph Telegram summary of a model experiment's test numbers."""
-    test = metrics["test"]
-    ci = test["ci95"]
-    return (f"{exp} {metrics['model']} done (test, {test['n_disrupted']} disrupted / {test['n_clean']} clean shots)\n"
-            f"catch {pct(test['catch_rate'])} [{pct(ci['catch_rate'][0])}-{pct(ci['catch_rate'][1])}]\n"
-            f"false alarms {pct(test['false_alarm_rate'])} | tardy {pct(test['tardy_rate'])} | "
-            f"missed {pct(test['miss_rate'])}\n"
-            f"median warning {test['warning_median_ms']:.0f} ms | threshold {metrics['threshold']:.3f}"
-            + ("" if metrics["val"]["meets_false_alarm_limit"] else "\nWARNING: no threshold met the false-alarm limit on validation"))
-
-
 def step(name, func, *args):
-    """Run one pipeline step, timing it and sending a message on success or failure. Returns the result or None."""
-    notify.send(f"started: {name}")
+    """Run one pipeline step and time it. Progress goes to the log; only a failure reaches Telegram.
+    Returns (result or None, minutes)."""
+    notify.log(f"started: {name}")
     start = time.time()
     try:
         result = func(*args)
     except Exception:
-        notify.send(f"FAILED: {name}\n{traceback.format_exc()[-1500:]}")
+        notify.log(f"FAILED: {name}\n{traceback.format_exc()[-1500:]}")
+        notify.send(f"{name} failed. /log shows why")
+        return None, 0.0
+    return result, (time.time() - start) / 60
+
+
+def run_or_reuse(exp, current, reused):
+    """One experiment's outcome: the saved one if the code and data are unchanged (exp is added to reused),
+    otherwise a fresh run, described in plain words in the log, and saved. None if it failed."""
+    folder = os.path.join(config.RESULTS_DIR, exp)
+    outcome = resume.load(folder, current)
+    if outcome is not None:
+        reused.append(exp)
+        return outcome
+    label = f"{exp} ({experiment.MODEL_NAMES[exp]})" if exp in experiment.MODEL_NAMES else exp
+    outcome, minutes = step(label, experiment.run, exp)
+    if outcome is None:
         return None
-    notify.send(f"finished: {name} in {(time.time() - start) / 60:.1f} min")
-    return result
+    outcome = resume.clean_json(outcome)
+    resume.save(folder, current, outcome)
+    notify.log(f"{explain.describe(exp, outcome)}\n({minutes:.1f} min)")
+    return outcome
 
 
-def summary_table(results):
-    """Markdown table of the main experiments' test numbers, for results/SUMMARY.md and Telegram."""
-    lines = ["| exp | model | catch | false alarm | tardy | missed | median warning (ms) |",
-             "|---|---|---|---|---|---|---|"]
-    for exp, m in results.items():
-        t = m["test"]
-        lines.append(f"| {exp} | {m['model']} | {pct(t['catch_rate'])} | {pct(t['false_alarm_rate'])} | "
-                     f"{pct(t['tardy_rate'])} | {pct(t['miss_rate'])} | {t['warning_median_ms']:.0f} |")
-    return "\n".join(lines)
+def write_reports(outcomes, dataset_text, scale):
+    """results/SUMMARY.md (main models' test numbers in a few lines) and results/REPORT.md (every experiment in
+    plain words, what /report sends)."""
+    main = {exp: o for exp, o in outcomes.items() if exp in MAIN_EXPERIMENTS}
+    with open(os.path.join(config.RESULTS_DIR, "SUMMARY.md"), "w") as f:
+        f.write(f"Run summary (scale={scale}): test shots, alarm level chosen on validation for at most "
+                f"{explain.pct(config.MAX_FALSE_ALARM_RATE)} false alarms.\n{explain.summary_lines(main)}\n")
+    with open(os.path.join(config.RESULTS_DIR, "REPORT.md"), "w") as f:
+        f.write(f"# Every experiment in plain words (scale={scale})\n\n{dataset_text}\n")
+        for exp, outcome in outcomes.items():
+            f.write(f"\n## {exp}\n{explain.describe(exp, outcome)}\n")
+
+
+def finish(outcomes, reused, failures, n_experiments, scale, dataset_text):
+    """End of run: write the reports, then one picture to Telegram (nothing if every result was reused)."""
+    write_reports(outcomes, dataset_text, scale)
+    if len(reused) == n_experiments:
+        notify.log(f"nothing changed in the science code, settings or data: all {n_experiments} results reused")
+        return
+    note = f", {len(reused)} reused" if reused else ""
+    failed = f", {failures} failed (/log)" if failures else ""
+    status_card.send(f"full run finished: {n_experiments - failures} of {n_experiments} experiments{note}{failed}")
 
 
 def main():
@@ -64,40 +83,28 @@ def main():
     parser.add_argument("--offline", action="store_true", help="no network: use only shots already on disk")
     parser.add_argument("--from-report", help="use the 400 shots of a Phase 2 per_shot.csv (mastapp.site down)")
     args = parser.parse_args()
-    notify.send(f"MAST pipeline starting (scale={args.scale}, label source={config.LABEL_SOURCE})")
+    notify.log(f"MAST pipeline starting (scale={args.scale}, label source={config.LABEL_SOURCE})")
 
+    dataset_text = "Dataset reused from an earlier run (--skip-build)."
     if not args.skip_build:
         table = table_from_report(args.from_report) if args.from_report else None
-        counts = step(f"build dataset ({args.scale})", build, args.scale, False, table, args.offline)
+        counts, _ = step(f"build dataset ({args.scale})", build, args.scale, False, table, args.offline)
         if counts is None:
             sys.exit(1)
-        notify.send(f"dataset: {counts}")
+        dataset_text = explain.dataset_text(counts)
+        notify.log(dataset_text)
 
-    results, failures = {}, 0
-    for exp in MAIN_EXPERIMENTS:
-        metrics = step(f"{exp} ({experiment.MODEL_NAMES[exp]})", experiment.run, exp)
-        if metrics is None:
+    current = resume.stamp(resume.processed_files())
+    experiments = MAIN_EXPERIMENTS + ([] if args.main_only else EXTRA_EXPERIMENTS)
+    outcomes, reused, failures = {}, [], 0
+    for exp in experiments:
+        outcome = run_or_reuse(exp, current, reused)
+        if outcome is None:
             failures += 1
         else:
-            results[exp] = metrics
-            notify.send(headline(exp, metrics))
-            notify.send_file(os.path.join(config.RESULTS_DIR, exp, "tradeoff.png"), f"{exp} trade-off curve")
+            outcomes[exp] = outcome
 
-    if not args.main_only:
-        for exp in EXTRA_EXPERIMENTS:
-            outcome = step(exp, experiment.run, exp)
-            if outcome is None:
-                failures += 1
-            else:
-                notify.send(f"{exp} result:\n{str(outcome)[:3500]}")
-
-    table = summary_table(results)
-    with open(os.path.join(config.RESULTS_DIR, "SUMMARY.md"), "w") as f:
-        f.write(f"# Run summary (scale={args.scale})\n\nTest split, threshold chosen on validation for "
-                f"<= {pct(config.MAX_FALSE_ALARM_RATE)} false alarms.\n\n{table}\n")
-    archive = shutil.make_archive(os.path.join(config.DATA_DIR, "results"), "zip", config.RESULTS_DIR)
-    notify.send(f"ALL DONE ({failures} failed steps)\n{table}")
-    notify.send_file(archive, "all results (metrics.json, plots)")
+    finish(outcomes, reused, failures, len(experiments), args.scale, dataset_text)
     if failures:
         sys.exit(1)
 

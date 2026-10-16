@@ -109,6 +109,8 @@ def test_once(best, test, columns, out_dir):
     metrics = evaluate.shot_metrics(result, warning_ms)
     metrics["ci95"] = evaluate.bootstrap_ci(result, warning_ms)
     metrics["window"] = evaluate.window_metrics(test["label"], window_scores, best["threshold"])
+    quench_ids = set(test.loc[np.isfinite(test["t_quench"]), "shot_id"])
+    metrics["false_alarms_by_ending"] = evaluate.false_alarms_by_ending(shots["shot_id"], result, quench_ids)
     curve.to_csv(os.path.join(out_dir, "tradeoff_test.csv"), index=False)
     evaluate.plot_tradeoff({"test": curve, "validation": best["curve"]}, os.path.join(out_dir, "tradeoff.png"),
                            {"chosen": (metrics["false_alarm_rate"], metrics["catch_rate"])})
@@ -151,10 +153,13 @@ def run_model(name, win, split_column, columns, out_dir, use_test=True, save=Tru
     os.makedirs(out_dir, exist_ok=True)
     train, val, test = split_frames(win, split_column)
     best = tune(name, train, val, columns)
+    val_shots = val.groupby("shot_id")["disrupted"].first()
     metrics = {"model": name, "split": split_column, "params": best["params"], "threshold": best["threshold"],
                "n_train_windows": len(training_rows(train)), "n_val_windows": len(val),
                "val": {"catch_rate": best["val_catch_rate"], "false_alarm_rate": best["val_false_alarm_rate"],
-                       "pr_auc": best["val_pr_auc"], "meets_false_alarm_limit": best["val_meets_limit"]},
+                       "pr_auc": best["val_pr_auc"], "meets_false_alarm_limit": best["val_meets_limit"],
+                       "n_disrupted": int(val_shots.sum()), "n_clean": int((~val_shots).sum()),
+                       "positive_share": float(val["label"].mean())},
                "trials": best["trials"]}
     if use_test:
         metrics["test"] = test_once(best, test, columns, out_dir)
@@ -294,17 +299,22 @@ def run_conformal(name, win, split_column, columns, out_dir):
     for alpha in config.CONFORMAL_ALPHAS:
         threshold = conformal.conformal_threshold(clean_levels, alpha)
         m = metrics_at(test, test_scores, threshold)
-        rows.append({"method": "conformal", "alpha": alpha, "threshold": threshold, "n_cal_clean": len(clean_levels),
-                     "test_false_alarm_rate": m["false_alarm_rate"], "test_catch_rate": m["catch_rate"],
-                     "guarantee_holds": m["false_alarm_rate"] <= alpha})
+        rows.append(conformal_row("conformal", alpha, threshold, len(clean_levels), m))
     m = metrics_at(test, test_scores, best["threshold"])
-    rows.append({"method": "tuned on validation", "alpha": config.MAX_FALSE_ALARM_RATE, "threshold": best["threshold"],
-                 "n_cal_clean": len(clean_levels), "test_false_alarm_rate": m["false_alarm_rate"],
-                 "test_catch_rate": m["catch_rate"], "guarantee_holds": m["false_alarm_rate"] <= config.MAX_FALSE_ALARM_RATE})
+    rows.append(conformal_row("tuned on validation", config.MAX_FALSE_ALARM_RATE, best["threshold"],
+                              len(clean_levels), m))
     table = pd.DataFrame(rows)
     table.to_csv(os.path.join(out_dir, "conformal.csv"), index=False)
     write_json({"model": name, "split": split_column, "rows": rows}, os.path.join(out_dir, "metrics.json"))
     return rows
+
+
+def conformal_row(method, alpha, threshold, n_cal_clean, m):
+    """One row of the E8 table: the promised false-alarm level, what the test shots showed, and the shot counts."""
+    return {"method": method, "alpha": alpha, "threshold": threshold, "n_cal_clean": n_cal_clean,
+            "test_false_alarm_rate": m["false_alarm_rate"], "test_catch_rate": m["catch_rate"],
+            "n_test_disrupted": m["n_disrupted"], "n_test_clean": m["n_clean"],
+            "guarantee_holds": m["false_alarm_rate"] <= alpha}
 
 
 def unambiguous(frame, shots):
@@ -354,7 +364,7 @@ def run_seed(name, windows, shots, seed):
 def seed_summary():
     """Mean, spread and count of the E10 test metrics over every seed run so far; also writes E10/summary.csv."""
     folder = os.path.join(config.RESULTS_DIR, "E10")
-    rows = []
+    rows, endings = [], {}
     for name in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
         path = os.path.join(folder, name, "metrics.json")
         if name.startswith("seed_") and os.path.exists(path):
@@ -362,12 +372,21 @@ def seed_summary():
                 test = json.load(f)["test"]
             rows.append({"seed": int(name[5:]), "catch_rate": test["catch_rate"],
                          "false_alarm_rate": test["false_alarm_rate"], "warning_median_ms": test["warning_median_ms"]})
+            add_endings(endings, test.get("false_alarms_by_ending", {}))
     if not rows:
         return {"n_seeds": 0}
     table = pd.DataFrame(rows).sort_values("seed")
     table.to_csv(os.path.join(folder, "summary.csv"), index=False)
-    out = {"n_seeds": len(table)}
+    out = {"n_seeds": len(table), "false_alarms_by_ending": endings}
     for column in ["catch_rate", "false_alarm_rate", "warning_median_ms"]:
         out[f"{column}_mean"] = float(table[column].mean())
         out[f"{column}_std"] = float(table[column].std(ddof=1)) if len(table) > 1 else 0.0
     return out
+
+
+def add_endings(total, by_ending):
+    """Add one run's false-alarm counts by shot ending into total (pooled over the seed sweep)."""
+    for group, counts in by_ending.items():
+        pooled = total.setdefault(group, {"n_clean": 0, "false_alarms": 0})
+        pooled["n_clean"] += counts["n_clean"]
+        pooled["false_alarms"] += counts["false_alarms"]

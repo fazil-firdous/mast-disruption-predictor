@@ -89,14 +89,14 @@ def _summary_to_frame(ds):
     return frame[COLUMNS]
 
 
-def _cache_path(shot_id):
+def cache_path(shot_id):
     """Where one shot's cached signals live: data/raw/{shot_id}.parquet."""
     return os.path.join(config.RAW_DIR, f"{shot_id}.parquet")
 
 
 def is_cached(shot_id):
     """True if the shot's signals are already on disk (so loading it needs no network)."""
-    return os.path.exists(_cache_path(shot_id))
+    return os.path.exists(cache_path(shot_id))
 
 
 def _fetch_shot(shot_id, retries, backoff):
@@ -121,7 +121,7 @@ def load_shot(shot_id, use_cache=True, retries=config.DOWNLOAD_RETRIES, backoff=
 
     Signals the shot lacks come back as NaN columns. Reads data/raw/{shot_id}.parquet if it exists.
     """
-    path = _cache_path(shot_id)
+    path = cache_path(shot_id)
     if use_cache and os.path.exists(path):
         return pd.read_parquet(path)
     frame = _fetch_shot(shot_id, retries, backoff)
@@ -173,7 +173,7 @@ def download_shots(ids, workers=config.DOWNLOAD_WORKERS, retries=config.DOWNLOAD
     result = {"cached": [], "downloaded": [], "failed": []}
     to_fetch = []
     for shot_id in ids:
-        if os.path.exists(_cache_path(shot_id)):
+        if os.path.exists(cache_path(shot_id)):
             result["cached"].append(shot_id)
         else:
             to_fetch.append(shot_id)

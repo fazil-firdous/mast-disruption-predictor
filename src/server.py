@@ -6,20 +6,18 @@ import time
 from src import config
 
 STATE_PATH = os.path.join(config.LOGS_DIR, "server_state.json")
-HELP = """MAST research server commands:
-/status - what is running, commit, network, seeds done
-/results - headline test numbers and the seed-sweep summary
-/log - last lines of the current job's log
-/predict 11860 - run the best saved model on one shot and send the plot
-/diagnose - check the network path to the data servers
-/run - start a full pipeline run now
-/fetch - fetch the data again through GitHub (for servers STFC blocks), then run
-/sources - check now whether the shot table is back, FAIR-MAST grew, or DEFUSE went public
-/papers - check arXiv now for new disruption-prediction papers
-/gold - label shots by hand, blind (answer /d disruption, /n normal end, /u unsure); /goldreport - how labels compare
-/update - pull new code now (the server restarts itself)
-/pause, /resume - stop or allow new jobs
-/stop - kill the running job
+HELP = """MAST research server
+/status - the picture: training, what it can do, what is needed
+/report - every experiment in words, plus all result files
+/details - text status (commit, network, disk)
+/log - last lines of the running job
+/predict 11860 - run the best model on one shot
+/gold - label shots by hand (/d disruption, /n normal, /u unsure); /goldreport
+/run - full run now; /fetch - fetch data again through GitHub, then run
+/sources, /papers - check data sources / arXiv now
+/diagnose - check the network
+/update - pull new code now
+/pause, /resume, /stop
 /help - this list"""
 
 
@@ -28,7 +26,8 @@ def new_state():
     return {"offset": 0, "last_ok_commit": None, "failed_commit": None, "failed_at": 0.0, "paused": False,
             "force_pipeline": False, "seeds_done": [], "last_heartbeat": 0.0, "last_update_check": 0.0,
             "network_down_since": None, "relay_manifest": None, "force_fetch": False, "last_probe": None,
-            "last_probe_at": 0.0, "last_literature_at": 0.0, "gold_current": None, "started_at": time.time()}
+            "last_probe_at": 0.0, "last_literature_at": 0.0, "gold_current": None, "seeds_stamp": None,
+            "job_pid": None, "started_at": time.time()}
 
 
 def read_state(path=STATE_PATH):
@@ -75,6 +74,25 @@ def next_job(state, head, now, processed_ready):
             if seed not in done:
                 return "seed", seed
     return None, None
+
+
+def job_command(pid, proc_dir="/proc"):
+    """The command line of a running process ('' if it is gone), read from Linux's /proc."""
+    try:
+        with open(os.path.join(proc_dir, str(pid), "cmdline"), "rb") as f:
+            return f.read().replace(b"\0", b" ").decode(errors="replace")
+    except OSError:
+        return ""
+
+
+def is_our_job(command):
+    """True if a command line is one of the jobs this server starts (so a reused pid is never killed by mistake)."""
+    return any(name in command for name in ("scripts/run_all.py", "scripts/run_experiment.py", "pytest"))
+
+
+def seeds_still_valid(state, stamp):
+    """True if the seed-sweep results were made with the same science code and data as the stamp."""
+    return state["seeds_stamp"] == stamp
 
 
 def access_mode(data_ok, table_ok, relay_ok):

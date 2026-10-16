@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import pandas as pd
 
-from src import config, dataset, extras
+from src import config, data, dataset, extras, resume
 from src.data import check_connection, download_shots, is_cached, load_shot_table
 
 
@@ -50,6 +50,7 @@ def build(scale="small", skip_check=False, table=None, offline=False):
         if not ok:
             raise RuntimeError(message + "\nRun: python scripts/diagnose_network.py")
 
+    from_live_table = table is None
     if table is None:
         table = load_shot_table()
         ids = dataset.candidate_ids(table, n_clean)
@@ -65,6 +66,10 @@ def build(scale="small", skip_check=False, table=None, offline=False):
     if config.USE_EXTRAS and not offline:
         extras.download_extras([int(i) for i in shots["shot_id"]])
 
+    current = build_stamp(shots, scale)
+    saved = resume.load(config.PROCESSED_DIR, current)
+    if saved is not None and all(os.path.exists(p) for p in resume.processed_files()):
+        return {**saved, "reused": True}
     shots["split"] = shots["shot_id"].map(dataset.random_split(shots))
     shots["split_temporal"] = shots["shot_id"].map(dataset.temporal_split(shots))
     windows = dataset.build_windows(shots)
@@ -74,10 +79,24 @@ def build(scale="small", skip_check=False, table=None, offline=False):
     os.makedirs(config.PROCESSED_DIR, exist_ok=True)
     windows.to_parquet(os.path.join(config.PROCESSED_DIR, "windows.parquet"))
     shots.to_parquet(os.path.join(config.PROCESSED_DIR, "shots.parquet"))
-    return {"candidates": len(ids), "download_failed": len(failed), "labelled": len(labelled),
-            "shots": len(shots), "disrupted": int(shots["disrupted"].sum()),
-            "clean": int((~shots["disrupted"]).sum()), "windows": len(windows),
-            "split_counts": shots["split"].value_counts().to_dict()}
+    counts = {"candidates": len(ids), "download_failed": len(failed), "labelled": len(labelled),
+              "shots": len(shots), "disrupted": int(shots["disrupted"].sum()),
+              "clean": int((~shots["disrupted"]).sum()), "windows": len(windows),
+              "split_counts": shots["split"].value_counts().to_dict(),
+              "table_source": "live" if from_live_table else "report"}
+    resume.save(config.PROCESSED_DIR, current, counts)
+    return counts
+
+
+def build_stamp(shots, scale):
+    """Fingerprint of everything the windows are built from: science code, the selected shots' cached signal
+    and extras files, their labels under every source, and the scale. Same stamp, same dataset."""
+    files = []
+    for shot_id in shots["shot_id"]:
+        for path in (data.cache_path(int(shot_id)), extras.cache_path(int(shot_id))):
+            if os.path.exists(path):
+                files.append(path)
+    return resume.stamp(files, extra=f"{scale}\n{shots.to_csv(index=False)}")
 
 
 def main():

@@ -133,4 +133,6 @@ TELEGRAM_POLL_S = 25  # long-poll length for bot commands; also the loop's natur
 WATCH_SOURCES_HOURS = 24  # check once a day whether mastapp.site is back, FAIR-MAST grew, or DEFUSE went public
 LITERATURE_DAYS = 7  # weekly arXiv check; disruption papers appear a few times a month
 LITERATURE_MAX_RESULTS = 40  # newest matches per check; more than a week ever brings
+CARD_EVERY_SEEDS = 10  # send the status picture after every 10 repeat runs, not after each one
+NEXT_STEP = "magnetic signals as change, not level"  # the research step in progress (docs/ROADMAP.md), shown on the status picture
 UPDATE_CHECK_MINUTES = 10  # look for new commits on GitHub this often; more often is pointless load on GitHub
