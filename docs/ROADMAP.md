@@ -33,7 +33,7 @@ Status markers: **done** (code + tests), **built** (code + tests, waiting for a 
 - **E2 Transfer — later.** MAST to MAST-U when data is public; few-shot adaptation.
 
 ## Track H — Infrastructure (done)
-- Data-source watcher (mastapp.site back, new FAIR-MAST shots or folders, DEFUSE public) and weekly arXiv literature watcher, both on Telegram.
+- Data-source watcher (shot table on mastapp.site or its S3 copy, new FAIR-MAST shots or folders, DEFUSE public) and weekly arXiv literature watcher, both on Telegram. Since 2026-10-24 the shot table is read from the S3 bucket when mastapp.site is down, so the full dataset (5,355 shots at full scale) no longer waits for it.
 - Shortcut test (E11): a large part of the v1 model's small skill on 400 real shots came from time since start.
 - GitHub data relay for servers STFC blocks (`src/relay.py`, `.github/workflows/fetch_data.yml`); private settings in the permanent `~/mast-private/.env`.
 - Public code, private runs (`MAST_HOME`), saved models (`src/registry.py`), live prediction (`scripts/predict_shot.py`), network diagnosis, always-on research server with Telegram commands, E10 seed sweep for spreads.

@@ -15,7 +15,8 @@ from src.data import download_shots, load_shot_table
 
 
 def choose_shots(scale):
-    """(shot ids, table source). Uses the live shot table if mastapp.site answers, else the Phase 2 report."""
+    """(shot ids, table source). Uses the full shot table (mastapp.site or its S3 copy) if either answers, else the
+    Phase 2 report."""
     try:
         table = load_shot_table()
     except Exception as error:
@@ -44,10 +45,12 @@ def main():
         print(snapshot)
         return
     ids, source = choose_shots(args.scale)
-    result = download_shots(ids)
+    result = download_shots(ids, workers=config.RELAY_WORKERS)
     have = result["cached"] + result["downloaded"]
     # the server cannot compute extras itself (it cannot reach STFC), so do it here for every shot it may select
-    extra = extras.download_extras(have) if config.USE_EXTRAS else {"ok": 0, "failed": []}
+    extra = {"ok": 0, "failed": []}
+    if config.USE_EXTRAS:
+        extra = extras.download_extras(have, workers=config.RELAY_WORKERS)
     manifest = {"task": "fetch", "scale": args.scale, "table_source": source, "requested": len(ids),
                 "available": len(result["cached"]) + len(result["downloaded"]), "failed": len(result["failed"]),
                 "extras": extra["ok"], "extras_failed": len(extra["failed"]),

@@ -24,6 +24,8 @@ _load_env_file(PRIVATE_ENV)
 
 # Data sources (SPEC 3.1)
 SHOT_TABLE_URL = "https://mastapp.site/parquet/level2/shots"
+# the same table (11,573 shots, checked 2026-10-24) in the FAIR-MAST bucket next to the shots; used when mastapp.site is down
+SHOT_TABLE_MIRROR_URL = "https://s3.echo.stfc.ac.uk/mast/fairmast-meta/l2_shots.parquet"
 # env override lets tests and offline work point at a local copy of the stores
 SHOT_ZARR_URL = os.environ.get("MAST_ZARR_URL", "https://s3.echo.stfc.ac.uk/mast/level2/shots/{shot_id}.zarr")
 SUMMARY_GROUP = "summary"
@@ -60,6 +62,7 @@ PNBI_ON_THRESHOLD = 1e5  # W; above 100 kW the beams count as on
 N_DISRUPTED = 300  # balanced starting subset: big enough to learn, small enough to download quickly
 N_CLEAN = 300
 DOWNLOAD_WORKERS = 8  # parallel downloads; more risks being throttled by the server
+RELAY_WORKERS = 16  # on GitHub's machine: 5355 shots at 8 workers would use ~4 h of the 6 h job limit
 DOWNLOAD_RETRIES = 3  # transient HTTP errors are common when streaming many shots
 FULL_N_CLEAN = 3000  # SPEC 8.1 "scale up": all detected disruptions plus ~3000 clean shots (run_all.py --scale full)
 CLEAN_POOL_FACTOR = 1.5  # download 1.5x the clean shots needed, since some turn out unknown or disrupted once labelled

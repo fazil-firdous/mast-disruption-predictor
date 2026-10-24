@@ -44,3 +44,9 @@ def test_source_changes():
 def test_due():
     assert server.due(0.0, 24, 1e9)
     assert not server.due(1e9 - 3600, 24, 1e9)
+
+
+def test_table_available_from_mastapp_or_the_s3_copy():
+    assert not sources.table_available({"shot_table_status": 0})
+    assert sources.table_available({"shot_table_status": 0, "shot_table_mirror_status": 206})
+    assert sources.table_available({"shot_table_status": 200, "shot_table_mirror_status": 0})

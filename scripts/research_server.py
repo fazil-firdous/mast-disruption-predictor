@@ -333,8 +333,8 @@ def probe_sources(state):
 
 
 def watch_sources(state):
-    """Daily: report changes in the data sources. When the shot table comes back after a run that had to use the
-    400 report shots, queue a fresh fetch so the next run uses the full dataset."""
+    """Daily: report changes in the data sources. When the full shot table can be read (mastapp.site or its S3
+    copy) but the data on this server came from the 400 report shots, queue a fresh fetch of the full dataset."""
     state["last_probe_at"] = time.time()
     snapshot = probe_sources(state)
     if snapshot is None:
@@ -342,14 +342,15 @@ def watch_sources(state):
     news = sources.changes(state["last_probe"], snapshot)
     if state["last_probe"] is None:
         news = [f"data sources: {snapshot['shot_stores']} shot stores, shot table HTTP "
-                f"{snapshot['shot_table_status'] or 'no answer'}, DEFUSE HTTP {snapshot['defuse_status']}"]
+                f"{snapshot['shot_table_status'] or 'no answer'} (S3 copy HTTP "
+                f"{snapshot.get('shot_table_mirror_status') or 'no answer'}), DEFUSE HTTP {snapshot['defuse_status']}"]
     state["last_probe"] = snapshot
     for line in news:
         notify.send(line)
     manifest = state["relay_manifest"]
-    if any("mastapp.site is back" in line for line in news) and manifest and manifest.get("table_source") == "report":
+    if sources.table_available(snapshot) and manifest and manifest.get("table_source") == "report":
         state.update(force_fetch=True, force_pipeline=True)
-        notify.send("queued a fresh fetch and full run with the complete shot table")
+        notify.send("the full shot table can be read again: fetching all shots and running everything on them")
 
 
 def watch_literature(state):
