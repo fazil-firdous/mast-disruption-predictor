@@ -38,7 +38,7 @@ python scripts/run_all.py --scale small            # everything, E0-E13 (unchang
 python scripts/predict_shot.py --shot 11860        # run the best trained model on one shot, as if live
 ```
 
-If `mastapp.site` (the shot table) is down, `python scripts/build_dataset.py --from-report results/label_report/per_shot.csv` builds a dataset from the 400 shots of the Phase 2 report instead. `python scripts/diagnose_network.py` explains any connection problem.
+If `mastapp.site` (the shot table) is down, the code reads the same table from the FAIR-MAST S3 bucket (`fairmast-meta/l2_shots.parquet`, next to the shot data). Only if both fail, `python scripts/build_dataset.py --from-report results/label_report/per_shot.csv` builds a dataset from the 400 shots of the Phase 2 report. `python scripts/diagnose_network.py` explains any connection problem.
 
 ## Public code, private runs
 The repository holds only code, docs and small reference results. Everything a training run produces (downloaded data, trained models, results, logs) goes to the folder named by `MAST_HOME`; unset, that is the current folder (git-ignored). On a personal server the setup puts everything, including the private settings file with the tokens (`~/mast-private/.env`), in `~/mast-private`. That folder is outside the code, so deleting or re-cloning the code never touches it, and your own runs never end up on GitHub. Anyone who clones the repo gets the same pipeline and trains their own models.

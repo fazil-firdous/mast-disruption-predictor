@@ -16,13 +16,27 @@ COLUMNS = ["time"] + list(config.SIGNAL_VARIABLES)
 
 
 def load_shot_table(use_cache=True):
-    """Return the shot table (one row per shot) as a DataFrame, cached locally after the first download."""
+    """Return the shot table (one row per shot) as a DataFrame, cached locally after the first download.
+
+    Tries mastapp.site first, then the copy in the FAIR-MAST S3 bucket (same table; mastapp.site has had long
+    outages). Raises RuntimeError naming both failures if neither can be read.
+    """
     if use_cache and os.path.exists(config.SHOT_TABLE_CACHE):
         return pd.read_parquet(config.SHOT_TABLE_CACHE)
-    table = pd.read_parquet(config.SHOT_TABLE_URL)
-    os.makedirs(os.path.dirname(config.SHOT_TABLE_CACHE), exist_ok=True)
-    table.to_parquet(config.SHOT_TABLE_CACHE)
-    return table
+    problems = []
+    for url in (config.SHOT_TABLE_URL, config.SHOT_TABLE_MIRROR_URL):
+        if not host_reachable(url):
+            problems.append(f"{urllib.parse.urlparse(url).hostname} does not answer")
+            continue
+        try:
+            table = pd.read_parquet(url)
+        except Exception as error:
+            problems.append(f"{url}: {type(error).__name__}: {error}"[:200])
+            continue
+        os.makedirs(os.path.dirname(config.SHOT_TABLE_CACHE), exist_ok=True)
+        table.to_parquet(config.SHOT_TABLE_CACHE)
+        return table
+    raise RuntimeError("shot table unavailable: " + "; ".join(problems))
 
 
 def host_reachable(url, timeout=config.TCP_CHECK_TIMEOUT_S):
@@ -42,15 +56,13 @@ def host_reachable(url, timeout=config.TCP_CHECK_TIMEOUT_S):
 
 
 def check_shot_table():
-    """(ok, message): the shot table is cached, or can be downloaded now. mastapp.site has had outages (503)."""
+    """(ok, message): the shot table is cached, or can be downloaded now (from mastapp.site or its S3 copy)."""
     if os.path.exists(config.SHOT_TABLE_CACHE):
         return True, "shot table cached"
-    if not host_reachable(config.SHOT_TABLE_URL):
-        return False, "shot table server does not answer (blocked from here, or down)"
     try:
         table = load_shot_table()
     except Exception as error:
-        return False, f"shot table server unavailable: {type(error).__name__}: {error}"[:300]
+        return False, str(error)[:300]
     return True, f"shot table downloaded: {len(table)} shots"
 
 

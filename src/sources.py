@@ -53,14 +53,20 @@ def probe():
     """Snapshot of what the data sources offer right now (a small dict, safe to store and compare)."""
     level2_folders, _ = _list("level2/")
     return {"shot_table_status": status_code(config.SHOT_TABLE_URL, byte_range=True),
+            "shot_table_mirror_status": status_code(config.SHOT_TABLE_MIRROR_URL, byte_range=True),
             "defuse_status": status_code(DEFUSE_SAMPLE, byte_range=True),
             "level2_folders": sorted(level2_folders),
             "shot_stores": count_shot_stores()}
 
 
 def _table_up(snapshot):
-    """True if the probe could read the start of the shot table."""
+    """True if the probe could read the start of the shot table on mastapp.site."""
     return snapshot.get("shot_table_status") in (200, 206)
+
+
+def table_available(snapshot):
+    """True if the full shot table can be read from mastapp.site or from its copy in the S3 bucket."""
+    return _table_up(snapshot) or snapshot.get("shot_table_mirror_status") in (200, 206)
 
 
 def changes(old, new):

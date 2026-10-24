@@ -14,7 +14,7 @@ A plain-English tour of the repo. Read the files in the order below.
 | File | Status | Purpose |
 |---|---|---|
 | `src/config.py` | done | Constants: URLs, window/horizon/threshold settings, seeds, paths, Phase 4 window policy, model settings. |
-| `src/data.py` | done (checked against the real servers by CI) | Load shot table and per-shot signals, with a local cache. |
+| `src/data.py` | done (checked against the real servers by CI) | Load shot table (mastapp.site, or its copy in the FAIR-MAST S3 bucket) and per-shot signals, with a local cache. |
 | `src/labels.py` | done | Note-based and signal-based disruption labels. |
 | `src/features.py` | done | Causal window features. |
 | `src/dataset.py` | done (synthetic tests) | Shot pool, labels for every source, shot selection, window table, splits by shot. |
@@ -68,7 +68,7 @@ A plain-English tour of the repo. Read the files in the order below.
 `src/config.py` reads the private `.env` (git-ignored) at import. `MAST_HOME` there decides where data, results, models and logs go (`DATA_DIR`, `RESULTS_DIR`, `MODELS_DIR`, `LOGS_DIR`). Unset, it is the current folder, as before.
 
 ## src/data.py in detail
-- `load_shot_table(use_cache=True)` -> DataFrame, one row per shot. Reads `data/shot_table.parquet` if present, otherwise downloads it from mastapp.site and saves it.
+- `load_shot_table(use_cache=True)` -> DataFrame, one row per shot. Reads `data/shot_table.parquet` if present, otherwise downloads it from mastapp.site, or if that fails from the identical copy in the S3 bucket (`SHOT_TABLE_MIRROR_URL`), and saves it. Raises an error naming both failures if neither answers.
 - `load_shot(shot_id, use_cache=True, retries, backoff)` -> DataFrame with columns `time, ip, power_radiated, neutron_rates_total, power_nbi` (float64). Missing signals are NaN columns. Reads `data/raw/{shot_id}.parquet` if present, otherwise streams the zarr `summary` group, retries on errors (but not when the shot does not exist), and saves the result. Raises if the group is empty, has no time, or has none of the four signals. An empty group is retried, because zarr 3 returns one when the connection fails.
 - `check_connection(shot_id=REFERENCE_SHOT, attempts=1)` -> (ok, message). Reads one shot straight from the server with no cache; big runs pass more attempts so one timeout does not kill them.
 - `check_shot_table()` -> (ok, message). The shot table is cached or can be downloaded now.
@@ -207,7 +207,7 @@ Read it top to bottom; each function uses only the ones above it.
 - In `features.py`: `EXTRA_SIGNALS` (lm, mirnov, sol) and `ip_ref_error`; `feature_names(extended=True)` adds 19 features; the 30 v1 features are unchanged.
 
 ## Watchers and the gold tool in detail
-- `sources.probe()` -> snapshot dict; `sources.changes(old, new)` -> sentences for Telegram. On a blocked server the probe runs on GitHub (`relay_fetch.py --task probe`).
+- `sources.probe()` -> snapshot dict (shot table on mastapp.site and its S3 copy, DEFUSE, folders, store count); `sources.changes(old, new)` -> sentences for Telegram; `sources.table_available(snapshot)` -> can the full table be read anywhere (then a server holding only the 400 report shots fetches the full dataset). On a blocked server the probe runs on GitHub (`relay_fetch.py --task probe`).
 - `literature.search()`, `parse_feed(xml)`, `check()` (new papers only), `digest(papers)`.
 - `gold.build_queue(shots)` (seeded, over-samples unnoted quenches), `next_item`, `record`, `plot_blind`, `evaluate`, `report_text`.
 - Experiments E11 (without t_since_start), E12 (UKAEA-style), E13 (feature sets) are knobs of `experiment.sweep` via `sweep_settings`.

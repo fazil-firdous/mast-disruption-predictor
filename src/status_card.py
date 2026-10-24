@@ -91,8 +91,8 @@ def signal_usefulness(e5_csv=None):
 def needs(info):
     """The short to-do list under the picture: (done?, text). Built only from what is on disk and in the state."""
     items = []
-    items.append((info["table_source"] != "report",
-                  "all MAST shots" if info["table_source"] != "report" else "more shots: waiting for mastapp.site"))
+    full = info["table_source"] != "report"
+    items.append((full, "full MAST shot list" if full else "more shots: only the 400 report shots so far"))
     items.append((info["seeds"] >= config.SEED_SWEEP_MAX, f"repeat runs {info['seeds']}/{config.SEED_SWEEP_MAX}"))
     items.append((info["gold"] >= sum(config.GOLD_PLAN.values()),
                   f"your labels {info['gold']}/{sum(config.GOLD_PLAN.values())} (send /gold)"))

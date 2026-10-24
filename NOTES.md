@@ -283,3 +283,18 @@ Saddle-coil pickup (ROADMAP D1 next step), tested on real data and NOT adopted
 - 13 PF coil currents (`pf_active/coil_current`, 20 kHz) explain 62-98% of each field channel's variation in those two shots, which first suggested pickup.
 - Test: n=1 cos/sin components of the field (as in lm_n1) regressed on PF current changes, pooled over 89 calibration shots outside the dataset (5 campaigns; 61 of 150 random shot numbers had no usable data), checked on held-out shots in the first 80% of the flat-top. Median quiet-period n=1 amplitude: 1.44 G raw, 3.84 G after subtraction (worse in 70% of held-out shots); even in-sample the pooled fit made the median worse (3.62 G). Per-campaign fits helped in M6 and M8 and hurt in M5, M7, M9. Only a per-shot fit removes it (0.22 G), and that would also absorb real plasma n=1.
 - Reading: the coupling is not a fixed hardware constant across shots (or the signal is already compensated and the rest is plasma response or channel-set changes). A fixed linear pickup subtraction would add error, so lm_n1 stays as it was. Next for the magnetics: features that use change rather than level, and the question to the FAIR-MAST team. Scripts for this test lived in the session scratchpad; the method is described here in full.
+
+## 2026-10-24 - The shot table is in the public S3 bucket, so mastapp.site is no longer needed
+
+mastapp.site still gives no answer (TCP timeout from this sandbox). Reading the FAIR-MAST server code's README (github.com/ukaea/fair-mast: FastAPI + Postgres catalogue behind mastapp.site, data on STFC S3) led to listing the top of the public bucket `s3://mast/`: `dev/`, `fairmast-docs/`, `fairmast-meta/`, `fdc/`, `gkw/`, `level1/`, `level2/`, `mhd/`, `simulations/`, `test/`, `tokamark/`.
+
+Verified facts
+- `fairmast-meta/l2_shots.parquet` (12.6 MB, last modified 2026-10-13; also `l1_shots`, `l1_sources`, `l2_sources`, and `l1_signals/`, `l2_signals/` folders): 11,573 rows (= number of level-2 shot stores), 189 columns including `shot_id`, `campaign`, `shot_postshot_comment`, `timestamp`; campaigns M5 1960, M6 2697, M7 3514, M8 2009, M9 1101, Unknown 292 (the same 292 'Unknown' noted for the mastapp.site table in config).
+- All 400 report shots are in it; campaign agrees for 400 of 400 and the first 80 characters of the operator comment agree for 400 of 400 (the report stored comments cut at 90 characters).
+- So it is treated as the same table as `mastapp.site/parquet/level2/shots`. `data.load_shot_table` now tries mastapp.site, then this copy (`config.SHOT_TABLE_MIRROR_URL`). `scripts/check_live.py` passed with it on the real servers while mastapp.site was down.
+- With this table, a full-scale fetch selects 5,355 shots (all 855 note-disrupted shots plus a pool of 4,500 note-clean ones); small scale selects from 1,305 candidates.
+- `tokamark/v1/` holds per-shot Zarr v2 stores (e.g. `11766.zarr`) with groups equilibrium, gas_injection, interferometer, magnetics, pf_active, pulse_schedule, spectrometer_visible, summary. No documentation found; what it is for (a benchmark subset?) is not known. Note: shot 11766 (M5) has an `equilibrium` group there, while the level-2 store of 11860 (M5) has none (ROADMAP D2). Ask the FAIR-MAST team.
+
+Decisions
+- The relay uses 16 parallel downloads (`RELAY_WORKERS`) on GitHub's machine: at the 8 used elsewhere, 5,355 shots would take an estimated ~4 h (from 400 shots + extras in ~18 min) of GitHub's 6 h job limit.
+- The data-source watcher now also probes the S3 copy; when the full table can be read and the server's data came from the 400 report shots, it queues a fresh fetch of the full dataset automatically.

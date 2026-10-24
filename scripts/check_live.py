@@ -36,11 +36,10 @@ def main():
     try:
         table = load_shot_table(use_cache=False)
         print("shot table:", table.shape)
-        checks["shot table from mastapp.site"] = True
+        checks["shot table (mastapp.site or its S3 copy)"] = True
     except Exception as error:
-        print(f"shot table server unreachable (check {config.SHOT_TABLE_URL} in a browser): "
-              f"{type(error).__name__}: {error}"[:300])
-        checks["shot table from mastapp.site"] = False
+        print(f"shot table unreachable: {error}"[:400])
+        checks["shot table (mastapp.site or its S3 copy)"] = False
     for name, passed in checks.items():
         print(("PASS " if passed else "FAIL ") + name)
     if not all(checks.values()):
