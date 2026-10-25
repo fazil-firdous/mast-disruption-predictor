@@ -10,14 +10,18 @@ Optional. Everything also runs from a terminal or the Colab notebook (see the RE
 - it uses every CPU core: repeat runs go side by side, one per core, each limited to one share of the cores (on small data a single job cannot keep two cores busy; side by side was 2.4 times faster on 2 cores). A second job starts only if free memory covers 1.3 times the biggest job measured so far, so a small server never runs out of memory. In a full run, E4-E13 run side by side the same way;
 - it labels every shot's ending automatically after each new dataset (`scripts/auto_labels.py`);
 - jobs run at low CPU priority, so other programs on the server stay responsive;
-- in its terminal it shows a small tokamak and progress bars (`src/banner.py`).
+- in its terminal it shows a small tokamak and progress bars after every job (`src/banner.py`), so `screen -r mast` always shows them.
 
 Only one copy can run at a time (lock file). A job left running by a killed server is stopped when the next one starts.
 
 ## Setup
-`git clone https://github.com/fazil-mastu/mast-disruption-predictor.git && cd mast-disruption-predictor && bash deploy/setup_vps.sh`
+`git clone https://github.com/fazil-firdous/mast-disruption-predictor.git && cd mast-disruption-predictor && bash deploy/setup_vps.sh`
 
-The setup installs everything into a virtual environment, keeps all private settings and outputs in `~/mast-private` (outside the code, so re-cloning never touches them), runs the tests and a network check, and installs a systemd service. To use `screen` instead, disable the service (`sudo systemctl disable --now mast-research`) and run `.venv/bin/python scripts/research_server.py --scale full` inside a screen session.
+The setup installs everything into a virtual environment, keeps all private settings and outputs in `~/mast-private` (outside the code, so re-cloning never touches them), runs the tests and a network check, and installs a systemd service. To use `screen` instead, disable the service (`sudo systemctl disable --now mast-research`) and start the server in a detached screen session that restarts it if it ever stops:
+
+`screen -dmS mast bash -c 'cd ~/mast-disruption-predictor; while true; do .venv/bin/python scripts/research_server.py --scale full; sleep 30; done'`
+
+`screen -r mast` shows it (the tokamak and the progress bars); Ctrl+A then D leaves it running.
 
 ## After renaming the repository or the GitHub account
 GitHub forwards the old address, but update both places that name it: `git remote set-url origin https://github.com/<owner>/<repo>.git` in the code folder, and the `GITHUB_REPO=<owner>/<repo>` line in `~/mast-private/.env` (used by the data relay). The relay token keeps working after a rename.
