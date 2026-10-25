@@ -8,7 +8,7 @@ import sys
 import pytest
 
 from scripts import repeat_runs
-from src import config, experiment, explain, resume, server
+from src import config, experiment, explain, resume, server, stats
 from tests.test_evaluate import tiny_project  # noqa: F401  (pytest fixture)
 
 
@@ -86,12 +86,12 @@ def test_leftover_jobs_include_repeat_runs():
 
 
 def test_corrected_interval_is_wider_than_a_plain_one():
-    mean, low, high = repeat_runs.corrected_interval([0.02, 0.04, 0.0, 0.03, 0.01])
+    mean, low, high = stats.corrected_interval([0.02, 0.04, 0.0, 0.03, 0.01])
     assert mean == pytest.approx(0.02)
     sd, t = 0.015811, 2.776445  # sample standard deviation; t(0.975, 4 degrees of freedom)
     assert high - mean == pytest.approx(t * sd * (1 / 5 + 0.2 / 0.6) ** 0.5, rel=1e-4)  # test / train shots
     assert high - mean > 1.5 * t * sd / 5 ** 0.5 and low < 0 < high  # overlapping splits: less certain than plain
-    assert repeat_runs.corrected_interval([0.05, 0.05, 0.05]) == (pytest.approx(0.05), None, None)  # too few
+    assert stats.corrected_interval([0.05, 0.05, 0.05]) == (pytest.approx(0.05), None, None)  # too few
 
 
 def write_metrics(path, catch, false_alarm):

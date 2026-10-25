@@ -13,11 +13,12 @@ Machine learning that watches a MAST tokamak plasma pulse as it unfolds and trie
 6. **Evaluation per shot**: caught, late, missed, false alarm, warning time, with bootstrap 95% intervals, on test shots used once. Also train-on-early-campaigns, test-on-late (M5–M7 vs M8–M9), and 50 repeat runs on random splits for error bars.
 
 ## What it has found so far (real MAST data)
-- **The labels disagree.** A current-quench detector confirms 97.7% of the shots the operators called disruptions, but also fires on 74.2% of the shots they called normal (`results/label_report/report.md`, 400 shots). Labels taken from the current alone, as in published FAIR-MAST benchmarks, mix normal endings with disruptions.
+- **The labels disagree.** A current-quench detector confirms 97.7% of the shots the operators called disruptions, but also fires on 74.2% of the shots they called normal (`results/label_report/report.md`, 400 shots; 98.2% and 76.3% on all 3,804 shots used). Labels taken from the current alone, as in published FAIR-MAST benchmarks, mix normal endings with disruptions.
 - **Automatic termination labels** (`scripts/auto_labels.py`) sort each ending by physics: lost during flat-top with flux left, after the central solenoid ran out of flux, during a programmed ramp-down, or smooth.
-  - On the 400-shot sample, 134 of 175 operator-noted disruptions were lost during flat-top with flux left.
-  - So were 83 of 223 shots nobody called a disruption: candidates for disruptions that were never recorded.
-- **Four global signals are not enough.** On 3,804 shots, averaged over repeat runs, the predictor catches only slightly more disruptions than an alarm that fires at random as often. Radiated power is the most useful signal.
+  - On all 3,804 shots used, 623 of the 847 operator-noted disruptions were lost during flat-top with flux left (74%; 77% on the 400-shot sample).
+  - So were 1,132 of the 2,957 shots nobody called a disruption (38%): candidates for disruptions that were never recorded.
+  - The detector fires on 3,089 shots, and 1,223 of those (40%) ended after the solenoid ran out of flux or during a programmed ramp-down, endings that labels from the current alone count as disruptions.
+- **Four global signals are not enough.** On 3,804 shots, over 43 repeat runs, the predictor does not clearly catch more disruptions than an alarm that fires at random as often, once the repeat runs' shared shots are allowed for. Radiated power is the most useful signal.
 - **Shortcut check.** Part of what the model learned was how long a shot had lasted, not plasma physics (E11). Every claim is now checked with and without that feature.
 - **Error bars for every claim.** The single-split findings above (E5, E11, E13) are being re-tested on 50 random splits each, paired with the repeat runs and judged with a test that allows for the splits sharing shots (`scripts/repeat_runs.py`).
 - **A negative result.** A fixed correction for coil pickup in the saddle-coil locked-mode signal made it worse on held-out shots, so it is not used (`NOTES.md`, 2026-10-16).

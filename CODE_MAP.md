@@ -43,6 +43,7 @@ A plain-English tour of the repo. Read the files in the order below.
 | `src/resume.py` | done | Reuse finished work: a result is reused only when the science code and data that made it are unchanged (a fingerprint, the "stamp"). Restarts and docs-only commits never retrain. |
 | `src/explain.py` | done | Every result in plain English: what the experiment asks, the numbers as shot counts, chance level, and what they mean. Goes to the log and `results/REPORT.md`. |
 | `src/banner.py` | done | The tokamak picture and training bars the research server prints in its terminal at start-up and after every job. Looks only. |
+| `src/stats.py` | done | `corrected_interval`: the 95% range of a paired change over repeated random splits, Nadeau-Bengio corrected because the splits share shots; used by the comparisons and the status picture's verdict. Outside every stamp (computed fresh, never cached). |
 | `src/status_card.py` | done | The one picture Telegram gets: training progress, what the model can do against a random guess, signals it relies on, what is needed next. |
 | `src/registry.py` | done | Save / load trained models with their feature list and threshold, in `MODELS_DIR` (private). |
 | `src/predict.py`, `scripts/predict_shot.py` | done | Run a saved model over a whole shot as if live; plot score, alarm and the detector's quench. |
@@ -168,7 +169,7 @@ Read it top to bottom; each function uses only the ones above it.
 - Every sentence is computed from the numbers; conditional wording ("real skill", "campaign drift", "lean towards the unnoted drops") only appears when the numbers support it.
 
 ## src/status_card.py in detail
-- `collect(state)` -> the numbers on the picture, all read from disk: dataset counts (`dataset_info`, from the build's `stamp.json`), experiments finished with the current code (`experiments_done`), repeat runs done, shots labelled automatically (`auto_labels`), `skill()` (average catch and false-alarm rate over the E10 seeds and a verdict against a random alarm), `signal_usefulness()` (from E5).
+- `collect(state)` -> the numbers on the picture, all read from disk: dataset counts (`dataset_info`, from the build's `stamp.json`), experiments finished with the current code (`experiments_done`), repeat runs done, shots labelled automatically (`auto_labels`), `skill()` (average catch and false-alarm rate over the E10 seeds and a verdict against a random alarm, from the corrected 95% range in `src/stats.py`), `signal_usefulness()` (from E5).
 - Repeat-run numbers are shown only if they were made with the current code and data (`seeds_still_valid`); before any repeat run, the single E3 test is shown, labelled as one test only (`one_test`).
 - `needs(info)` -> the to-do list (more shots, repeat runs, your labels, `config.NEXT_STEP`). `draw(info, path)` -> the PNG. `send(caption, state)` draws it and sends it.
 - Why a picture: the owner reads on a phone; one picture replaces dozens of messages. Every number on it comes from a file that code wrote.
@@ -222,7 +223,7 @@ Read it top to bottom; each function uses only the ones above it.
 
 ## Repeat-run comparisons in detail (scripts/repeat_runs.py)
 - `run(name, seed)`: the E10 split of that seed (`dataset.random_split`), the change `config.COMPARISONS[name]` applied through `experiment.sweep_settings`, then `experiment.run_model` with the best model, tested once. Output: `RESULTS_DIR/E10/comparisons/<name>/seed_<n>/` (inside E10, so it is archived with the seeds it is paired with).
-- `pairs()` puts each finished run next to the E10 run of the same seed; `summary()` gives per comparison the mean test catch and false-alarm rates, both sides, and `corrected_interval(changes)`: the 95% range of the paired change with the variance scaled by (1/n + n_test/n_train) instead of 1/n (Nadeau & Bengio 2003), because repeated random splits share shots. No range before `MIN_SEEDS` (5) splits. Writes `comparisons/summary.csv`; `explain.comparisons_text` words it.
+- `pairs()` puts each finished run next to the E10 run of the same seed; `summary()` gives per comparison the mean test catch and false-alarm rates, both sides, and `stats.corrected_interval(changes)`: the 95% range of the paired change with the variance scaled by (1/n + n_test/n_train) instead of 1/n (Nadeau & Bengio 2003), because repeated random splits share shots. No range before `MIN_SEEDS` (5) splits. Writes `comparisons/summary.csv`; `explain.comparisons_text` words it.
 - In `run_all.py`: `run_side_by_side` reuses unchanged experiments after E0-E3 and runs the rest in spawned processes (`run_in_processes`), one per core while memory allows (its own peak after E0-E3 is the estimate); a process that breaks down (for example out of memory) is rerun on its own.
 
 ## Watchers and the gold tool in detail

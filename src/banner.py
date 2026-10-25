@@ -108,4 +108,4 @@ def skill_text(skill, colour=True):
         return text + paint("✓ better than guessing", "G", colour)
     if skill["verdict"] == "one":
         return text + paint("(one test only)", "y", colour)
-    return text + paint("! not better than guessing yet", "y", colour)
+    return text + paint("! not clearly better than guessing yet", "y", colour)
