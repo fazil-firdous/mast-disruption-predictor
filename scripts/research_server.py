@@ -1,4 +1,4 @@
-"""Always-on research server for a personal VPS: waits out network outages, re-runs the full pipeline for every
+"""Always-on research server: waits out network outages, re-runs the full pipeline for every
 new commit (reusing every result whose code and data did not change), spends idle time on the E10 seed sweep,
 and obeys Telegram commands from the owner's chat only.
 
@@ -173,7 +173,7 @@ def run_job(label, cmd, state):
     os.makedirs(config.LOGS_DIR, exist_ok=True)
     log_path = os.path.join(config.LOGS_DIR, f"{time.strftime('%Y%m%d_%H%M%S')}_{label.replace(' ', '_')}.log")
     with open(log_path, "w") as log:
-        proc = subprocess.Popen(cmd, cwd=config.REPO_DIR, stdout=log, stderr=subprocess.STDOUT)
+        proc = subprocess.Popen(cmd, cwd=config.REPO_DIR, stdout=log, stderr=subprocess.STDOUT, preexec_fn=lower_priority)
         CURRENT.update(job=label, proc=proc, log=log_path)
         state["job_pid"] = proc.pid
         server.write_state(state)
@@ -191,6 +191,11 @@ def show_progress(state, job):
         print(banner.progress(status_card.collect(state), job), flush=True)
     except Exception as error:
         print(f"[progress] could not show progress: {type(error).__name__}: {error}")
+
+
+def lower_priority():
+    """Run in the child just before a job starts: lower its CPU priority by JOB_NICE (Linux 'nice')."""
+    os.nice(config.JOB_NICE)
 
 
 def stop_leftover_job(state):

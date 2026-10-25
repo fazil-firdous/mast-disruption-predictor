@@ -1,4 +1,4 @@
-"""Get shot data through GitHub when this server cannot reach STFC (its IP range is blocked there).
+"""Get shot data through GitHub when this server cannot reach the STFC data servers.
 
 A GitHub Actions job (.github/workflows/fetch_data.yml, scripts/relay_fetch.py) downloads the shots and attaches
 them as a short-lived artifact; this module starts that job, waits for it and unpacks the artifact into DATA_DIR.
