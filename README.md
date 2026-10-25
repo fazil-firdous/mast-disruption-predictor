@@ -18,6 +18,8 @@ Machine learning that watches a MAST tokamak plasma pulse as it unfolds and trie
   - On all 3,804 shots used, 623 of the 847 operator-noted disruptions were lost during flat-top with flux left (74%; 77% on the 400-shot sample).
   - So were 1,132 of the 2,957 shots nobody called a disruption (38%): candidates for disruptions that were never recorded.
   - The detector fires on 3,089 shots, and 1,223 of those (40%) ended after the solenoid ran out of flux or during a programmed ramp-down, endings that labels from the current alone count as disruptions.
+  - The rules were set on the 400-shot sample; on the 3,562 shots outside it the shares are the same (72.7% and 38.4%), and the solenoid ratio separates noted from un-noted quench endings with AUC 0.66 (95% 0.64-0.68): a real but modest difference (`scripts/label_statistics.py`).
+  - On signals the rules never use, the candidates look like recorded disruptions in how fast the current falls but sit in between in heating at the end, so they are probably a mixture (`scripts/termination_evidence.py`, 400-shot sample). No expert has checked them yet, and a quench during ramp-down or after flux exhaustion can still be a disruption: the classes describe when the plasma was lost, not whether it disrupted.
 - **Four global signals are not enough.** On 3,804 shots, over 43 repeat runs, the predictor does not clearly catch more disruptions than an alarm that fires at random as often, once the repeat runs' shared shots are allowed for. Radiated power is the most useful signal.
 - **Shortcut check.** Part of what the model learned was how long a shot had lasted, not plasma physics (E11). Every claim is now checked with and without that feature.
 - **Error bars for every claim.** The single-split findings above (E5, E11, E13) are being re-tested on 50 random splits each, paired with the repeat runs and judged with a test that allows for the splits sharing shots (`scripts/repeat_runs.py`).
@@ -53,6 +55,8 @@ python scripts/build_dataset.py --scale small      # 300 disrupted + 300 normal 
 python scripts/run_experiment.py --exp E3          # one experiment -> results/E3/
 python scripts/run_all.py --scale small            # everything, E0-E13 (unchanged results are reused)
 python scripts/auto_labels.py                      # how each shot ended -> results/auto_labels/
+python scripts/label_statistics.py                 # their shares, intervals, tests and the replication
+python scripts/termination_evidence.py             # the candidates on signals the rules never use
 python scripts/repeat_runs.py --comparison magnetics --seed 1   # one paired repeat run with one change
 python scripts/repeat_runs.py --summary            # every comparison so far, with corrected 95% ranges
 python scripts/predict_shot.py --shot 11860        # the best trained model on one shot, as if live

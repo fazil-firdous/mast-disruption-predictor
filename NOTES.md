@@ -340,3 +340,26 @@ E10 over 43 seeds (full data): on average the model catches a little more than t
 
 Timing: on the owner's 2-core VPS one full-data repeat run took 19 minutes (median gap between E10 seeds, one at a time).
 
+## 2026-10-25 - The termination labels under scrutiny: statistics, replication, sampling, independent evidence
+
+Questions from an outside reader (the owner forwarded them) asked for exact numerators, intervals, tests, the sampling design, independent evidence and the literature. Everything below is reproducible with `scripts/label_statistics.py` and `scripts/termination_evidence.py`; the label numbers are data facts, model numbers stay private.
+
+Statistics (`label_statistics.py` on the full-data `auto_labels/per_shot.csv`):
+- Noted shots lost during flat-top with flux left: 623/847 = 73.6% (Wilson 95% 70.5-76.4%; 79.8% of the 781 with all signals). Un-noted: 1,132/2,957 = 38.3% (36.5-40.0%; 38.9% of 2,912).
+- Solenoid ratio at the quench (755 noted vs 2,202 un-noted quench shots with a ratio): medians 0.72 vs 0.30 (gap 95% 0.34-0.48); AUC for "un-noted" from a low ratio 0.661 (bootstrap 95% 0.640-0.680); Mann-Whitney p = 9e-40; Cliff's delta 0.32 (small to medium); below 0.25: 17.5% vs 47.9%. Significant, but a modest separation with a large overlap.
+- Replication: the rules and thresholds were set on the 400-shot report sample before the full run, and 242 of those 400 are among the 3,804. On the other 3,562 shots: 72.7% (69.2-75.9%) and 38.4% (36.6-40.2%); AUC 0.660 (0.639-0.680); medians 0.72 vs 0.30; quenches after flux exhaustion or in the ramp-down 40.8%. Independent shots, same machine, detector and note-writing practice.
+
+Sampling design, reconstructed exactly from the public shot table (11,573 shots: 855 with a disruption comment, 10,718 without) and seed 42: candidates = all 855 + a random 4,500 of the 10,718 = 5,355; after dropping shots that never reach 100 kA, all note-and-detector disruptions (832) + a random 3,000 of the rest, minus 28 with no usable windows = 3,804. Noted shots are a census (847 of 855); un-noted ones a two-stage simple random sample, each standing for 10,718 / 2,957 = 3.62 shots. So 38.4% estimates the un-noted population, and scaled up about 4,100 (3,900-4,300) un-noted MAST shots would end during flat-top with flux left, if download and data-quality losses are unrelated to how a shot ended (not yet checked). The 1,132 is a count within the sample.
+
+Independent evidence (`termination_evidence.py` on the 400-shot cache: 134 recorded flat-top disruptions, 83 candidates, 69 un-noted flux-exhausted endings):
+- Current fall 90%->10% of peak, median: 4 / 4 / 21 ms; within 10 ms: 93% / 82% / 45%.
+- Neutron rate in the last 10 ms over its flat-top median: 0.81 / 0.52 / 0.15 (AUC candidate > flux-exhausted 0.67).
+- Radiated power, Mirnov level, saddle-coil n=1 amplitude and the current spike do not separate even the recorded disruptions from flux-exhausted endings (AUCs 0.52-0.56), so they cannot check the candidates.
+- Reading: the candidates look like disruptions in current-fall time and sit in between in heating at the end: probably a mixture. The fall time is only partly independent (a current already decaying before the quench, as after flux exhaustion, lengthens it). No expert has inspected any candidate; only two shots were looked at in detail, by a non-expert (2026-10-25 entry above). To do: run the evidence script on all 3,804 shots on the server.
+
+Corrections:
+- E9's "share of disruption-like moments that carry a label" (56.7% on the full data) must not be quoted. It is a window-level Elkan-Noto c from a gradient-boosting model trained with balanced class weights, whose scores are not calibrated probabilities as the method requires, and it assumes noted disruptions are a random sample of all disruptions. Fix the calibration when E9 is next changed (a science change, so after the repeat-run comparisons finish).
+- The classes say when the plasma was lost, not whether it disrupted. DECAF on MAST (Berkery et al.) counts ramp-down disruptions as disruptions and finds MAST especially disruptive above the Greenwald limit in the ramp-down, so "programmed ramp-down" and "flux exhausted" quenches are not shown to be harmless.
+
+Literature: targeted search done (docs/literature_review.md, 2026-10-25); nothing found on solenoid-flux-based separation of MAST endings or on auditing MAST operator notes, with DECAF-MAST as the closest work. The FAIR-MAST team has been asked for a blind expert check of about 30 shots or a MAST disruption list to compare with.
+

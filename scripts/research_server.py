@@ -317,7 +317,8 @@ def run_pipeline(state, scale, mode):
 
 def label_shots(state):
     """Automatic termination labels (scripts/auto_labels.py) whenever the dataset is newer than the last labels;
-    the short summary and the per-shot table go to Telegram."""
+    the short summary and the per-shot table go to Telegram. Their statistics and the independent-evidence check
+    follow (results only, kept for /report)."""
     out = os.path.join(config.RESULTS_DIR, "auto_labels")
     dataset = os.path.join(config.PROCESSED_DIR, "shots.parquet")
     summary = os.path.join(out, "summary.txt")
@@ -329,6 +330,10 @@ def label_shots(state):
     with open(summary) as f:
         notify.send(f.read())
     notify.send_file(os.path.join(out, "per_shot.csv"), "automatic labels: how each shot ended")
+    for label, script in [("label statistics", "label_statistics.py"),
+                          ("termination evidence", "termination_evidence.py")]:
+        if run_job(label, [PY, f"scripts/{script}"], state) != 0:
+            notify.log(f"{label} failed; /log shows why")
 
 
 def keep_or_restart_seeds(state, commit):
