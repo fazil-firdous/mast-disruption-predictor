@@ -129,7 +129,7 @@ SKIPPED_CSV = os.path.join(DATA_DIR, "skipped.csv")  # every shot we could not l
 REPORT_CSV = os.path.join(REPO_DIR, "results", "label_report", "per_shot.csv")  # 400 labelled shots; stand-in when mastapp.site is down
 
 # GitHub data relay (ROADMAP H): for servers that cannot reach the STFC data servers, a GitHub Actions machine downloads the shots
-GITHUB_REPO = os.environ.get("GITHUB_REPO", "fazil-mastu/mastu")
+GITHUB_REPO = os.environ.get("GITHUB_REPO", "fazil-mastu/mast-disruption-predictor")
 RELAY_WORKFLOW = "fetch_data.yml"
 RELAY_BRANCH = "main"  # GitHub only runs dispatched workflows that exist on this branch
 RELAY_TIMEOUT_HOURS = 6  # GitHub's own limit for one job
@@ -145,5 +145,17 @@ LITERATURE_DAYS = 7  # weekly arXiv check; disruption papers appear a few times 
 LITERATURE_MAX_RESULTS = 40  # newest matches per check; more than a week ever brings
 CARD_EVERY_SEEDS = 10  # send the status picture after every 10 repeat runs, not after each one
 NEXT_STEP = "magnetic signals as change, not level"  # the research step in progress (docs/ROADMAP.md), shown on the status picture
-UPDATE_CHECK_MINUTES = 10
-JOB_NICE = 10  # training jobs run at low priority, so other programs on the server stay responsive  # look for new commits on GitHub this often; more often is pointless load on GitHub
+UPDATE_CHECK_MINUTES = 10  # look for new commits on GitHub this often; more often is pointless load on GitHub
+JOB_NICE = 10  # training jobs run at low priority, so other programs on the server stay responsive
+MEMORY_SPARE = 1.3  # jobs run side by side only if free memory covers 1.3x what one such job was measured to use
+# Repeat-run comparisons (scripts/repeat_runs.py), run after the E10 sweep: the E10 recipe with one change, paired seed by
+# seed with E10, so the E11, E13 and E5 claims get error bars. name -> (knob, value) as in experiment.sweep_settings
+COMPARISONS = {
+    "no_time": ("drop_feature", "t_since_start"),  # E11: is part of the skill a shortcut through shot duration?
+    "magnetics": ("feature_set", "v1+magnetics"),  # E13: do the magnetic and control signals help?
+    "magnetics_no_time": ("feature_set", "v1+magnetics-no-time"),
+    "no_prad": ("drop_signal", "prad"),  # E5: how much does each signal matter?
+    "no_ip_abs": ("drop_signal", "ip_abs"),
+    "no_neutrons": ("drop_signal", "neutrons"),
+    "no_pnbi": ("drop_signal", "pnbi"),
+}

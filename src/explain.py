@@ -230,6 +230,37 @@ def seed_text(summary):
             + pooled_endings_text(summary.get("false_alarms_by_ending")))
 
 
+def comparisons_text(summary):
+    """Repeat-run comparisons (scripts/repeat_runs.py): each change against E10 on the very same random splits."""
+    if not summary:
+        return "Repeat-run comparisons: none finished yet."
+    lines = ["Repeat-run comparisons: the repeat-run recipe (E10) with one change, on the very same random splits, "
+             "tested on each split's test shots. The 95% range is corrected for the splits sharing shots; when it "
+             "includes 0, there is no clear difference yet."]
+    for name, row in summary.items():
+        knob, value = config.COMPARISONS[name]
+        words = VALUE_WORDS[knob][value].replace("+ ", "with ")
+        lines.append(f"- {words} ({row['n_seeds']} splits): caught {pct(row['catch_rate'])} vs "
+                     f"{pct(row['e10_catch_rate'])}, {change_text(row, 'catch_rate')}; false alarms "
+                     f"{pct(row['false_alarm_rate'])} vs {pct(row['e10_false_alarm_rate'])}, "
+                     f"{change_text(row, 'false_alarm_rate')}.")
+    return "\n".join(lines)
+
+
+def change_text(row, metric):
+    """'+1.2 points (range -0.5 to +2.9): no clear difference yet', from a comparisons summary row."""
+    change, low, high = row[f"{metric}_change"], row[f"{metric}_change_low"], row[f"{metric}_change_high"]
+    if missing(low):
+        return f"{points(change)} (too few splits for a verdict yet)"
+    verdict = "clearly higher" if low > 0 else "clearly lower" if high < 0 else "no clear difference yet"
+    return f"{points(change)} (range {points(low)} to {points(high)}): {verdict}"
+
+
+def points(x):
+    """0.012 -> '+1.2 points'."""
+    return "n/a" if missing(x) else f"{100 * x:+.1f} points"
+
+
 def pooled_endings_text(endings):
     """False alarms by shot ending, added up over every repeat run (the same shot can count in several runs)."""
     if not endings or "unnoted_quench" not in endings:

@@ -19,6 +19,7 @@ Machine learning that watches a MAST tokamak plasma pulse as it unfolds and trie
   - So were 83 of 223 shots nobody called a disruption: candidates for disruptions that were never recorded.
 - **Four global signals are not enough.** On 3,804 shots, averaged over repeat runs, the predictor catches only slightly more disruptions than an alarm that fires at random as often. Radiated power is the most useful signal.
 - **Shortcut check.** Part of what the model learned was how long a shot had lasted, not plasma physics (E11). Every claim is now checked with and without that feature.
+- **Error bars for every claim.** The single-split findings above (E5, E11, E13) are being re-tested on 50 random splits each, paired with the repeat runs and judged with a test that allows for the splits sharing shots (`scripts/repeat_runs.py`).
 - **A negative result.** A fixed correction for coil pickup in the saddle-coil locked-mode signal made it worse on held-out shots, so it is not used (`NOTES.md`, 2026-10-16).
 
 Trained models and their exact numbers stay in a private workspace, not in this repository.
@@ -39,6 +40,7 @@ The plan is in `docs/ROADMAP.md`; the checked references are in `docs/literature
 | E11 | Shortcut test (without time since start) |
 | E12 | The rules of the UKAEA FAIR-MAST benchmark |
 | E13 | Magnetic signals (saddle-coil locked modes, Mirnov coils, solenoid current) |
+| Comparisons | Do the E5, E11 and E13 findings hold on 50 different splits? |
 
 ## How to run
 Everything runs from `notebooks/colab_pipeline.ipynb` or a terminal:
@@ -50,6 +52,8 @@ python scripts/build_dataset.py --scale small      # 300 disrupted + 300 normal 
 python scripts/run_experiment.py --exp E3          # one experiment -> results/E3/
 python scripts/run_all.py --scale small            # everything, E0-E13 (unchanged results are reused)
 python scripts/auto_labels.py                      # how each shot ended -> results/auto_labels/
+python scripts/repeat_runs.py --comparison magnetics --seed 1   # one paired repeat run with one change
+python scripts/repeat_runs.py --summary            # every comparison so far, with corrected 95% ranges
 python scripts/predict_shot.py --shot 11860        # the best trained model on one shot, as if live
 ```
 

@@ -2,18 +2,22 @@
 and results/REPORT.md, and send one status picture to Telegram at the end.
 
 Work whose code and data have not changed since the last run is reused, not redone (src/resume.py), so a restart
-or a commit that only touches docs or the server never retrains anything.
+or a commit that only touches docs or the server never retrains anything. After E0-E3, the other experiments run side
+by side, one per CPU core while memory allows.
 """
 import argparse
+import multiprocessing
 import os
+import resource
 import sys
 import time
 import traceback
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts.build_dataset import build, table_from_report
-from src import config, experiment, explain, notify, resume, status_card
+from src import config, experiment, explain, notify, resume, server, status_card
 
 MAIN_EXPERIMENTS = ["E0", "E1", "E2", "E3"]
 EXTRA_EXPERIMENTS = ["E4", "E5", "E6", "E7", "E8", "E9", "E11", "E12", "E13"]
@@ -33,22 +37,71 @@ def step(name, func, *args):
     return result, (time.time() - start) / 60
 
 
+def label(exp):
+    """'E3 (hgb)' for the main models, else just the experiment id."""
+    return f"{exp} ({experiment.MODEL_NAMES[exp]})" if exp in experiment.MODEL_NAMES else exp
+
+
 def run_or_reuse(exp, current, reused):
     """One experiment's outcome: the saved one if the code and data are unchanged (exp is added to reused),
     otherwise a fresh run, described in plain words in the log, and saved. None if it failed."""
-    folder = os.path.join(config.RESULTS_DIR, exp)
-    outcome = resume.load(folder, current)
+    outcome = resume.load(os.path.join(config.RESULTS_DIR, exp), current)
     if outcome is not None:
         reused.append(exp)
         return outcome
-    label = f"{exp} ({experiment.MODEL_NAMES[exp]})" if exp in experiment.MODEL_NAMES else exp
-    outcome, minutes = step(label, experiment.run, exp)
-    if outcome is None:
-        return None
+    outcome, minutes = step(label(exp), experiment.run, exp)
+    return None if outcome is None else save_outcome(exp, current, outcome, minutes)
+
+
+def save_outcome(exp, current, outcome, minutes):
+    """Stamp a fresh outcome (src/resume.py) and describe it in the log; returns it as saved."""
     outcome = resume.clean_json(outcome)
-    resume.save(folder, current, outcome)
+    resume.save(os.path.join(config.RESULTS_DIR, exp), current, outcome)
     notify.log(f"{explain.describe(exp, outcome)}\n({minutes:.1f} min)")
     return outcome
+
+
+def run_side_by_side(experiments, current, reused, measured):
+    """Outcomes of experiments that do not depend on each other (those after E0-E3). Unchanged ones are reused; the
+    rest run side by side in fresh processes, one per CPU core while memory allows, each limited to its share of
+    the cores (results do not depend on the thread count). measured: this process has just run E0-E3 itself, so
+    its peak memory shows what one experiment needs; without that they run one at a time.
+    Returns {exp: outcome, or None if it failed}."""
+    outcomes = {exp: resume.load(os.path.join(config.RESULTS_DIR, exp), current) for exp in experiments}
+    reused += [exp for exp, outcome in outcomes.items() if outcome is not None]
+    todo = [exp for exp, outcome in outcomes.items() if outcome is None]
+    peak_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024 if measured else 0.0
+    cores = server.cpu_cores()
+    n = min(len(todo), server.lanes(cores, peak_mb, server.free_memory_mb()))
+    if n > 1:
+        notify.log(f"running {len(todo)} experiments, {n} side by side")
+        todo = run_in_processes(todo, current, outcomes, n, max(1, cores // n))
+    for exp in todo:  # one at a time: no room side by side, or their processes broke down
+        outcomes[exp] = run_or_reuse(exp, current, reused)
+    return outcomes
+
+
+def run_in_processes(todo, current, outcomes, n, threads):
+    """Run experiments in n fresh processes (spawned, so the thread limit applies from their start), filling in
+    outcomes as each finishes. Returns the experiments whose process broke down (e.g. out of memory)."""
+    broken, saved_env = [], dict(os.environ)
+    os.environ.update(server.job_env(threads))  # inherited by the spawned processes only; this one is idle
+    try:
+        with ProcessPoolExecutor(n, mp_context=multiprocessing.get_context("spawn")) as pool:
+            futures = {pool.submit(step, label(exp), experiment.run, exp): exp for exp in todo}
+            for future in as_completed(futures):
+                exp = futures[future]
+                try:
+                    outcome, minutes = future.result()
+                except Exception as error:
+                    notify.log(f"{exp}: its process broke down ({type(error).__name__}); it will run on its own")
+                    broken.append(exp)
+                    continue
+                outcomes[exp] = None if outcome is None else save_outcome(exp, current, outcome, minutes)
+    finally:
+        os.environ.clear()
+        os.environ.update(saved_env)
+    return broken
 
 
 def write_reports(outcomes, dataset_text, scale):
@@ -96,13 +149,13 @@ def main():
 
     current = resume.stamp(resume.processed_files())
     experiments = MAIN_EXPERIMENTS + ([] if args.main_only else EXTRA_EXPERIMENTS)
-    outcomes, reused, failures = {}, [], 0
-    for exp in experiments:
-        outcome = run_or_reuse(exp, current, reused)
-        if outcome is None:
-            failures += 1
-        else:
-            outcomes[exp] = outcome
+    reused = []
+    results = {exp: run_or_reuse(exp, current, reused) for exp in MAIN_EXPERIMENTS}
+    if not args.main_only:
+        measured = not set(MAIN_EXPERIMENTS) & set(reused)
+        results.update(run_side_by_side(EXTRA_EXPERIMENTS, current, reused, measured))
+    outcomes = {exp: results[exp] for exp in experiments if results[exp] is not None}
+    failures = len(experiments) - len(outcomes)
 
     finish(outcomes, reused, failures, len(experiments), args.scale, dataset_text)
     if failures:

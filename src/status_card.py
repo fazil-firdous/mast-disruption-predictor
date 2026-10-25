@@ -103,9 +103,18 @@ def needs(info):
     items = []
     full = info["table_source"] != "report"
     items.append((full, "full MAST shot list" if full else "more shots: only the 400 report shots so far"))
-    items.append((info["seeds"] >= config.SEED_SWEEP_MAX, f"repeat runs {info['seeds']}/{config.SEED_SWEEP_MAX}"))
+    if info["seeds"] < config.SEED_SWEEP_MAX:
+        items.append((False, f"repeat runs {info['seeds']}/{config.SEED_SWEEP_MAX}"))
+    else:
+        total = config.SEED_SWEEP_MAX * len(config.COMPARISONS)
+        items.append((info["comparisons"] >= total, f"repeat-run comparisons {info['comparisons']}/{total}"))
     items.append((False, f"next: {config.NEXT_STEP}"))
     return items
+
+
+def repeat_total():
+    """Every repeat run planned: the E10 seeds, then each comparison of scripts/repeat_runs.py on as many seeds."""
+    return config.SEED_SWEEP_MAX * (1 + len(config.COMPARISONS))
 
 
 def collect(state=None):
@@ -119,6 +128,7 @@ def collect(state=None):
     return {"shots": data.get("shots", 0), "disrupted": data.get("disrupted", 0),
             "table_source": data.get("table_source", "live"), "all_shots": probe.get("shot_stores"),
             "experiments": experiments_done(current), "seeds": len(state["seeds_done"]) if seeds_valid else 0,
+            "comparisons": len(state["comparisons_done"]) if seeds_valid else 0,
             "auto_labelled": auto_labels()[0], "auto_total": auto_labels()[1],
             "skill": (skill() if seeds_valid else None) or one_test(current),
             "signals": signal_usefulness() if e5_current(current) else {}}
@@ -185,8 +195,8 @@ def draw(info, path, commit=""):
           f"{info['shots']:,}" + (f" of {total:,}" if total else ""))
     meter(ax, 0.795, "Experiments finished", info["experiments"], len(EXPERIMENTS),
           f"{info['experiments']} of {len(EXPERIMENTS)}")
-    meter(ax, 0.745, "Repeat runs (for error bars)", info["seeds"], config.SEED_SWEEP_MAX,
-          f"{info['seeds']} of {config.SEED_SWEEP_MAX}")
+    runs = info["seeds"] + info["comparisons"]
+    meter(ax, 0.745, "Repeat runs (for error bars)", runs, repeat_total(), f"{runs} of {repeat_total()}")
     labelled, total = info["auto_labelled"], info["auto_total"]
     meter(ax, 0.695, "Shots labelled automatically", labelled, total, f"{labelled:,} of {total:,}")
 

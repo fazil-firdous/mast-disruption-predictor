@@ -289,6 +289,7 @@ mast-disruption/
 | E8 | Conformal threshold (ROADMAP B1) | a provable false-alarm limit, and where it breaks |
 | E9 | Positive-unlabelled learning (ROADMAP A1) | treat unnoted quenches as unlabelled, not clean |
 | E10 | Seed sweep: the same model on many random splits | how much of a result is luck of the split |
+| E10 comparisons | The E10 splits again with one change (`config.COMPARISONS`), paired seed by seed | whether the E5, E11 and E13 differences hold beyond the luck of one split |
 | E11 | Shortcut test: without `t_since_start` | is the model learning shot length instead of physics? |
 | E12 | UKAEA-style protocol: current-only labels, 10/30/60 ms | like-for-like with the UKAEA FAIR-MAST benchmark |
 | E13 | Add magnetics (locked-mode n=1, Mirnov), solenoid and current-control error | do physics precursors beat the shortcut? |

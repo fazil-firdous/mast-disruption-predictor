@@ -8,7 +8,7 @@ from src import config
 STATE_PATH = os.path.join(config.LOGS_DIR, "server_state.json")
 HELP = """MAST research server
 /status - the picture: training, what it can do, what is needed
-/report - every experiment in words, plus all result files
+/report - every experiment in words, the comparisons, all result files
 /details - text status (commit, network, disk)
 /log - last lines of the running job
 /predict 11860 - run the best model on one shot
@@ -27,7 +27,8 @@ def new_state():
             "force_pipeline": False, "seeds_done": [], "last_heartbeat": 0.0, "last_update_check": 0.0,
             "network_down_since": None, "relay_manifest": None, "force_fetch": False, "last_probe": None,
             "last_probe_at": 0.0, "last_literature_at": 0.0, "gold_current": None, "seeds_stamp": None,
-            "job_pid": None, "started_at": time.time()}
+            "comparisons_done": [], "comparisons_stamp": None, "job_pids": [], "idle_peak_mb": {},
+            "started_at": time.time()}
 
 
 def read_state(path=STATE_PATH):
@@ -57,23 +58,86 @@ def parse_command(text):
 
 
 def next_job(state, head, now, processed_ready):
-    """What to do next: ('pipeline', None), ('seed', n) or (None, None).
+    """What to do next: 'pipeline', 'idle' (repeat runs, see idle_jobs) or None.
 
     A full run is due for every new commit (or when forced); a failed commit is retried after PIPELINE_RETRY_HOURS.
-    When the current commit has run, idle time goes to the E10 seed sweep.
+    When the current commit has run, idle time goes to the repeat runs.
     """
     if state["paused"]:
-        return None, None
+        return None
     retry_due = now - state["failed_at"] > config.PIPELINE_RETRY_HOURS * 3600
     new_code = state["last_ok_commit"] != head and (state["failed_commit"] != head or retry_due)
     if state["force_pipeline"] or new_code:
-        return "pipeline", None
-    if state["last_ok_commit"] == head and processed_ready:
-        done = set(state["seeds_done"])
-        for seed in range(1, config.SEED_SWEEP_MAX + 1):
-            if seed not in done:
-                return "seed", seed
-    return None, None
+        return "pipeline"
+    if state["last_ok_commit"] == head and processed_ready and idle_jobs(state, 1):
+        return "idle"
+    return None
+
+
+def idle_jobs(state, limit):
+    """Up to limit idle jobs still to do, as (kind, seed): first the E10 seeds, then the repeat-run comparisons
+    (config.COMPARISONS) seed by seed. All of one kind, so jobs run side by side take about as long."""
+    seeds = range(1, config.SEED_SWEEP_MAX + 1)
+    queue = [("E10", seed) for seed in seeds] + [(name, seed) for seed in seeds for name in config.COMPARISONS]
+    done = {("E10", seed) for seed in state["seeds_done"]} | {tuple(job) for job in state["comparisons_done"]}
+    pending = [job for job in queue if job not in done]
+    return [job for job in pending if job[0] == pending[0][0]][:limit]
+
+
+def lanes(cores, peak_mb, free_mb):
+    """How many jobs to run side by side: one per CPU core, as long as each fits in free memory with MEMORY_SPARE
+    to spare. One at a time until such a job's memory use has been measured (peak_mb 0)."""
+    if not peak_mb or not free_mb:
+        return 1
+    return max(1, min(cores, int(free_mb / (config.MEMORY_SPARE * peak_mb))))
+
+
+def cpu_cores():
+    """CPU cores this process may use."""
+    try:
+        return len(os.sched_getaffinity(0))
+    except AttributeError:  # not Linux
+        return os.cpu_count() or 1
+
+
+def free_memory_mb(meminfo="/proc/meminfo"):
+    """Memory available to new programs (Linux MemAvailable) in MB, or None if unknown."""
+    try:
+        with open(meminfo) as f:
+            for line in f:
+                if line.startswith("MemAvailable:"):
+                    return int(line.split()[1]) / 1024
+    except OSError:
+        pass
+    return None
+
+
+def reap(proc):
+    """(exit code, most memory it used in MB) of a finished child process (subprocess.Popen), or (None, 0) while it
+    still runs. Unlike proc.poll(), this also gets the child's peak memory from the kernel."""
+    if proc.returncode is not None:  # already collected, e.g. by proc.terminate()
+        return proc.returncode, 0.0
+    pid, status, usage = os.wait4(proc.pid, os.WNOHANG)
+    if pid == 0:
+        return None, 0.0
+    proc.returncode = os.waitstatus_to_exitcode(status)
+    return proc.returncode, usage.ru_maxrss / 1024  # ru_maxrss is in KB on Linux
+
+
+def result_saved(path):
+    """True if a job's metrics.json exists and is complete JSON (a job stopped while writing leaves it broken)."""
+    try:
+        with open(path) as f:
+            json.load(f)
+    except (OSError, ValueError):
+        return False
+    return True
+
+
+def job_env(threads):
+    """Environment for a job limited to this many threads: OpenMP (boosting), BLAS, and joblib (forests)."""
+    names = ["OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "LOKY_MAX_CPU_COUNT"]
+    return {**os.environ, **{name: str(threads) for name in names}}
 
 
 def job_command(pid, proc_dir="/proc"):
@@ -87,7 +151,8 @@ def job_command(pid, proc_dir="/proc"):
 
 def is_our_job(command):
     """True if a command line is one of the jobs this server starts (so a reused pid is never killed by mistake)."""
-    return any(name in command for name in ("scripts/run_all.py", "scripts/run_experiment.py", "pytest"))
+    jobs = ("scripts/run_all.py", "scripts/run_experiment.py", "scripts/repeat_runs.py", "pytest")
+    return any(name in command for name in jobs)
 
 
 def seeds_still_valid(state, stamp):

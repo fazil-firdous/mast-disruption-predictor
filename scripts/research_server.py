@@ -1,10 +1,11 @@
 """Always-on research server: waits out network outages, re-runs the full pipeline for every
-new commit (reusing every result whose code and data did not change), spends idle time on the E10 seed sweep,
-and obeys Telegram commands from the owner's chat only.
+new commit (reusing every result whose code and data did not change), spends idle time on repeat runs (the E10
+seed sweep, then the repeat-run comparisons), one per CPU core, and obeys Telegram commands from the owner's chat only.
 
 Run it under systemd (deploy/setup_vps.sh installs a service) or inside `screen`. Only one copy can run at a time.
 """
 import argparse
+import contextlib
 import fcntl
 import json
 import os
@@ -18,12 +19,12 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts import predict_shot
+from scripts import predict_shot, repeat_runs
 from src import banner, config, experiment, explain, gold, literature, notify, relay, resume, server, sources, status_card
 from src.data import check_connection, check_shot_table, host_reachable
 
 PY = sys.executable
-CURRENT = {"job": None, "proc": None, "log": None}  # the running job, shared by the loop and the command handler
+CURRENT = {"job": None, "procs": [], "log": None}  # the running job(s), shared by the loop and the command handler
 
 
 def git(*args):
@@ -71,12 +72,16 @@ def tail(path, n=40):
 
 
 def send_report():
-    """/report: every experiment described in words (REPORT.md), the automatic labels and all result files as a zip."""
+    """/report: every experiment described in words (REPORT.md), the repeat-run comparisons so far, the automatic
+    labels and all result files as a zip."""
     report = os.path.join(config.RESULTS_DIR, "REPORT.md")
     if not os.path.exists(report):
         notify.send("no report yet: it is written at the end of the first full run")
         return
     notify.send_file(report, "every experiment in words")
+    comparisons = repeat_runs.summary()
+    if comparisons:
+        notify.send(explain.comparisons_text(comparisons))
     labels = os.path.join(config.RESULTS_DIR, "auto_labels", "per_shot.csv")
     notify.send_file(labels, "automatic labels: how each shot ended")
     archive = shutil.make_archive(os.path.join(config.DATA_DIR, "results"), "zip", config.RESULTS_DIR)
@@ -128,8 +133,9 @@ def handle_command(name, arg, state):
     elif name in ("pause", "resume"):
         state["paused"] = name == "pause"
         notify.send(f"server {'paused: no new jobs' if state['paused'] else 'resumed'}")
-    elif name == "stop" and CURRENT["proc"] is not None:
-        CURRENT["proc"].terminate()
+    elif name == "stop" and CURRENT["procs"]:
+        for proc in CURRENT["procs"]:
+            proc.terminate()
         notify.send(f"stopping {CURRENT['job']}")
     else:
         notify.send(server.HELP)
@@ -168,21 +174,38 @@ def poll_commands(state):
     server.write_state(state)
 
 
-def run_job(label, cmd, state):
-    """Run one command as a child process, logging to LOGS_DIR, and keep answering commands while it runs."""
+def run_jobs(jobs, state, threads=None):
+    """Run (label, command) jobs side by side as child processes, each logging to LOGS_DIR, and keep answering
+    commands until all have finished. threads limits each job's threads (None: no limit).
+    Returns (exit codes, the most memory any of them used in MB)."""
     os.makedirs(config.LOGS_DIR, exist_ok=True)
-    log_path = os.path.join(config.LOGS_DIR, f"{time.strftime('%Y%m%d_%H%M%S')}_{label.replace(' ', '_')}.log")
-    with open(log_path, "w") as log:
-        proc = subprocess.Popen(cmd, cwd=config.REPO_DIR, stdout=log, stderr=subprocess.STDOUT, preexec_fn=lower_priority)
-        CURRENT.update(job=label, proc=proc, log=log_path)
-        state["job_pid"] = proc.pid
+    env = server.job_env(threads) if threads else None
+    started = time.strftime("%Y%m%d_%H%M%S")
+    paths = [os.path.join(config.LOGS_DIR, f"{started}_{label.replace(' ', '_')}.log") for label, _ in jobs]
+    with contextlib.ExitStack() as stack:
+        procs = [subprocess.Popen(cmd, cwd=config.REPO_DIR, stdout=stack.enter_context(open(path, "w")),
+                                  stderr=subprocess.STDOUT, preexec_fn=lower_priority, env=env)
+                 for (_, cmd), path in zip(jobs, paths)]
+        label = " + ".join(label for label, _ in jobs)
+        CURRENT.update(job=label, procs=procs, log=paths[0])
+        state["job_pids"] = [proc.pid for proc in procs]
         server.write_state(state)
-        while proc.poll() is None:
+        codes, peak = [None] * len(procs), 0.0
+        while None in codes:
             poll_commands(state)
-    CURRENT.update(job=None, proc=None)
-    state["job_pid"] = None
-    show_progress(state, f"{label} finished (exit {proc.returncode})")
-    return proc.returncode
+            for i, proc in enumerate(procs):
+                if codes[i] is None:
+                    codes[i], used = server.reap(proc)
+                    peak = max(peak, used)
+    CURRENT.update(job=None, procs=[])
+    state["job_pids"] = []
+    show_progress(state, f"{label} finished (exit {', '.join(map(str, codes))})")
+    return codes, peak
+
+
+def run_job(label, cmd, state):
+    """Run one command (tests, the pipeline, the labels) with every CPU core to itself; returns its exit code."""
+    return run_jobs([(label, cmd)], state)[0][0]
 
 
 def show_progress(state, job):
@@ -198,18 +221,20 @@ def lower_priority():
     os.nice(config.JOB_NICE)
 
 
-def stop_leftover_job(state):
-    """If an earlier server was killed while a job ran, that job may still be running and would clash with new
-    work on the same files. Stop it; its finished experiments are kept and reused (src/resume.py)."""
-    pid, state["job_pid"] = state["job_pid"], None
-    if pid is None or not server.is_our_job(server.job_command(pid)):
-        return
-    try:
-        os.kill(pid, signal.SIGTERM)
-    except ProcessLookupError:
-        return
-    notify.log(f"stopped a job left running by the previous server (pid {pid}). Finished parts are kept and "
-               "reused; only the unfinished part runs again.")
+def stop_leftover_jobs(state):
+    """If an earlier server was killed while jobs ran, they may still be running and would clash with new work on
+    the same files. Stop them; their finished experiments are kept and reused (src/resume.py)."""
+    pids = state["job_pids"] + [pid for pid in [state.pop("job_pid", None)] if pid]  # job_pid: older servers
+    state["job_pids"] = []
+    for pid in pids:
+        if not server.is_our_job(server.job_command(pid)):
+            continue
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except ProcessLookupError:
+            continue
+        notify.log(f"stopped a job left running by the previous server (pid {pid}). Finished parts are kept and "
+                   "reused; only the unfinished part runs again.")
 
 
 def run_relay(state, task, scale, data_dir):
@@ -304,28 +329,74 @@ def label_shots(state):
 
 
 def keep_or_restart_seeds(state, commit):
-    """Keep the seed sweep if the science code and data are unchanged; otherwise archive it and start again,
-    because seeds made with old code cannot be averaged with new ones."""
+    """Keep the repeat runs if the science code and data are unchanged (and, for the comparisons, their own code);
+    otherwise archive them and start again, because runs made with old code cannot be averaged with new ones."""
     stamp = resume.stamp(resume.processed_files())
-    if server.seeds_still_valid(state, stamp):
-        return
-    old = os.path.join(config.RESULTS_DIR, "E10")
-    if os.path.isdir(old):
-        shutil.move(old, os.path.join(config.RESULTS_DIR, f"E10_before_{commit}"))
-    state.update(seeds_done=[], seeds_stamp=stamp)
+    if not server.seeds_still_valid(state, stamp):
+        archive(os.path.join(config.RESULTS_DIR, "E10"), commit)  # the comparisons inside it go along
+        state.update(seeds_done=[], seeds_stamp=stamp, comparisons_done=[], comparisons_stamp=None)
+    comparisons = repeat_runs.stamp()
+    if state["comparisons_stamp"] != comparisons:
+        archive(repeat_runs.folder(), commit)
+        # new code or data can need more memory: measure each kind of job again, alone, before pairing it
+        state.update(comparisons_done=[], comparisons_stamp=comparisons, idle_peak_mb={})
 
 
-def run_seed(state, seed):
-    """One E10 seed; report the running mean +- spread."""
-    code = run_job(f"E10 seed {seed}", [PY, "scripts/run_experiment.py", "--exp", "E10", "--seed", str(seed)], state)
-    state["seeds_done"].append(seed)
-    if code != 0:
-        notify.log(f"E10 seed {seed} failed (exit {code}); skipping it")
-        return
-    notify.log(explain.seed_text(experiment.seed_summary()))
-    n = len(state["seeds_done"])
-    if n % config.CARD_EVERY_SEEDS == 0 or n >= config.SEED_SWEEP_MAX:
-        status_card.send(f"repeat runs {n}/{config.SEED_SWEEP_MAX}", state)
+def archive(folder, commit):
+    """Move a results folder aside as <folder>_before_<commit>, if it exists."""
+    if os.path.isdir(folder):
+        shutil.move(folder, f"{folder}_before_{commit}")
+
+
+def idle_command(kind, seed):
+    """(label, command) of one idle job: an E10 seed or one repeat-run comparison."""
+    if kind == "E10":
+        return f"E10 seed {seed}", [PY, "scripts/run_experiment.py", "--exp", "E10", "--seed", str(seed)]
+    return f"{kind} seed {seed}", [PY, "scripts/repeat_runs.py", "--comparison", kind, "--seed", str(seed)]
+
+
+def run_idle(state):
+    """One round of idle work: as many repeat runs side by side as the CPU cores and free memory allow, each
+    limited to its share of the cores (results do not depend on the thread count)."""
+    cores, peaks = server.cpu_cores(), state["idle_peak_mb"]  # peak memory of each kind of job so far
+    kind = server.idle_jobs(state, 1)[0][0]
+    jobs = server.idle_jobs(state, server.lanes(cores, peaks.get(kind, 0.0), server.free_memory_mb()))
+    codes, peak = run_jobs([idle_command(*job) for job in jobs], state, threads=max(1, cores // len(jobs)))
+    peaks[kind] = max(peaks.get(kind, 0.0), peak)
+    saved = [record_idle(state, kind, seed, code) for (kind, seed), code in zip(jobs, codes)]
+    if any(saved):
+        report_idle(state, jobs[0][0], len(jobs))
+
+
+def record_idle(state, kind, seed, code):
+    """Mark one idle job done; True if it saved its result. A job counts as done once tried, so a run that always
+    fails is not retried forever, and an unfinished run's files are removed so no summary reads half a run."""
+    if kind == "E10":
+        out = os.path.join(config.RESULTS_DIR, "E10", f"seed_{seed}")
+        state["seeds_done"].append(seed)
+    else:
+        out = os.path.join(repeat_runs.folder(), kind, f"seed_{seed}")
+        state["comparisons_done"].append([kind, seed])
+    # judged by the saved result, not the exit code: a job can finish its run and then trip over a neighbour's
+    # half-written file while summing up
+    if server.result_saved(os.path.join(out, "metrics.json")):
+        return True
+    shutil.rmtree(out, ignore_errors=True)
+    notify.log(f"{kind} seed {seed} failed (exit {code}); skipping it")
+    return False
+
+
+def report_idle(state, kind, n_new):
+    """The running summary to the log; the status picture every CARD_EVERY_SEEDS seeds and at the end."""
+    if kind == "E10":
+        notify.log(explain.seed_text(experiment.seed_summary()))
+        n, total, every = len(state["seeds_done"]), config.SEED_SWEEP_MAX, config.CARD_EVERY_SEEDS
+    else:
+        notify.log(explain.comparisons_text(repeat_runs.summary()))
+        n, total = len(state["comparisons_done"]), config.SEED_SWEEP_MAX * len(config.COMPARISONS)
+        every = config.CARD_EVERY_SEEDS * len(config.COMPARISONS)  # a picture per 10 seeds of every comparison
+    if n // every > (n - n_new) // every or n == total:
+        status_card.send(f"{'repeat runs' if kind == 'E10' else 'comparisons'} {n}/{total}", state)
 
 
 def wait_for_network(state):
@@ -427,7 +498,7 @@ def main():
     lock = acquire_lock()  # noqa: F841  (kept open for the life of the process)
     state = server.read_state()
     state["started_at"] = time.time()
-    stop_leftover_job(state)
+    stop_leftover_jobs(state)
     print(banner.banner(head(), "GitHub relay" if relay.configured() else "direct", os.path.abspath(config.HOME_DIR)))
     show_progress(state, None)
     notify.send(f"server started (code {head()}). /status for the picture, /help for commands")
@@ -437,12 +508,12 @@ def main():
             status_card.send("daily update: still running", state)
             state["last_heartbeat"] = time.time()
         run_watchers(state)
-        job, seed = server.next_job(state, head(), time.time(),
-                                    os.path.exists(os.path.join(config.PROCESSED_DIR, "windows.parquet")))
+        job = server.next_job(state, head(), time.time(),
+                              os.path.exists(os.path.join(config.PROCESSED_DIR, "windows.parquet")))
         if job is None:
             poll_commands(state)
-        elif job == "seed":
-            run_seed(state, seed)
+        elif job == "idle":
+            run_idle(state)
         else:
             mode = wait_for_network(state)
             if mode is not None:
