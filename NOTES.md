@@ -355,11 +355,21 @@ Independent evidence (`termination_evidence.py` on the 400-shot cache: 134 recor
 - Current fall 90%->10% of peak, median: 4 / 4 / 21 ms; within 10 ms: 93% / 82% / 45%.
 - Neutron rate in the last 10 ms over its flat-top median: 0.81 / 0.52 / 0.15 (AUC candidate > flux-exhausted 0.67).
 - Radiated power, Mirnov level, saddle-coil n=1 amplitude and the current spike do not separate even the recorded disruptions from flux-exhausted endings (AUCs 0.52-0.56), so they cannot check the candidates.
-- Reading: the candidates look like disruptions in current-fall time and sit in between in heating at the end: probably a mixture. The fall time is only partly independent (a current already decaying before the quench, as after flux exhaustion, lengthens it). No expert has inspected any candidate; only two shots were looked at in detail, by a non-expert (2026-10-25 entry above). To do: run the evidence script on all 3,804 shots on the server.
+- Reading: the candidates look like disruptions in current-fall time and sit in between in heating at the end: probably a mixture. The fall time is only partly independent (a current already decaying before the quench, as after flux exhaustion, lengthens it). No expert has inspected any candidate; only two shots were looked at in detail, by a non-expert (2026-10-25 entry above). Full-data run below.
 
 Corrections:
 - E9's "share of disruption-like moments that carry a label" (56.7% on the full data) must not be quoted. It is a window-level Elkan-Noto c from a gradient-boosting model trained with balanced class weights, whose scores are not calibrated probabilities as the method requires, and it assumes noted disruptions are a random sample of all disruptions. Fix the calibration when E9 is next changed (a science change, so after the repeat-run comparisons finish).
 - The classes say when the plasma was lost, not whether it disrupted. DECAF on MAST (Berkery et al.) counts ramp-down disruptions as disruptions and finds MAST especially disruptive above the Greenwald limit in the ramp-down, so "programmed ramp-down" and "flux exhausted" quenches are not shown to be harmless.
 
 Literature: targeted search done (docs/literature_review.md, 2026-10-25); nothing found on solenoid-flux-based separation of MAST endings or on auditing MAST operator notes, with DECAF-MAST as the closest work. The FAIR-MAST team has been asked for a blind expert check of about 30 shots or a MAST disruption list to compare with.
+
+## 2026-10-25 - Independent evidence on the full data: the candidates look like disruptions at the quench
+
+`scripts/termination_evidence.py` on the owner's server, all shots of the three groups with cached signals (2,721: 623 recorded flat-top disruptions, 1,132 un-noted flat-top drops = the candidates, 966 un-noted flux-exhausted endings). Medians recorded / candidate / flux-exhausted, and AUCs against the flux-exhausted group:
+- Current fall 90%->10% of peak: 4 / 4 / 19 ms; within 10 ms: 95% / 91% / 44% (AUC recorded > flux-exhausted 0.22, candidate 0.25, i.e. both much faster).
+- Current spike just before the quench (the thermal-quench signature): 1.9% / 2.4% / 0.2% (AUC 0.59 for both recorded and candidates).
+- Neutron rate in the last 10 ms over its flat-top median: 0.83 / 0.56 / 0.16 (AUC 0.79 recorded, 0.68 candidates).
+- Radiated power, Mirnov level and saddle-coil n=1 amplitude: no separation (AUC 0.49-0.54), so they cannot check anything.
+
+Compared with the 400-shot sample (82% of candidates falling within 10 ms), the full data puts the candidates closer to the recorded disruptions on both quench signatures, while their heating at the end stays in between. Reading: most candidates look like disruptions at the quench; the lower neutron rate says the heating was more often already ramping down than in recorded disruptions, so some may be endings operators did not regard as disruptions. Still no expert check; the fall time is only partly independent of the solenoid rule.
 
