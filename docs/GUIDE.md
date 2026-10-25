@@ -44,9 +44,10 @@ MAST was a UK tokamak (2000-2013). Each experiment is a **shot**, a few tenths o
 | E11 | Is the model cheating with "time since start" (shortcut test)? |
 | E12 | The rules of the UKAEA benchmark |
 | E13 | Do the magnetic signals help? |
+| Comparisons | E5, E11 and E13 again, on the same 50 splits as E10, so their answers get error bars too |
 
 ## 4. The machine around it
-- **Research server** (`scripts/research_server.py`): runs forever on the VPS, retrains when the code changes, runs E10 when idle, obeys only your Telegram chat.
+- **Research server** (`scripts/research_server.py`): runs forever on the VPS, retrains when the code changes, obeys only your Telegram chat. When idle it does repeat runs: E10, then the comparisons (`scripts/repeat_runs.py`). It runs one job per CPU core at the same time (two on a 2-core server), if there is enough memory.
 - **Resume** (`src/resume.py`): every result has a fingerprint of the code and data that made it. Same fingerprint, so it is reused, not retrained.
 - **Status picture** (`src/status_card.py`): the one picture Telegram sends. Details are in `results/REPORT.md` (`/report`), written by `src/explain.py`.
 - **Watchers**: `src/sources.py` (is the data site back? did FAIR-MAST grow?) and `src/literature.py` (new papers on arXiv every week).
@@ -72,6 +73,7 @@ What this project adds, which we **could not find** in published work (never say
 4. **Honesty tools built in:**
    - the shortcut test (E11);
    - 50 repeat runs with error bars and a comparison with random guessing (E10);
+   - every feature question (E5, E11, E13) re-tested on the same 50 splits, with a test that allows for the splits sharing shots;
    - where the false alarms fall;
    - automatic, physics-based termination labels that point to disruptions nobody recorded.
 5. **A first look at MAST's saddle-coil signal** for locked modes, including a correction that did *not* work (NOTES.md, 2026-10-16). Negative results count in research.

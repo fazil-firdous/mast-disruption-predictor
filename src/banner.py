@@ -90,7 +90,7 @@ def progress(info, job, colour=None):
     rows = [paint("── Training " + "─" * 52, "g", colour)]
     for label, done, total in [("Shots learned from", info["shots"], info["all_shots"]),
                                ("Experiments", info["experiments"], len(status_card.EXPERIMENTS)),
-                               ("Repeat runs", info["seeds"], config.SEED_SWEEP_MAX),
+                               ("Repeat runs", info["seeds"] + info["comparisons"], status_card.repeat_total()),
                                ("Auto labels", info["auto_labelled"], info["auto_total"])]:
         count = f"{done:,} / {total:,}" if total else f"{done:,}"
         rows.append(f"{label:<20}{bar(done, total, colour)}  {count}")

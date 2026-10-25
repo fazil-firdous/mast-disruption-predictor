@@ -27,24 +27,12 @@ def test_state_roundtrip(tmp_path):
     assert again["seeds_done"] == [1, 2] and again["paused"] is False
 
 
-def test_next_job_order():
-    state = server.new_state()
-    assert server.next_job(state, "abc", 1e9, False) == ("pipeline", None)
-    state.update(last_ok_commit="abc")
-    assert server.next_job(state, "abc", 1e9, True) == ("seed", 1)
-    state["seeds_done"] = list(range(1, config.SEED_SWEEP_MAX + 1))
-    assert server.next_job(state, "abc", 1e9, True) == (None, None)
-    assert server.next_job(state, "def", 1e9, True) == ("pipeline", None)  # new commit
-    state["paused"] = True
-    assert server.next_job(state, "def", 1e9, True) == (None, None)
-
-
 def test_failed_commit_waits_before_retry():
     state = server.new_state()
     state.update(failed_commit="abc", failed_at=1000.0)
-    assert server.next_job(state, "abc", 1000.0 + 60, False) == (None, None)
+    assert server.next_job(state, "abc", 1000.0 + 60, False) is None
     later = 1000.0 + config.PIPELINE_RETRY_HOURS * 3600 + 1
-    assert server.next_job(state, "abc", later, False) == ("pipeline", None)
+    assert server.next_job(state, "abc", later, False) == "pipeline"
 
 
 def test_parse_updates_keeps_chat_and_skips_non_text():

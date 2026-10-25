@@ -100,7 +100,7 @@ def test_leftover_job_is_recognised_from_its_command_line(tmp_path):
 
 def test_seed_sweep_kept_only_under_the_same_stamp():
     state = server.new_state()
-    assert state["job_pid"] is None and not server.seeds_still_valid(state, "abc")
+    assert not server.seeds_still_valid(state, "abc")
     state["seeds_stamp"] = "abc"
     assert server.seeds_still_valid(state, "abc") and not server.seeds_still_valid(state, "xyz")
 
@@ -205,9 +205,10 @@ def test_banner_and_progress_block():
     plain = banner.banner("abc1234", "GitHub relay", "/root/mast-private", colour=False)
     assert "FAZIL'S TOKAMAK ML MODEL" in plain and "code abc1234" in plain and "\033[" not in plain
     assert "\033[" in banner.banner("abc1234", "relay", "/w", colour=True)
-    info = {"shots": 3804, "all_shots": None, "experiments": 13, "seeds": 30, "auto_labelled": 0, "auto_total": 0,
+    info = {"shots": 3804, "all_shots": None, "experiments": 13, "seeds": 30, "comparisons": 0, "auto_labelled": 0,
+            "auto_total": 0,
             "skill": {"n": 30, "catch": 0.07, "false_alarm": 0.05, "verdict": "better"}}
     text = banner.progress(info, "E10 seed 31", colour=False)
-    assert "Shots learned from" in text and "30 / 50" in text and "✓ better than guessing" in text
+    assert "Shots learned from" in text and "30 / 400" in text and "✓ better than guessing" in text
     assert banner.bar(0, 0, colour=False) == " " * banner.BAR_WIDTH
     assert banner.skill_text(None) == "" and "one test only" in banner.skill_text({**info["skill"], "verdict": "one"}, False)
