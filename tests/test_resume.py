@@ -183,7 +183,7 @@ def test_status_card_numbers_and_picture(monkeypatch, tmp_path):
     info = status_card.collect(server.new_state())
     assert info["shots"] == 0 and info["experiments"] == 0 and info["skill"] is None
     todo = [text for ok, text in status_card.needs({**info, "table_source": "report"}) if not ok]
-    assert any("400 report shots" in t for t in todo) and any("/gold" in t for t in todo)
+    assert any("400 report shots" in t for t in todo) and not any("/gold" in t for t in todo)
     for case in (info, {**info, "skill": status_card.skill(str(seeds)), "signals": useful, "all_shots": 11573}):
         path = status_card.draw(case, str(tmp_path / "card.png"), "abc1234")
         assert os.path.getsize(path) > 10000

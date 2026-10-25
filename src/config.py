@@ -93,6 +93,13 @@ EXTRAS_BASELINE_MS = 5  # saddle-coil offsets: mean of each coil's first 5 ms of
 # Gold labels by hand (src/gold.py, ROADMAP A2): over-sample the unnoted quenches, the case that matters most
 GOLD_PLAN = {"unnoted_quench": 35, "noted_quench": 30, "no_quench": 30, "noted_no_quench": 5}
 
+# Automatic termination labels (scripts/auto_labels.py, ROADMAP A4); an analysis, not used by any experiment yet
+AUTO_FLATTOP_FRAC = 0.9  # flat-top = programmed current at least 90% of its maximum
+AUTO_MIN_FLATTOP_MS = 30  # need 30 ms of flat-top to know the solenoid's usual sweep rate
+AUTO_SOL_WINDOW_MS = 20  # solenoid sweep measured over the last 20 ms before the quench
+AUTO_SOL_STOPPED_RATIO = 0.25  # sweeping at under a quarter of its flat-top rate = flux used up (NOTES 2026-10-25)
+AUTO_RAMPDOWN_FRAC = 0.8  # programmed current under 80% of its maximum = the programme was already ending the shot
+
 # Research extensions (docs/ROADMAP.md)
 CONFORMAL_ALPHAS = (0.01, 0.05, 0.10)  # false-alarm levels to guarantee in E8
 PU_PARAMS = {"learning_rate": 0.1, "max_leaf_nodes": 31}  # fixed HGB settings for E9, so standard and PU models differ only in the labels

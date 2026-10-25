@@ -298,3 +298,15 @@ Verified facts
 Decisions
 - The relay uses 16 parallel downloads (`RELAY_WORKERS`) on GitHub's machine: at the 8 used elsewhere, 5,355 shots would take an estimated ~4 h (from 400 shots + extras in ~18 min) of GitHub's 6 h job limit.
 - The data-source watcher now also probes the S3 copy; when the full table can be read and the server's data came from the 400 report shots, it queues a fresh fetch of the full dataset automatically.
+
+## 2026-10-25 - Automatic termination labels replace hand labelling
+
+Full-data run on the VPS (owner's Telegram pictures, 3,804 shots after selection): averaged over the first 30 repeat runs, the v1 model now catches somewhat more disruptions in time than an alarm that fires at random as often, and the average false-alarm rate sits at the 5% limit (with 400 shots it was above). The single E3 test split was well below the average, which is why the seed sweep matters. (Numbers stay private; qualitative reading only.)
+
+Hand labels: the owner's first two blind labels were 27034 'disruption' and 11826 'normal end'. By the operator note and the physics below it is the other way round in both cases (11826: noted 'DISRUPTS AT 300MS (FA TRIP)', lost during flat-top with the solenoid still sweeping; 27034: no note, solenoid stopped at about -44 kA and the current was already decaying, i.e. flux exhaustion). Reading MAST shots is not a beginner's task, so at the owner's request the gold set is left for an expert and labels are made automatically instead.
+
+Automatic termination labels (`scripts/auto_labels.py`), checked on the 398 shots of the 400-shot report sample (cached extras)
+- At the detector's quench, the programmed current was still at >= 99% of its maximum in 92% of the 337 quenches with signals (>= 80% in 95%), noted or not (as in the termination study), so the programme alone cannot separate endings; only 17 quenches came during a programmed ramp-down.
+- The solenoid separates them: ratio of its sweep rate in the last 20 ms to its flat-top rate, median 0.67 for noted disruptions and 0.31 for unnoted quenches (AUC 0.66 for "unnoted" from a low ratio). Below 0.25 ("stopped"): 19% of noted vs 48% of unnoted quenches. 0.25 is a physical choice (sweeping at under a quarter of its usual rate = flux used up), not tuned against any label.
+- Result: of 175 shots the operators called disruptions, 134 were lost during flat-top with flux left, 22 after the solenoid stopped, 6 during ramp-down, 4 with no fast quench, 9 unknown. Of 223 shots with no disruption note, 83 were lost during flat-top with flux left (candidates for disruptions nobody recorded), 69 after the solenoid stopped, 11 during ramp-down, 56 ended smoothly, 4 unknown.
+- Limits: the solenoid's sweep limit differs between shots (some stop near -30 kA, most near -45 kA), so the ratio uses each shot's own flat-top rate; a quench right at the start of the flat-top cannot be judged (needs 30 ms). No expert has checked any of these labels yet.

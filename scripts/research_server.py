@@ -71,12 +71,14 @@ def tail(path, n=40):
 
 
 def send_report():
-    """/report: every experiment described in words (REPORT.md) and all result files as a zip."""
+    """/report: every experiment described in words (REPORT.md), the automatic labels and all result files as a zip."""
     report = os.path.join(config.RESULTS_DIR, "REPORT.md")
     if not os.path.exists(report):
         notify.send("no report yet: it is written at the end of the first full run")
         return
     notify.send_file(report, "every experiment in words")
+    labels = os.path.join(config.RESULTS_DIR, "auto_labels", "per_shot.csv")
+    notify.send_file(labels, "automatic labels: how each shot ended")
     archive = shutil.make_archive(os.path.join(config.DATA_DIR, "results"), "zip", config.RESULTS_DIR)
     notify.send_file(archive, "all result files")
 
@@ -265,9 +267,26 @@ def run_pipeline(state, scale, mode):
     if code == 0:
         keep_or_restart_seeds(state, commit)
         state.update(last_ok_commit=commit, failed_commit=None)
+        label_shots(state)
     else:
         state.update(failed_commit=commit, failed_at=time.time())
         notify.send(f"full run of {commit} failed (exit {code}); retrying in {config.PIPELINE_RETRY_HOURS} h. /log for details")
+
+
+def label_shots(state):
+    """Automatic termination labels (scripts/auto_labels.py) whenever the dataset is newer than the last labels;
+    the short summary and the per-shot table go to Telegram."""
+    out = os.path.join(config.RESULTS_DIR, "auto_labels")
+    dataset = os.path.join(config.PROCESSED_DIR, "shots.parquet")
+    summary = os.path.join(out, "summary.txt")
+    if os.path.exists(summary) and os.path.getmtime(summary) > os.path.getmtime(dataset):
+        return
+    if run_job("automatic labels", [PY, "scripts/auto_labels.py"], state) != 0:
+        notify.send("automatic labels failed. /log shows why")
+        return
+    with open(summary) as f:
+        notify.send(f.read())
+    notify.send_file(os.path.join(out, "per_shot.csv"), "automatic labels: how each shot ended")
 
 
 def keep_or_restart_seeds(state, commit):

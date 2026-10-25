@@ -12,7 +12,7 @@ HELP = """MAST research server
 /details - text status (commit, network, disk)
 /log - last lines of the running job
 /predict 11860 - run the best model on one shot
-/gold - label shots by hand (/d disruption, /n normal, /u unsure); /goldreport
+/gold - optional hand labelling for an expert (/d, /n, /u); /goldreport
 /run - full run now; /fetch - fetch data again through GitHub, then run
 /sources, /papers - check data sources / arXiv now
 /diagnose - check the network

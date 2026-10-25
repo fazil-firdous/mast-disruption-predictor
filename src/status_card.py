@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 from matplotlib.patches import FancyBboxPatch
 
-from src import config, gold, notify, resume, server
+from src import config, notify, resume, server
 
 EXPERIMENTS = ["E0", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E11", "E12", "E13"]
 SIGNAL_WORDS = {"prad": "radiated power", "neutrons": "neutron rate", "ip_abs": "plasma current",
@@ -88,14 +88,22 @@ def signal_usefulness(e5_csv=None):
     return {SIGNAL_WORDS.get(s, s): float(full - table.at[s, "pr_auc"]) for s in table.index if s != "none"}
 
 
+def auto_labels(path=None):
+    """(shots labelled, shots in the dataset) from the last automatic labelling, or (0, 0) before it has run."""
+    path = path or os.path.join(config.RESULTS_DIR, "auto_labels", "summary.json")
+    if not os.path.exists(path):
+        return 0, 0
+    with open(path) as f:
+        s = json.load(f)
+    return s["n_labelled"], s["n_shots"]
+
+
 def needs(info):
     """The short to-do list under the picture: (done?, text). Built only from what is on disk and in the state."""
     items = []
     full = info["table_source"] != "report"
     items.append((full, "full MAST shot list" if full else "more shots: only the 400 report shots so far"))
     items.append((info["seeds"] >= config.SEED_SWEEP_MAX, f"repeat runs {info['seeds']}/{config.SEED_SWEEP_MAX}"))
-    items.append((info["gold"] >= sum(config.GOLD_PLAN.values()),
-                  f"your labels {info['gold']}/{sum(config.GOLD_PLAN.values())} (send /gold)"))
     items.append((False, f"next: {config.NEXT_STEP}"))
     return items
 
@@ -106,13 +114,12 @@ def collect(state=None):
     current = current_stamp()
     data = dataset_info()
     probe = state.get("last_probe") or {}
-    labels = gold.read_labels()
     # repeat runs made with older code or data are not shown as if they were current
     seeds_valid = current is not None and server.seeds_still_valid(state, current)
     return {"shots": data.get("shots", 0), "disrupted": data.get("disrupted", 0),
             "table_source": data.get("table_source", "live"), "all_shots": probe.get("shot_stores"),
             "experiments": experiments_done(current), "seeds": len(state["seeds_done"]) if seeds_valid else 0,
-            "gold": int(labels["shot_id"].nunique()),
+            "auto_labelled": auto_labels()[0], "auto_total": auto_labels()[1],
             "skill": (skill() if seeds_valid else None) or one_test(current),
             "signals": signal_usefulness() if e5_current(current) else {}}
 
@@ -180,8 +187,8 @@ def draw(info, path, commit=""):
           f"{info['experiments']} of {len(EXPERIMENTS)}")
     meter(ax, 0.745, "Repeat runs (for error bars)", info["seeds"], config.SEED_SWEEP_MAX,
           f"{info['seeds']} of {config.SEED_SWEEP_MAX}")
-    goal = sum(config.GOLD_PLAN.values())
-    meter(ax, 0.695, "Your hand labels", info["gold"], goal, f"{info['gold']} of {goal}")
+    labelled, total = info["auto_labelled"], info["auto_total"]
+    meter(ax, 0.695, "Shots labelled automatically", labelled, total, f"{labelled:,} of {total:,}")
 
     ax.text(0.06, 0.635, "2  What it can do now", fontsize=14, color=INK, fontweight="bold")
     s = info["skill"]
