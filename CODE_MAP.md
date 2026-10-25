@@ -39,6 +39,7 @@ A plain-English tour of the repo. Read the files in the order below.
 | `src/server.py` | done | The research server's decisions and texts (state file, command parsing, what to run next), kept separate so they are testable. |
 | `src/resume.py` | done | Reuse finished work: a result is reused only when the science code and data that made it are unchanged (a fingerprint, the "stamp"). Restarts and docs-only commits never retrain. |
 | `src/explain.py` | done | Every result in plain English: what the experiment asks, the numbers as shot counts, chance level, and what they mean. Goes to the log and `results/REPORT.md`. |
+| `src/banner.py` | done | The tokamak picture and training bars the research server prints in its terminal at start-up and after every job. Looks only. |
 | `src/status_card.py` | done | The one picture Telegram gets: training progress, what the model can do against a random guess, signals it relies on, what is needed next. |
 | `src/registry.py` | done | Save / load trained models with their feature list and threshold, in `MODELS_DIR` (private). |
 | `src/predict.py`, `scripts/predict_shot.py` | done | Run a saved model over a whole shot as if live; plot score, alarm and the detector's quench. |

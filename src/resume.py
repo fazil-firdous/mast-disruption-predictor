@@ -15,7 +15,7 @@ from src import config
 # these files run the server, talk to Telegram or GitHub, or word the messages: they cannot change a number.
 # config.py is left out too; its science values are stamped one by one (science_settings), so comments do not count
 NOT_SCIENCE = {"__init__.py", "config.py", "server.py", "notify.py", "relay.py", "sources.py", "literature.py",
-               "gold.py", "explain.py", "resume.py", "status_card.py"}
+               "gold.py", "explain.py", "resume.py", "status_card.py", "banner.py"}
 # config settings that only steer the server, downloads, Telegram or where files go: changing them changes no number
 NOT_SCIENCE_SETTINGS = {
     "REPO_DIR", "PRIVATE_ENV", "HOME_DIR", "DATA_DIR", "RAW_DIR", "PROCESSED_DIR", "RESULTS_DIR", "MODELS_DIR",

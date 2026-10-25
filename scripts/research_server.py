@@ -19,7 +19,7 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts import predict_shot
-from src import config, experiment, explain, gold, literature, notify, relay, resume, server, sources, status_card
+from src import banner, config, experiment, explain, gold, literature, notify, relay, resume, server, sources, status_card
 from src.data import check_connection, check_shot_table, host_reachable
 
 PY = sys.executable
@@ -181,7 +181,16 @@ def run_job(label, cmd, state):
             poll_commands(state)
     CURRENT.update(job=None, proc=None)
     state["job_pid"] = None
+    show_progress(state, f"{label} finished (exit {proc.returncode})")
     return proc.returncode
+
+
+def show_progress(state, job):
+    """Print the training bars in the server's own terminal (screen); a failure here never stops the server."""
+    try:
+        print(banner.progress(status_card.collect(state), job), flush=True)
+    except Exception as error:
+        print(f"[progress] could not show progress: {type(error).__name__}: {error}")
 
 
 def stop_leftover_job(state):
@@ -414,6 +423,8 @@ def main():
     state = server.read_state()
     state["started_at"] = time.time()
     stop_leftover_job(state)
+    print(banner.banner(head(), "GitHub relay" if relay.configured() else "direct", os.path.abspath(config.HOME_DIR)))
+    show_progress(state, None)
     notify.send(f"server started (code {head()}). /status for the picture, /help for commands")
     while True:
         update_code(state)
