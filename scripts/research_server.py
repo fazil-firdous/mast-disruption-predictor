@@ -209,8 +209,11 @@ def run_job(label, cmd, state):
 
 
 def show_progress(state, job):
-    """Print the training bars in the server's own terminal (screen); a failure here never stops the server."""
+    """Print the tokamak and the training bars in the server's own terminal (screen) after every job, so they are
+    on screen whenever someone looks in; a failure here never stops the server."""
     try:
+        mode = "GitHub relay" if relay.configured() else "direct"
+        print(banner.banner(head(), mode, os.path.abspath(config.HOME_DIR)), flush=True)
         print(banner.progress(status_card.collect(state), job), flush=True)
     except Exception as error:
         print(f"[progress] could not show progress: {type(error).__name__}: {error}")
@@ -499,7 +502,6 @@ def main():
     state = server.read_state()
     state["started_at"] = time.time()
     stop_leftover_jobs(state)
-    print(banner.banner(head(), "GitHub relay" if relay.configured() else "direct", os.path.abspath(config.HOME_DIR)))
     show_progress(state, None)
     notify.send(f"server started (code {head()}). /status for the picture, /help for commands")
     while True:

@@ -129,7 +129,7 @@ SKIPPED_CSV = os.path.join(DATA_DIR, "skipped.csv")  # every shot we could not l
 REPORT_CSV = os.path.join(REPO_DIR, "results", "label_report", "per_shot.csv")  # 400 labelled shots; stand-in when mastapp.site is down
 
 # GitHub data relay (ROADMAP H): for servers that cannot reach the STFC data servers, a GitHub Actions machine downloads the shots
-GITHUB_REPO = os.environ.get("GITHUB_REPO", "fazil-mastu/mast-disruption-predictor")
+GITHUB_REPO = os.environ.get("GITHUB_REPO", "fazil-firdous/mast-disruption-predictor")
 RELAY_WORKFLOW = "fetch_data.yml"
 RELAY_BRANCH = "main"  # GitHub only runs dispatched workflows that exist on this branch
 RELAY_TIMEOUT_HOURS = 6  # GitHub's own limit for one job
