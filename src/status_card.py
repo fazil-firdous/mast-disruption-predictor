@@ -8,11 +8,10 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 from matplotlib.patches import FancyBboxPatch
 
-from src import config, notify, resume, server
+from src import config, notify, resume, server, stats
 
 EXPERIMENTS = ["E0", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E11", "E12", "E13"]
 SIGNAL_WORDS = {"prad": "radiated power", "neutrons": "neutron rate", "ip_abs": "plasma current",
@@ -46,16 +45,16 @@ def dataset_info():
 
 def skill(seeds_csv=None):
     """Average catch and false-alarm rate over the E10 seeds, and whether catching beats a random alarm that
-    fires as often: 'better', 'worse' or 'same' (paired over seeds, 2 standard errors). None without 3 seeds."""
+    fires as often: 'better', 'worse' or 'same', from the corrected 95% range of catch minus false-alarm rate over
+    the seeds (src/stats.py; the splits share shots, so a plain standard error is too sure). None below MIN_SEEDS."""
     path = seeds_csv or os.path.join(config.RESULTS_DIR, "E10", "summary.csv")
     if not os.path.exists(path):
         return None
     table = pd.read_csv(path)
-    if len(table) < 3:
+    if len(table) < stats.MIN_SEEDS:
         return None
-    gap = table["catch_rate"] - table["false_alarm_rate"]
-    se = gap.std(ddof=1) / np.sqrt(len(gap))
-    verdict = "better" if gap.mean() - 2 * se > 0 else "worse" if gap.mean() + 2 * se < 0 else "same"
+    _, low, high = stats.corrected_interval((table["catch_rate"] - table["false_alarm_rate"]).to_numpy())
+    verdict = "better" if low > 0 else "worse" if high < 0 else "same"
     return {"n": len(table), "catch": float(table["catch_rate"].mean()),
             "false_alarm": float(table["false_alarm_rate"].mean()), "verdict": verdict}
 
@@ -203,14 +202,14 @@ def draw(info, path, commit=""):
     ax.text(0.06, 0.635, "2  What it can do now", fontsize=14, color=INK, fontweight="bold")
     s = info["skill"]
     if s is None:
-        ax.text(0.06, 0.56, "Waiting for at least 3 repeat runs.", fontsize=12, color=INK_2)
+        ax.text(0.06, 0.56, f"Waiting for at least {stats.MIN_SEEDS} repeat runs.", fontsize=12, color=INK_2)
     else:
         tile(ax, 0.2, f"{100 * s['catch']:.0f}%", "Catches", "of disruptions\nin time")
         tile(ax, 0.5, f"{100 * s['false_alarm']:.0f}%", "False alarms", "on normal\nshots")
         tile(ax, 0.8, f"{100 * s['false_alarm']:.0f}%", "A random guess", "would catch\nas many")
         mark(ax, 0.075, 0.425, s["verdict"] == "better")
         verdict = {"better": f"Better than guessing  (average of {s['n']} runs)",
-                   "same": f"Not better than guessing yet  (average of {s['n']} runs)",
+                   "same": f"Not clearly better than guessing yet  (average of {s['n']} runs)",
                    "worse": f"Worse than guessing  (average of {s['n']} runs)",
                    "one": "One test only: wait for the repeat runs"}[s["verdict"]]
         ax.text(0.105, 0.425, verdict, fontsize=12, color=INK, va="center")

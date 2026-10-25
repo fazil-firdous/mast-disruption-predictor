@@ -170,9 +170,15 @@ def test_every_real_outcome_can_be_described(tiny_project, exp):  # noqa: F811
 def test_status_card_numbers_and_picture(monkeypatch, tmp_path):
     from src import status_card
     seeds = tmp_path / "seeds.csv"
-    seeds.write_text("seed,catch_rate,false_alarm_rate\n1,0.06,0.07\n2,0.09,0.05\n3,0.05,0.08\n4,0.07,0.07\n")
-    assert status_card.skill(str(seeds))["verdict"] == "same"
     seeds.write_text("seed,catch_rate,false_alarm_rate\n1,0.60,0.05\n2,0.55,0.04\n3,0.62,0.06\n")
+    assert status_card.skill(str(seeds)) is None  # too few runs for a verdict
+    # like the full-data sweep: catching 2 points more than the false-alarm rate on average over 30 runs is not
+    # clearly better once the shared shots are allowed for (a plain standard error would call it better)
+    seeds.write_text("seed,catch_rate,false_alarm_rate\n" + "".join(
+        f"{i},{0.04 + 0.03 * (i % 3)},0.05\n" for i in range(1, 31)))
+    assert status_card.skill(str(seeds))["verdict"] == "same"
+    seeds.write_text("seed,catch_rate,false_alarm_rate\n" + "".join(
+        f"{i},{0.55 + 0.01 * (i % 3)},0.05\n" for i in range(1, 7)))
     assert status_card.skill(str(seeds))["verdict"] == "better"
     e5 = tmp_path / "e5.csv"
     e5.write_text("drop_signal,pr_auc\nnone,0.26\nprad,0.18\npnbi,0.28\n")

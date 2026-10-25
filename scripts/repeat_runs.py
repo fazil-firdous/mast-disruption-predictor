@@ -2,10 +2,10 @@
 one change from config.COMPARISONS, so the claims of E11, E13 and E5 get error bars instead of resting on one split.
 
 Each run is paired with the E10 run of the same seed: the same shots in train, validation and test and the same model;
-only the features differ. The change is judged with the corrected resampled t-test (Nadeau & Bengio, Machine Learning
-52, 2003), because repeated random splits share shots and a plain t-test would be far too sure of itself.
+only the features differ. The change is judged with the corrected resampled t-test (src/stats.py), because
+repeated random splits share shots and a plain t-test would be far too sure of itself.
 
-    python scripts/repeat_runs.py --comparison magnetics --seed 3   # one run -> results/E10/comparisons/magnetics/seed_3
+    python scripts/repeat_runs.py --comparison magnetics --seed 3   # one run, into results/E10/comparisons/
     python scripts/repeat_runs.py --summary                         # every comparison so far, in words
 
 The results are stamped on their own (science code, data, this file and config.COMPARISONS), so editing this file
@@ -16,16 +16,14 @@ import json
 import os
 import sys
 
-import numpy as np
 import pandas as pd
-from scipy import stats
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src import config, dataset, experiment, explain, resume
+from src.stats import corrected_interval
 
 METRICS = ["catch_rate", "false_alarm_rate"]
-MIN_SEEDS = 5  # no range or verdict before this many splits: with 2-3, a few shots that happen to agree look certain
 
 
 def folder():
@@ -75,18 +73,6 @@ def pairs():
                 row.update({metric: test[metric], f"e10_{metric}": e10[metric]})
             rows.append(row)
     return pd.DataFrame(rows, columns=["comparison", "seed"] + METRICS + [f"e10_{m}" for m in METRICS], dtype=object)
-
-
-def corrected_interval(changes, level=0.95):
-    """(mean, low, high) of paired changes over repeated random splits. The variance is scaled by
-    (1/n + n_test/n_train) instead of 1/n (Nadeau & Bengio), because the splits overlap. No range below MIN_SEEDS."""
-    n = len(changes)
-    mean = float(np.mean(changes)) if n else None
-    if n < MIN_SEEDS:
-        return mean, None, None
-    train, _, test = config.SPLIT_FRACTIONS
-    half = stats.t.ppf(0.5 + level / 2, n - 1) * np.std(changes, ddof=1) * np.sqrt(1 / n + test / train)
-    return mean, float(mean - half), float(mean + half)
 
 
 def summary():
