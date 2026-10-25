@@ -19,7 +19,7 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts import predict_shot
-from src import config, experiment, explain, gold, literature, notify, relay, resume, server, sources, status_card
+from src import banner, config, experiment, explain, gold, literature, notify, relay, resume, server, sources, status_card
 from src.data import check_connection, check_shot_table, host_reachable
 
 PY = sys.executable
@@ -71,12 +71,14 @@ def tail(path, n=40):
 
 
 def send_report():
-    """/report: every experiment described in words (REPORT.md) and all result files as a zip."""
+    """/report: every experiment described in words (REPORT.md), the automatic labels and all result files as a zip."""
     report = os.path.join(config.RESULTS_DIR, "REPORT.md")
     if not os.path.exists(report):
         notify.send("no report yet: it is written at the end of the first full run")
         return
     notify.send_file(report, "every experiment in words")
+    labels = os.path.join(config.RESULTS_DIR, "auto_labels", "per_shot.csv")
+    notify.send_file(labels, "automatic labels: how each shot ended")
     archive = shutil.make_archive(os.path.join(config.DATA_DIR, "results"), "zip", config.RESULTS_DIR)
     notify.send_file(archive, "all result files")
 
@@ -179,7 +181,16 @@ def run_job(label, cmd, state):
             poll_commands(state)
     CURRENT.update(job=None, proc=None)
     state["job_pid"] = None
+    show_progress(state, f"{label} finished (exit {proc.returncode})")
     return proc.returncode
+
+
+def show_progress(state, job):
+    """Print the training bars in the server's own terminal (screen); a failure here never stops the server."""
+    try:
+        print(banner.progress(status_card.collect(state), job), flush=True)
+    except Exception as error:
+        print(f"[progress] could not show progress: {type(error).__name__}: {error}")
 
 
 def stop_leftover_job(state):
@@ -265,9 +276,26 @@ def run_pipeline(state, scale, mode):
     if code == 0:
         keep_or_restart_seeds(state, commit)
         state.update(last_ok_commit=commit, failed_commit=None)
+        label_shots(state)
     else:
         state.update(failed_commit=commit, failed_at=time.time())
         notify.send(f"full run of {commit} failed (exit {code}); retrying in {config.PIPELINE_RETRY_HOURS} h. /log for details")
+
+
+def label_shots(state):
+    """Automatic termination labels (scripts/auto_labels.py) whenever the dataset is newer than the last labels;
+    the short summary and the per-shot table go to Telegram."""
+    out = os.path.join(config.RESULTS_DIR, "auto_labels")
+    dataset = os.path.join(config.PROCESSED_DIR, "shots.parquet")
+    summary = os.path.join(out, "summary.txt")
+    if os.path.exists(summary) and os.path.getmtime(summary) > os.path.getmtime(dataset):
+        return
+    if run_job("automatic labels", [PY, "scripts/auto_labels.py"], state) != 0:
+        notify.send("automatic labels failed. /log shows why")
+        return
+    with open(summary) as f:
+        notify.send(f.read())
+    notify.send_file(os.path.join(out, "per_shot.csv"), "automatic labels: how each shot ended")
 
 
 def keep_or_restart_seeds(state, commit):
@@ -395,6 +423,8 @@ def main():
     state = server.read_state()
     state["started_at"] = time.time()
     stop_leftover_job(state)
+    print(banner.banner(head(), "GitHub relay" if relay.configured() else "direct", os.path.abspath(config.HOME_DIR)))
+    show_progress(state, None)
     notify.send(f"server started (code {head()}). /status for the picture, /help for commands")
     while True:
         update_code(state)

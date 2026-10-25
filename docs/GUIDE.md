@@ -50,7 +50,7 @@ MAST was a UK tokamak (2000-2013). Each experiment is a **shot**, a few tenths o
 - **Resume** (`src/resume.py`): every result has a fingerprint of the code and data that made it. Same fingerprint, so it is reused, not retrained.
 - **Status picture** (`src/status_card.py`): the one picture Telegram sends. Details are in `results/REPORT.md` (`/report`), written by `src/explain.py`.
 - **Watchers**: `src/sources.py` (is the data site back? did FAIR-MAST grow?) and `src/literature.py` (new papers on arXiv every week).
-- **Your hand labels** (`src/gold.py`, `/gold`): you look at a shot's plot without the note and say "disruption" or "normal". This measures how wrong the automatic labels are.
+- **Automatic labels** (`scripts/auto_labels.py`): the server works out how each shot ended, from two signals at the moment the current dropped. Was the programme already ramping the current down? Had the solenoid (the coil that drives the current) stopped sweeping, meaning the machine ran out of flux? If neither, the plasma was lost while everything was still running: most likely a real disruption. No hand labelling needed.
 
 ## 5. What the results say so far (400 shots, real runs)
 - With the 4 basic signals, the model catches about as many disruptions as a random alarm would (E10, 43 repeat runs). That is a real result: these signals alone are not enough on MAST.
@@ -73,7 +73,7 @@ What this project adds, which we **could not find** in published work (never say
    - the shortcut test (E11);
    - 50 repeat runs with error bars and a comparison with random guessing (E10);
    - where the false alarms fall;
-   - a blind hand-labelled gold set.
+   - automatic, physics-based termination labels that point to disruptions nobody recorded.
 5. **A first look at MAST's saddle-coil signal** for locked modes, including a correction that did *not* work (NOTES.md, 2026-10-16). Negative results count in research.
 
 ## 7. How to study it (one step a day)

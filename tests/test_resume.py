@@ -183,7 +183,7 @@ def test_status_card_numbers_and_picture(monkeypatch, tmp_path):
     info = status_card.collect(server.new_state())
     assert info["shots"] == 0 and info["experiments"] == 0 and info["skill"] is None
     todo = [text for ok, text in status_card.needs({**info, "table_source": "report"}) if not ok]
-    assert any("400 report shots" in t for t in todo) and any("/gold" in t for t in todo)
+    assert any("400 report shots" in t for t in todo) and not any("/gold" in t for t in todo)
     for case in (info, {**info, "skill": status_card.skill(str(seeds)), "signals": useful, "all_shots": 11573}):
         path = status_card.draw(case, str(tmp_path / "card.png"), "abc1234")
         assert os.path.getsize(path) > 10000
@@ -197,3 +197,17 @@ def test_log_keeps_messages_off_telegram(monkeypatch, tmp_path):
     with open(os.path.join(config.LOGS_DIR, "messages.log")) as f:
         lines = f.read().splitlines()
     assert lines[0].endswith("seed 3 done") and lines[1].endswith("server started")
+
+
+def test_banner_and_progress_block():
+    from src import banner
+    assert [len(a) for a in banner.ART] == [len(c) for c in banner.COLOURS]
+    plain = banner.banner("abc1234", "GitHub relay", "/root/mast-private", colour=False)
+    assert "FAZIL'S TOKAMAK ML MODEL" in plain and "code abc1234" in plain and "\033[" not in plain
+    assert "\033[" in banner.banner("abc1234", "relay", "/w", colour=True)
+    info = {"shots": 3804, "all_shots": None, "experiments": 13, "seeds": 30, "auto_labelled": 0, "auto_total": 0,
+            "skill": {"n": 30, "catch": 0.07, "false_alarm": 0.05, "verdict": "better"}}
+    text = banner.progress(info, "E10 seed 31", colour=False)
+    assert "Shots learned from" in text and "30 / 50" in text and "✓ better than guessing" in text
+    assert banner.bar(0, 0, colour=False) == " " * banner.BAR_WIDTH
+    assert banner.skill_text(None) == "" and "one test only" in banner.skill_text({**info["skill"], "verdict": "one"}, False)

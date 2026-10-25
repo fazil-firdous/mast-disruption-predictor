@@ -39,6 +39,7 @@ A plain-English tour of the repo. Read the files in the order below.
 | `src/server.py` | done | The research server's decisions and texts (state file, command parsing, what to run next), kept separate so they are testable. |
 | `src/resume.py` | done | Reuse finished work: a result is reused only when the science code and data that made it are unchanged (a fingerprint, the "stamp"). Restarts and docs-only commits never retrain. |
 | `src/explain.py` | done | Every result in plain English: what the experiment asks, the numbers as shot counts, chance level, and what they mean. Goes to the log and `results/REPORT.md`. |
+| `src/banner.py` | done | The tokamak picture and training bars the research server prints in its terminal at start-up and after every job. Looks only. |
 | `src/status_card.py` | done | The one picture Telegram gets: training progress, what the model can do against a random guess, signals it relies on, what is needed next. |
 | `src/registry.py` | done | Save / load trained models with their feature list and threshold, in `MODELS_DIR` (private). |
 | `src/predict.py`, `scripts/predict_shot.py` | done | Run a saved model over a whole shot as if live; plot score, alarm and the detector's quench. |
@@ -47,7 +48,8 @@ A plain-English tour of the repo. Read the files in the order below.
 | `src/extras.py` | done (real data checked) | Magnetics and control signals reduced causally to 1 ms: saddle-coil n=1 (locked mode), Mirnov RMS, programmed current, solenoid current. Cached per shot. |
 | `src/sources.py` | done | Data-source watcher: shot-table status, FAIR-MAST folders and shot-store count, DEFUSE status, and what changed. |
 | `src/literature.py` | done | Weekly arXiv search for new disruption-prediction papers; each reported once on Telegram. |
-| `src/gold.py` | done | Blind hand-labelling on Telegram (/gold, /d /n /u) and agreement report (/goldreport). |
+| `src/gold.py` | done (for an expert) | Blind hand-labelling on Telegram (/gold, /d /n /u) and agreement report (/goldreport). |
+| `scripts/auto_labels.py` | done (real data) | Automatic termination labels: how each shot ended, from the programmed current and the solenoid sweep at the quench. Run by the server after each new dataset. |
 | `docs/literature_review.md`, `docs/paper/draft.md` | started | Checked references and what they mean for our claims; paper skeleton (numbers TBD from real runs). |
 | `scripts/diagnose_network.py` | done | DNS, TCP per address, HTTPS and zarr checks, with a plain-language verdict; sent to Telegram. |
 | `scripts/inspect_groups.py` | done | Catalogue of every signal stored for a shot (all groups) from the store metadata. Writes `results/data_catalogue/`. |
@@ -162,7 +164,7 @@ Read it top to bottom; each function uses only the ones above it.
 - Every sentence is computed from the numbers; conditional wording ("real skill", "campaign drift", "lean towards the unnoted drops") only appears when the numbers support it.
 
 ## src/status_card.py in detail
-- `collect(state)` -> the numbers on the picture, all read from disk: dataset counts (`dataset_info`, from the build's `stamp.json`), experiments finished with the current code (`experiments_done`), repeat runs and hand labels done, `skill()` (average catch and false-alarm rate over the E10 seeds and a verdict against a random alarm), `signal_usefulness()` (from E5).
+- `collect(state)` -> the numbers on the picture, all read from disk: dataset counts (`dataset_info`, from the build's `stamp.json`), experiments finished with the current code (`experiments_done`), repeat runs done, shots labelled automatically (`auto_labels`), `skill()` (average catch and false-alarm rate over the E10 seeds and a verdict against a random alarm), `signal_usefulness()` (from E5).
 - Repeat-run numbers are shown only if they were made with the current code and data (`seeds_still_valid`); before any repeat run, the single E3 test is shown, labelled as one test only (`one_test`).
 - `needs(info)` -> the to-do list (more shots, repeat runs, your labels, `config.NEXT_STEP`). `draw(info, path)` -> the PNG. `send(caption, state)` draws it and sends it.
 - Why a picture: the owner reads on a phone; one picture replaces dozens of messages. Every number on it comes from a file that code wrote.
@@ -205,6 +207,13 @@ Read it top to bottom; each function uses only the ones above it.
 - `early_offset`, `n1_amplitude`, `saddle_n1`: per-coil offset from its first 5 ms of data, then a cosine fit around the 12 coils at each time; NaN until the offset is known.
 - `mirnov_rms`, `slow_signal`, `compute_extras`, `load_extras`, `download_extras`, `with_extras` (merges cached extras into a shot, NaN if none).
 - In `features.py`: `EXTRA_SIGNALS` (lm, mirnov, sol) and `ip_ref_error`; `feature_names(extended=True)` adds 19 features; the 30 v1 features are unchanged.
+
+## Automatic termination labels in detail (scripts/auto_labels.py)
+- `measures(t, ref, sol, t_q)` -> programmed current at the quench as a fraction of its maximum (`ref_frac`) and `solenoid_ratio`: the solenoid's sweep rate over the last `AUTO_SOL_WINDOW_MS` divided by its average rate during the programmed flat-top (about 1 = still sweeping, about 0 = stopped).
+- `classify(has_quench, m)` -> 'smooth_end' (no fast quench), 'programmed_rampdown' (`ref_frac` < `AUTO_RAMPDOWN_FRAC`), 'flux_exhausted' (ratio < `AUTO_SOL_STOPPED_RATIO`), 'flat_top_drop' (otherwise), 'unknown' (signals missing).
+- `label_shot(row)` reads the cached extras (programmed and solenoid current on the 1 ms grid); `summarise(table)` counts classes overall and by operator note; `summary_text` is the Telegram message. Output: `RESULTS_DIR/auto_labels/`.
+- The research server runs it after a full run whenever the dataset is newer than the last labels (`label_shots`), and `/report` sends the per-shot table.
+- It sits outside the experiments on purpose: changing it never retrains anything. Its settings are listed in `resume.NOT_SCIENCE_SETTINGS` until an experiment uses the labels.
 
 ## Watchers and the gold tool in detail
 - `sources.probe()` -> snapshot dict (shot table on mastapp.site and its S3 copy, DEFUSE, folders, store count); `sources.changes(old, new)` -> sentences for Telegram; `sources.table_available(snapshot)` -> can the full table be read anywhere (then a server holding only the 400 report shots fetches the full dataset). On a blocked server the probe runs on GitHub (`relay_fetch.py --task probe`).

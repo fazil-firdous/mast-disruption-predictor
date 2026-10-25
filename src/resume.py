@@ -15,7 +15,7 @@ from src import config
 # these files run the server, talk to Telegram or GitHub, or word the messages: they cannot change a number.
 # config.py is left out too; its science values are stamped one by one (science_settings), so comments do not count
 NOT_SCIENCE = {"__init__.py", "config.py", "server.py", "notify.py", "relay.py", "sources.py", "literature.py",
-               "gold.py", "explain.py", "resume.py", "status_card.py"}
+               "gold.py", "explain.py", "resume.py", "status_card.py", "banner.py"}
 # config settings that only steer the server, downloads, Telegram or where files go: changing them changes no number
 NOT_SCIENCE_SETTINGS = {
     "REPO_DIR", "PRIVATE_ENV", "HOME_DIR", "DATA_DIR", "RAW_DIR", "PROCESSED_DIR", "RESULTS_DIR", "MODELS_DIR",
@@ -23,7 +23,9 @@ NOT_SCIENCE_SETTINGS = {
     "RETRY_BACKOFF_S", "TCP_CHECK_TIMEOUT_S", "CONNECTION_CHECK_ATTEMPTS", "GITHUB_REPO", "RELAY_WORKFLOW",
     "RELAY_BRANCH", "RELAY_TIMEOUT_HOURS", "NETWORK_RETRY_MINUTES", "PIPELINE_RETRY_HOURS", "HEARTBEAT_HOURS",
     "SEED_SWEEP_MAX", "TELEGRAM_POLL_S", "WATCH_SOURCES_HOURS", "LITERATURE_DAYS", "LITERATURE_MAX_RESULTS",
-    "CARD_EVERY_SEEDS", "NEXT_STEP", "UPDATE_CHECK_MINUTES"}
+    "CARD_EVERY_SEEDS", "NEXT_STEP", "UPDATE_CHECK_MINUTES",
+    # used only by scripts/auto_labels.py, which no experiment reads yet; remove from here once one does
+    "AUTO_FLATTOP_FRAC", "AUTO_MIN_FLATTOP_MS", "AUTO_SOL_WINDOW_MS", "AUTO_SOL_STOPPED_RATIO", "AUTO_RAMPDOWN_FRAC"}
 SCIENCE_SCRIPTS = ["build_dataset.py"]  # scripts with science logic in them (shot selection, splits)
 STAMP_FILE = "stamp.json"
 
