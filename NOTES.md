@@ -16,7 +16,7 @@ Network check from the sandbox (original result, before the diagnosis below)
 
 - The first sandbox error `KeyError: '.zmetadata'` was NOT only the network. A cloud browser can reach both hosts. Listing the bucket shows the shot stores now use Zarr v3 (`zarr.json` in every group and array, no `.zgroup`, `.zarray` or `.zmetadata`). `summary/zarr.json` says `ingested_at: 2026-09-22T15:33:23Z`.
 - `zarr<3` (2.18.7) cannot read these stores and fails with exactly that `KeyError`. `zarr>=3` (3.1.6 tested) reads them correctly.
-- SPEC 3.1 said to pin `zarr<3` because zarr 3 opened the (then v2) stores as empty groups. The data has been re-ingested since that check. I changed `requirements.txt`, `the project rules` (dependency list and comment example) and `docs/SPEC.md` 3.1 to `zarr>=3`. This overrides the Phase 0 instruction to pin `zarr<3`. Please confirm.
+- SPEC 3.1 said to pin `zarr<3` because zarr 3 opened the (then v2) stores as empty groups. The data has been re-ingested since that check. I changed `requirements.txt`, the project rules (dependency list and comment example) and `docs/SPEC.md` 3.1 to `zarr>=3`. This overrides the Phase 0 instruction to pin `zarr<3`. Please confirm.
 - Not verified: opening the stores over HTTPS with zarr 3 from this sandbox (blocked). The code is tested on real Zarr v3 files read from a local path. First thing to check in Colab: `python scripts/inspect_shots.py --n 20`. If a Colab image has an old xarray or zarr, upgrade it.
 
 How the real data got into the sandbox (be clear about this)
@@ -173,7 +173,7 @@ VPS and Telegram
 
 ## 2026-10-15 - Research track started (docs/ROADMAP.md)
 
-The owner wants this treated as long-term, research-grade work aimed at a career in fusion, not a school project. `the project rules` now says so and points to `docs/ROADMAP.md`, the agreed plan. Readability rules stay: the owner studies the code daily and explains it back.
+The long-term plan is `docs/ROADMAP.md`; the working rules are in `CONTRIBUTING.md`.
 
 Literature check (two quick web searches, not a review): a UKAEA group already has a FAIR-MAST disruption benchmark (stacked BiLSTM, 417 shots, labels auto-detected from the plasma current; IAEA FEC poster). No tokamak disruption work using PU learning or conformal false-alarm guarantees turned up. Claims of novelty must wait for a proper review (ROADMAP G1).
 
@@ -185,7 +185,7 @@ Built (tested on synthetic shots only; no real-data numbers yet):
 
 ## 2026-10-15 - VPS failure, real-data access, termination study, research server
 
-VPS run of commit 4f703f1 (owner's report): 99 tests passed, then `build dataset` failed: `ConnectionTimeoutError` to `s3.echo.stfc.ac.uk` while opening shot 11860. GitHub Actions and (today) this sandbox reach that host, so it looks specific to the VPS's network path. Not diagnosed yet: `scripts/diagnose_network.py` (new) tests DNS, TCP to each of the host's 4 IPv4 addresses (no IPv6 records), HTTPS and zarr, and says what to do. The build now retries the connection 4 times (`CONNECTION_CHECK_ATTEMPTS`) instead of once.
+VPS run of commit 4f703f1 (owner's report): 99 tests passed, then `build dataset` failed: `ConnectionTimeoutError` to `s3.echo.stfc.ac.uk` while opening shot 11860. GitHub Actions and (today) this sandbox reach that host, so it looks specific to that server's network path. Not diagnosed yet: `scripts/diagnose_network.py` (new) tests DNS, TCP to each of the host's 4 IPv4 addresses (no IPv6 records), HTTPS and zarr, and says what to do. The build now retries the connection 4 times (`CONNECTION_CHECK_ATTEMPTS`) instead of once.
 
 Data servers today (2026-10-15, from this sandbox)
 - `s3.echo.stfc.ac.uk`: reachable for the first time from this sandbox; shot 11860 reads (385 samples).
@@ -216,17 +216,16 @@ First full real-data run (2026-10-15, this sandbox, private workspace)
 - PU (E9) estimates c around 0.4, and unnoted-quench windows got a higher mean weight than other unlabelled windows. Small sample, SCAR assumption: indicative only.
 - `scripts/check_live.py` now checks the shot table last and names it in the failure, so a mastapp.site outage (CI red on PR #2) no longer looks like a data-layer bug.
 
-## 2026-10-15 - VPS blocked by STFC; GitHub data relay
+## 2026-10-15 - Research server cannot reach the data servers; GitHub data relay
 
-- Owner's curl tests from the VPS (IP 2.58.56.69): every request to `s3.echo.stfc.ac.uk` and `mastapp.site` failed with "Failed to connect ... port 443 after 20000 ms" (no TCP answer). A TCP traceroute to 130.246.179.110 passes the provider, Telia/Lumen and JANET (146.97.x.x, up to 146.97.41.34) and then goes silent, so packets are dropped at STFC's edge. `https://www.ox.ac.uk` answered 403 from the same IP, while ukaea.org, pypi.org and api.telegram.org worked. Conclusion: STFC (and at least one other UK university) refuse this IP range; it is not a routing fault on the provider's side and not our code. We do not try to get around the firewall (no proxies, no fingerprint tricks).
+- From the research server, every request to `s3.echo.stfc.ac.uk` and `mastapp.site` timed out with no TCP answer, while GitHub's runners and this sandbox reached both; the network diagnosis showed the packets are dropped before the data servers, so it is a network-path restriction, not our code. We do not try to get around it (no proxies, no tricks): the data comes through GitHub instead.
 - Fix chosen by the owner: a GitHub data relay. GitHub's runners can reach STFC (CI read shot 11860 today). `fetch_data.yml` runs `scripts/relay_fetch.py` and uploads `data/` as a one-day artifact; `src/relay.py` on the server starts the job, waits, downloads and unpacks it; `run_all.py --offline` then trains without touching the network. The data is public (CC BY-SA), nothing is committed, and trained models and results stay on the server. Long-term, a server on an IP range STFC accepts is still better for the multi-GB magnetics data (ROADMAP D1), though the relay could also reduce such signals before sending them.
 - Rehearsed here: `relay_fetch.py --scale full` with mastapp.site down fell back to the 400 report shots and downloaded all 400 (7.9 MB, so ~20 KB per shot and roughly 80 MB for a full run). Unpacked into a fresh workspace and built with `--offline --from-report` while the data URL pointed to an unreachable host: 398 shots, 26,169 windows, identical to the direct build.
 - Private settings moved to `~/mast-private/.env` (config reads it as well as a repo `.env`), so deleting the code folder loses nothing. `setup_vps.sh` copies an old repo `.env` there (keeping a backup) and asks for the optional GitHub token. The token is read from the environment only when used and is filtered out of `config_snapshot`, so it never lands in result files or the results zip sent to Telegram.
-- The owner pasted a GitHub token and the Telegram bot token into the chat. Neither was used, stored or committed by me; advised to revoke both and paste the new ones only into the VPS setup.
 
 ## 2026-10-15 - Magnetics (D1), watchers, gold tool, literature check
 
-VPS status (owner's report): the research server started on commit 41b9565 in /root/mast-private; the network diagnosis confirms every TCP connection to both STFC hosts times out from the VPS (IPv4) and IPv6 has no route there at all. So the VPS works only through the GitHub relay. `data.host_reachable` (10 s TCP check) now makes a blocked host fail in seconds; before, the zarr and pandas clients could take minutes per check.
+VPS status (owner's report): the research server started on commit 41b9565 in /root/mast-private; the network diagnosis confirms the data servers do not answer from that server, so it works through the GitHub relay. `data.host_reachable` (10 s TCP check) now makes a blocked host fail in seconds; before, the zarr and pandas clients could take minutes per check.
 
 Magnetics data facts (inspected on shots 11860 (M5), 20259 (M7) and 27000 (M8); nothing below is assumed without a check unless marked)
 - `magnetics/b_field_tor_probe_saddle_field`: 12 channels named M01..M012 (voltage channels M01..M12), units T, UDA `ASM/SAD/OUT`, time base `time_saddle` with a 20 us step (50 kHz).
@@ -303,10 +302,12 @@ Decisions
 
 Full-data run on the VPS (owner's Telegram pictures, 3,804 shots after selection): averaged over the first 30 repeat runs, the v1 model now catches somewhat more disruptions in time than an alarm that fires at random as often, and the average false-alarm rate sits at the 5% limit (with 400 shots it was above). The single E3 test split was well below the average, which is why the seed sweep matters. (Numbers stay private; qualitative reading only.)
 
-Hand labels: the owner's first two blind labels were 27034 'disruption' and 11826 'normal end'. By the operator note and the physics below it is the other way round in both cases (11826: noted 'DISRUPTS AT 300MS (FA TRIP)', lost during flat-top with the solenoid still sweeping; 27034: no note, solenoid stopped at about -44 kA and the current was already decaying, i.e. flux exhaustion). Reading MAST shots is not a beginner's task, so at the owner's request the gold set is left for an expert and labels are made automatically instead.
+Hand labels: the first two blind labels (by a non-expert) were 27034 'disruption' and 11826 'normal end'. By the operator note and the physics below it is the other way round in both cases (11826: noted 'DISRUPTS AT 300MS (FA TRIP)', lost during flat-top with the solenoid still sweeping; 27034: no note, solenoid stopped at about -44 kA and the current was already decaying, i.e. flux exhaustion). Reading MAST shots is not a beginner's task, so at the owner's request the gold set is left for an expert and labels are made automatically instead.
 
 Automatic termination labels (`scripts/auto_labels.py`), checked on the 398 shots of the 400-shot report sample (cached extras)
 - At the detector's quench, the programmed current was still at >= 99% of its maximum in 92% of the 337 quenches with signals (>= 80% in 95%), noted or not (as in the termination study), so the programme alone cannot separate endings; only 17 quenches came during a programmed ramp-down.
 - The solenoid separates them: ratio of its sweep rate in the last 20 ms to its flat-top rate, median 0.67 for noted disruptions and 0.31 for unnoted quenches (AUC 0.66 for "unnoted" from a low ratio). Below 0.25 ("stopped"): 19% of noted vs 48% of unnoted quenches. 0.25 is a physical choice (sweeping at under a quarter of its usual rate = flux used up), not tuned against any label.
 - Result: of 175 shots the operators called disruptions, 134 were lost during flat-top with flux left, 22 after the solenoid stopped, 6 during ramp-down, 4 with no fast quench, 9 unknown. Of 223 shots with no disruption note, 83 were lost during flat-top with flux left (candidates for disruptions nobody recorded), 69 after the solenoid stopped, 11 during ramp-down, 56 ended smoothly, 4 unknown.
 - Limits: the solenoid's sweep limit differs between shots (some stop near -30 kA, most near -45 kA), so the ratio uses each shot's own flat-top rate; a quench right at the start of the flat-top cannot be judged (needs 30 ms). No expert has checked any of these labels yet.
+
+Speed check (2026-10-25, 400 report shots, 4 cores): one E10 repeat run took 33 s, of which 31 s was tuning gradient boosting over its 6-combination grid (mostly scikit-learn's feature binning). The random forest already uses every core (`n_jobs=-1`) and gradient boosting uses every core through OpenMP, so there is no free speed-up; a joblib threading context gave identical results but no gain and was not kept. Faster runs would need a change of method (for example not re-tuning in every repeat run, which would drop model-selection variance from the error bars), so the method stays. Jobs now run at low CPU priority (`JOB_NICE`), so other programs on the server stay responsive.

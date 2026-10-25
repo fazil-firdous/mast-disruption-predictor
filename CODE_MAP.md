@@ -4,7 +4,7 @@ A plain-English tour of the repo. Read the files in the order below.
 
 ## Reading order
 0. `docs/GUIDE.md` - the whole project as a story in simple words. Start here.
-1. `docs/SPEC.md` and `the project rules` - what to build and how to work.
+1. `docs/SPEC.md` and `CONTRIBUTING.md` - what the pipeline does and how to change it.
 2. `src/config.py` - every tunable number, each with a why-comment.
 3. `src/data.py` -> `src/labels.py` -> `src/features.py` -> `src/dataset.py` -> `src/alarms.py` -> `src/models.py` -> `src/evaluate.py` -> `src/experiment.py` - the pipeline in the order the data flows. `src/notify.py` is separate (Telegram).
 4. `scripts/` - thin command-line entry points that call `src/`.
@@ -24,7 +24,9 @@ A plain-English tour of the repo. Read the files in the order below.
 | `src/experiment.py` | done | Tune on validation, test once, write `results/<exp>/`. Shared by `run_experiment.py` and `run_all.py`. |
 | `src/conformal.py` | built | Conformal alarm threshold with a provable false-alarm limit (E8, ROADMAP B1). |
 | `src/pu.py` | built | Positive-unlabelled learning for unnoted quenches (E9, ROADMAP A1). |
-| `docs/ROADMAP.md` | done | The agreed long-term research plan. Read it after SPEC. |
+| `docs/ROADMAP.md` | done | The long-term research plan. Read it after SPEC. |
+| `CONTRIBUTING.md` | done | Rules for changing the code: no leakage, split by shot, never fabricate results, comment style, workflow. |
+| `docs/SERVER.md` | done | Running the pipeline continuously on a server: setup, GitHub data relay, optional Telegram notifications. |
 | `src/notify.py` | done | Telegram messages and files, and `logs/messages.log` with every message. Prints only if no bot is configured. |
 | `scripts/download.py` | done | CLI: `--n 50` random shots (seeded) or `--ids ...`. Checks the connection first. |
 | `scripts/inspect_shots.py` | done | Time step, time range, ip sign, missing signals for ~20 shots spread over campaigns. |
@@ -156,7 +158,7 @@ Read it top to bottom; each function uses only the ones above it.
 - The code part is taken once when the program starts (`CODE_AT_START`), from the code it actually loaded, so a file edited during a run cannot lend its fingerprint to results made by the old code.
 - `save(folder, stamp, outcome)` writes `stamp.json` last and atomically; `load(folder, stamp)` returns the saved outcome only if the stamp matches. `clean_json` turns NaN into None so the file is valid JSON.
 - Where it is used: `build_dataset.build` skips rebuilding windows if `build_stamp` (selected shots' files, their labels, scale) matches; `run_all.run_or_reuse` skips an experiment whose stamp (science code + processed dataset) matches; the research server keeps the E10 seed sweep unless that stamp changed (`keep_or_restart_seeds`).
-- Why so strict: a reused number must come from exactly the code that is in the repo now (the project rules: never a stale or made-up result). Even a comment change in a science file reruns once; changes to the server, messages or docs never do.
+- Why so strict: a reused number must come from exactly the code that is in the repo now (CONTRIBUTING.md: never a stale or made-up result). Even a comment change in a science file reruns once; changes to the server, messages or docs never do.
 
 ## src/explain.py in detail
 - `describe(exp, outcome)` -> the message for any experiment; it dispatches to `model_text` (E0-E3), `sweep_text` (E4, E5, E7, E11, E12, E13), `temporal_text` (E6), `conformal_text` (E8), `pu_text` (E9), `seed_text` (E10).

@@ -1,6 +1,6 @@
 # ROADMAP — from v1 pipeline to research-grade disruption prediction
 
-Agreed with the owner on 2026-10-15. The goal is not a portfolio piece but research that could stand up in a fusion / ML venue and go beyond published disruption predictors. Every item keeps the hard rules in `the project rules`: no leakage, split by shot, every number from code that ran, no invented data details.
+Long-term plan, started 2026-10-15. The goal is research that could stand up in a fusion / ML venue and go beyond published disruption predictors. Every item keeps the hard rules in `CONTRIBUTING.md`: no leakage, split by shot, every number from code that ran, no invented data details.
 
 Status markers: **done** (code + tests), **built** (code + tests, waiting for a real-data run), **next**, **later**.
 
@@ -47,4 +47,4 @@ Status markers: **done** (code + tests), **built** (code + tests, waiting for a 
 - **G2 Paper-style write-up — later.** Reproducible splits, all experiments, honest limitations; arXiv-ready.
 
 ## Working method
-The owner studies the new code daily and explains it back before the next item starts. Each item lands as its own PR with tests, a NOTES.md entry and a CODE_MAP.md update.
+Each item lands as its own pull request with tests, a NOTES.md entry and a CODE_MAP.md update.

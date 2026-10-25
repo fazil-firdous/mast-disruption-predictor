@@ -1,6 +1,6 @@
 # Draft: Label quality and physics signals for disruption prediction on the MAST spherical tokamak
 
-Working title. Skeleton started 2026-10-15. **Every number below is TBD until it comes from the full run on the owner's server**; the section notes say which script produces it. Do not fill anything by hand.
+Working title. Skeleton started 2026-10-15. **Every number below is TBD until it comes from the full run on the private research server**; the section notes say which script produces it. Do not fill anything by hand.
 
 ## Abstract
 TBD — written last.

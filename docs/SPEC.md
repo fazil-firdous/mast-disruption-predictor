@@ -8,7 +8,7 @@ Version 1. Lives at `docs/SPEC.md`. If code and spec disagree, the spec wins. If
 
 Build a machine-learning system that looks at a MAST tokamak plasma discharge ("shot") as it unfolds and raises an **alarm before a disruption happens**, using only information available up to that moment. Evaluate it honestly: how many disruptions it catches, how early, and how often it raises false alarms on shots that never disrupted.
 
-This is a portfolio research project, not production software. Success means: a correct, leak-free pipeline, honest results (good or bad), clear plots, and code a student can explain line by line.
+This is a research project, not production software. Success means: a correct, leak-free pipeline, honest results (good or bad), clear plots, and code that can be explained line by line.
 
 ## 2. Physics background (for context and for the README)
 
@@ -241,7 +241,7 @@ Required tests:
 
 ```
 mast-disruption/
-  the project rules
+  CONTRIBUTING.md
   README.md
   CODE_MAP.md
   NOTES.md

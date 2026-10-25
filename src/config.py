@@ -128,7 +128,7 @@ SHOT_TABLE_CACHE = os.path.join(DATA_DIR, "shot_table.parquet")  # the table is 
 SKIPPED_CSV = os.path.join(DATA_DIR, "skipped.csv")  # every shot we could not load, with the reason (SPEC 8.1)
 REPORT_CSV = os.path.join(REPO_DIR, "results", "label_report", "per_shot.csv")  # 400 labelled shots; stand-in when mastapp.site is down
 
-# GitHub data relay (ROADMAP H): for servers whose IP range STFC blocks, a GitHub Actions machine downloads the shots
+# GitHub data relay (ROADMAP H): for servers that cannot reach the STFC data servers, a GitHub Actions machine downloads the shots
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "fazil-mastu/mastu")
 RELAY_WORKFLOW = "fetch_data.yml"
 RELAY_BRANCH = "main"  # GitHub only runs dispatched workflows that exist on this branch
@@ -145,4 +145,5 @@ LITERATURE_DAYS = 7  # weekly arXiv check; disruption papers appear a few times 
 LITERATURE_MAX_RESULTS = 40  # newest matches per check; more than a week ever brings
 CARD_EVERY_SEEDS = 10  # send the status picture after every 10 repeat runs, not after each one
 NEXT_STEP = "magnetic signals as change, not level"  # the research step in progress (docs/ROADMAP.md), shown on the status picture
-UPDATE_CHECK_MINUTES = 10  # look for new commits on GitHub this often; more often is pointless load on GitHub
+UPDATE_CHECK_MINUTES = 10
+JOB_NICE = 10  # training jobs run at low priority, so other programs on the server stay responsive  # look for new commits on GitHub this often; more often is pointless load on GitHub
