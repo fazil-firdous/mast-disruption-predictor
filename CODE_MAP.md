@@ -53,6 +53,8 @@ A plain-English tour of the repo. Read the files in the order below.
 | `src/sources.py` | done | Data-source watcher: shot-table status, FAIR-MAST folders and shot-store count, DEFUSE status, and what changed. |
 | `src/literature.py` | done | Weekly arXiv search for new disruption-prediction papers; each reported once on Telegram. |
 | `src/gold.py` | done (for an expert) | Blind hand-labelling on Telegram (/gold, /d /n /u) and agreement report (/goldreport). |
+| `scripts/label_statistics.py` | done (real data) | Statistics of the automatic labels: shares with Wilson intervals, the solenoid ratio of noted vs un-noted quench endings (AUC with a bootstrap interval, Mann-Whitney, Cliff's delta), the same on the shots outside the 400-shot rule sample (replication), and the sampling weight to all MAST shots. Writes `auto_labels/statistics.txt`. |
+| `scripts/termination_evidence.py` | done (real data) | Independent evidence: current fall time, heating, radiation, Mirnov and locked-mode levels at the quench, compared between recorded disruptions, the candidates and flux-exhausted endings. Writes `results/termination_evidence/`. |
 | `scripts/auto_labels.py` | done (real data) | Automatic termination labels: how each shot ended, from the programmed current and the solenoid sweep at the quench. Run by the server after each new dataset. |
 | `docs/literature_review.md`, `docs/paper/draft.md` | started | Checked references and what they mean for our claims; paper skeleton (numbers TBD from real runs). |
 | `scripts/diagnose_network.py` | done | DNS, TCP per address, HTTPS and zarr checks, with a plain-language verdict; sent to Telegram. |
@@ -68,6 +70,7 @@ A plain-English tour of the repo. Read the files in the order below.
 | `tests/test_research.py` | done | Conformal rank and guarantee (simulated), PU weights, premature rate, E8/E9 end to end. |
 | `tests/test_resume.py` | done | Stamps follow science code and data (not server code), saved outcomes reused only under the same stamp, dataset rebuilt only when inputs change, leftover-job check, false-alarm breakdown, every message type on real experiment outputs. |
 | `tests/test_server.py` | done | Server decisions, command parsing, Telegram parsing, `.env` loading, diagnosis verdicts, connection retries, catalogue. |
+| `tests/test_label_statistics.py` | done | Wilson interval, AUC with ties, label shares and ratio test on a made-up table, sampling weight, evidence measures on a synthetic quench vs ramp-down, the group comparison. |
 | `tests/test_repeat_runs.py` | done | Idle queue order, lanes from cores and free memory, exact peak memory of a child, half-written results, the corrected interval, comparison summary and wording, a comparison without a change reproduces E10, the comparison stamp is separate. |
 | `tests/__init__.py` | done | Empty. Makes `tests` a package so `from src import ...` works. |
 
