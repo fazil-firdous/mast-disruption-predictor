@@ -14,7 +14,7 @@ A plain-English tour of the repo. Read the files in the order below.
 | File | Status | Purpose |
 |---|---|---|
 | `src/config.py` | done | Constants: URLs, window/horizon/threshold settings, seeds, paths, Phase 4 window policy, model settings. |
-| `src/data.py` | done (checked against the real servers by CI) | Load shot table (mastapp.site, or its copy in the FAIR-MAST S3 bucket) and per-shot signals, with a local cache. |
+| `src/data.py` | done (checked against the real servers by CI) | Load shot table (the official copy in the FAIR-MAST S3 bucket; still tries the retired mastapp.site first) and per-shot signals, with a local cache. |
 | `src/labels.py` | done | Note-based and signal-based disruption labels. |
 | `src/features.py` | done | Causal window features. |
 | `src/dataset.py` | done (synthetic tests) | Shot pool, labels for every source, shot selection, window table, splits by shot. |
@@ -198,7 +198,7 @@ Read it top to bottom; each function uses only the ones above it.
 - Restarts: the server remembers the pids of the jobs it started (`job_pids`); a new server stops jobs left over from a killed one (`stop_leftover_jobs`, checked with `server.is_our_job` so an unrelated process is never touched). Finished experiments are reused, so only the unfinished part runs again. An idle run counts as done once tried; one that did not save complete JSON (`server.result_saved`) has its folder removed so no summary reads half a run.
 - `scripts/research_server.py`: `main` loops forever: pull code every `UPDATE_CHECK_MINUTES` (and restart itself on new code), heartbeat, pick the next job, wait out network outages (`wait_for_network`), run jobs as child processes (`run_job`, or `run_jobs` side by side) while still answering commands (`poll_commands` -> `handle_command`). `run_idle` runs one round of idle work, `record_idle` and `report_idle` book it and log the running summary (a status picture every 10 seeds). `keep_or_restart_seeds` archives the repeat runs when the science stamp changes, and only the comparisons when `repeat_runs.stamp()` changes. A lock file stops a second copy.
 - Commands come only from `TELEGRAM_CHAT_ID`, and each maps to a fixed action; nothing typed in the chat is run as a shell command.
-- Data access (`server.access_mode`): 'direct' (STFC and shot table answer), 'direct-report' (STFC answers, mastapp.site down), 'relay' (STFC blocks this server and `GITHUB_TOKEN` is set), or wait. `server.pipeline_args` turns that into `run_all.py` options (`--offline`, `--from-report`). `relay_needed` fetches again only for a new scale or after `/fetch`.
+- Data access (`server.access_mode`): 'direct' (STFC and shot table answer), 'direct-report' (STFC answers, no shot table), 'relay' (STFC blocks this server and `GITHUB_TOKEN` is set), or wait. `server.pipeline_args` turns that into `run_all.py` options (`--offline`, `--from-report`). `relay_needed` fetches again only for a new scale or after `/fetch`.
 
 ## The GitHub data relay in detail
 - `scripts/relay_fetch.py` runs on GitHub's machine: `choose_shots(scale)` -> (ids, 'live' or 'report'); downloads them; writes `data/manifest.json` (scale, table source, counts, commit, time).
@@ -230,7 +230,7 @@ Read it top to bottom; each function uses only the ones above it.
 - In `run_all.py`: `run_side_by_side` reuses unchanged experiments after E0-E3 and runs the rest in spawned processes (`run_in_processes`), one per core while memory allows (its own peak after E0-E3 is the estimate); a process that breaks down (for example out of memory) is rerun on its own.
 
 ## Watchers and the gold tool in detail
-- `sources.probe()` -> snapshot dict (shot table on mastapp.site and its S3 copy, DEFUSE, folders, store count); `sources.changes(old, new)` -> sentences for Telegram; `sources.table_available(snapshot)` -> can the full table be read anywhere (then a server holding only the 400 report shots fetches the full dataset). On a blocked server the probe runs on GitHub (`relay_fetch.py --task probe`).
+- `sources.probe()` -> snapshot dict (shot table in the FAIR-MAST bucket, DEFUSE, folders, store count; mastapp.site is no longer probed since it was retired); `sources.changes(old, new)` -> sentences for Telegram; `sources.table_available(snapshot)` -> can the full table be read anywhere (then a server holding only the 400 report shots fetches the full dataset). On a blocked server the probe runs on GitHub (`relay_fetch.py --task probe`).
 - `literature.search()`, `parse_feed(xml)`, `check()` (new papers only), `digest(papers)`.
 - `gold.build_queue(shots)` (seeded, over-samples unnoted quenches), `next_item`, `record`, `plot_blind`, `evaluate`, `report_text`.
 - Experiments E11 (without t_since_start), E12 (UKAEA-style), E13 (feature sets) are knobs of `experiment.sweep` via `sweep_settings`.

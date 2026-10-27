@@ -71,5 +71,5 @@ Outputs (data, models, results, logs) go to the folder named by `MAST_HOME`, or 
 Labels are algorithmic and not yet checked by a MAST expert. The main models use four global signals; the magnetics are a first version, and there are no profiles. MAST (2000–2013), not MAST-U. Offline evaluation, not real-time control.
 
 ## Credits
-Data: FAIR-MAST, UKAEA, licence CC BY-SA 4.0. Please cite S. Jackson et al., "FAIR-MAST: A fusion device data management system", *SoftwareX* 27, 101869 (2024).
+Data: FAIR-MAST, UKAEA, licence CC BY-SA 4.0 (documentation: https://ukaea.github.io/fair-mast). Please cite S. Jackson et al., "FAIR-MAST: A fusion device data management system", *SoftwareX* 27, 101869 (2024), and S. Jackson et al., "An Open Data Service for Supporting Research in Machine Learning on Tokamak Data", *IEEE Transactions on Plasma Science* (2025), doi:10.1109/TPS.2025.3583419.
 Related work: UKAEA FAIR-MAST event-prediction benchmarks (IAEA FEC poster, https://conferences.iaea.org/event/392/contributions/36328/); positive-unlabelled learning: Elkan & Noto, KDD 2008.

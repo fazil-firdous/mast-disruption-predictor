@@ -373,3 +373,15 @@ Literature: targeted search done (docs/literature_review.md, 2026-10-25); nothin
 
 Compared with the 400-shot sample (82% of candidates falling within 10 ms), the full data puts the candidates closer to the recorded disruptions on both quench signatures, while their heating at the end stays in between. Reading: most candidates look like disruptions at the quench; the lower neutron rate says the heating was more often already ramping down than in recorded disruptions, so some may be endings operators did not regard as disruptions. Still no expert check; the fall time is only partly independent of the solenoid rule.
 
+## 2026-10-27 - UKAEA: mastapp.site is retired, the bucket table is official; TokaMark dataset
+
+Answer from the FAIR-MAST team (Nathan Cummings, UKAEA) on the owner's GitHub issue in ukaea/fair-mast: the API at mastapp.site is down and will not be supported; a new service will come at a different domain in the coming months. `s3://mast/fairmast-meta/l2_shots.parquet` is the same table as `/parquet/level2/shots`, and the documentation (now https://ukaea.github.io/fair-mast, rebuilt without the API on 2026-10-26) gives it as the way to get the metadata. `s3://mast/tokamark/v1/` is the TokaMark benchmark dataset, built from FAIR-MAST (github.com/UKAEA-IBM-STFC-Fusion-FMs/tokamark).
+
+From the new documentation and code:
+- Signals are unchanged: level-2 Zarr stores at `https://s3.echo.stfc.ac.uk/mast/level2/shots/<shot_id>.zarr` (Zarr v3), the same paths and names we read. The renamed columns in the shot table (cpf_* -> plasma_*, generic_*, thomson_*) are ones we do not use; we read shot_id, campaign and shot_postshot_comment.
+- Also in `fairmast-meta/`: `l2_sources.parquet` and one `l2_signals/signals_<shot>.parquet` per shot (which signals each shot has). Level 1 (Zarr v2) has 15,969 shots against 11,573 in level 2.
+- The documentation asks to cite both the SoftwareX 2024 paper and the IEEE Transactions on Plasma Science 2025 paper; the README now does.
+- TokaMark: 14 forecasting tasks (150 ms in, 100 ms ahead) over magnetics, PF currents, density, soft X-rays, D-alpha and equilibrium; no disruption labels. Its signal list points to inputs we do not use yet, above all the line-averaged density (Greenwald fraction, ROADMAP D3).
+
+What changed here without touching any stamp: the source watcher probes only the bucket table (mastapp.site no longer), the network check no longer tests mastapp.site, and the docs say the bucket is official. Not changed yet: the loader still tries mastapp.site first (a few seconds of timeout before the fallback), because `src/data.py` and the URL values are stamped and changing them now would retrain everything in the middle of the repeat-run comparisons. Do it at the next science change, together with moving the URLs into `NOT_SCIENCE_SETTINGS`.
+

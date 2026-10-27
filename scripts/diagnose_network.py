@@ -15,9 +15,9 @@ import zarr
 from src import config, notify
 from src.data import check_connection
 
+# the shot table lives on the same host (fairmast-meta/l2_shots.parquet); mastapp.site is retired (2026-10-27)
 HOSTS = {
     "s3.echo.stfc.ac.uk": f"https://s3.echo.stfc.ac.uk/mast/level2/shots/{config.REFERENCE_SHOT}.zarr/zarr.json",
-    "mastapp.site": config.SHOT_TABLE_URL,
 }
 TIMEOUT_S = 10
 

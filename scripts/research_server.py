@@ -445,8 +445,8 @@ def probe_sources(state):
 
 
 def watch_sources(state):
-    """Daily: report changes in the data sources. When the full shot table can be read (mastapp.site or its S3
-    copy) but the data on this server came from the 400 report shots, queue a fresh fetch of the full dataset."""
+    """Daily: report changes in the data sources. When the full shot table can be read (FAIR-MAST bucket) but the
+    data on this server came from the 400 report shots, queue a fresh fetch of the full dataset."""
     state["last_probe_at"] = time.time()
     snapshot = probe_sources(state)
     if snapshot is None:
@@ -454,8 +454,7 @@ def watch_sources(state):
     news = sources.changes(state["last_probe"], snapshot)
     if state["last_probe"] is None:
         news = [f"data sources: {snapshot['shot_stores']} shot stores, shot table HTTP "
-                f"{snapshot['shot_table_status'] or 'no answer'} (S3 copy HTTP "
-                f"{snapshot.get('shot_table_mirror_status') or 'no answer'}), DEFUSE HTTP {snapshot['defuse_status']}"]
+                f"{snapshot.get('table_status') or 'no answer'}, DEFUSE HTTP {snapshot['defuse_status']}"]
     state["last_probe"] = snapshot
     for line in news:
         notify.send(line)
