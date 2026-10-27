@@ -22,9 +22,11 @@ PRIVATE_ENV = os.path.expanduser(os.path.join("~", "mast-private", ".env"))
 _load_env_file(os.path.join(REPO_DIR, ".env"))
 _load_env_file(PRIVATE_ENV)
 
-# Data sources (SPEC 3.1)
+# Data sources (SPEC 3.1). mastapp.site is retired (UKAEA, 2026-10-27; a new service will come at another domain) and
+# the table in the bucket is the official one. The order is swapped at the next science change, since these values
+# are stamped and changing them now would retrain everything (NOTES 2026-10-27).
 SHOT_TABLE_URL = "https://mastapp.site/parquet/level2/shots"
-# the same table (11,573 shots, checked 2026-10-24) in the FAIR-MAST bucket next to the shots; used when mastapp.site is down
+# the official shot table (11,573 shots) in the FAIR-MAST bucket next to the shots; used whenever mastapp.site fails
 SHOT_TABLE_MIRROR_URL = "https://s3.echo.stfc.ac.uk/mast/fairmast-meta/l2_shots.parquet"
 # env override lets tests and offline work point at a local copy of the stores
 SHOT_ZARR_URL = os.environ.get("MAST_ZARR_URL", "https://s3.echo.stfc.ac.uk/mast/level2/shots/{shot_id}.zarr")
@@ -140,7 +142,7 @@ PIPELINE_RETRY_HOURS = 6  # a failed full run of the same commit is retried at m
 HEARTBEAT_HOURS = 24  # one "still alive" Telegram message a day
 SEED_SWEEP_MAX = 50  # idle work: re-split and re-test with seeds 1..50 for honest mean +- spread (E10)
 TELEGRAM_POLL_S = 25  # long-poll length for bot commands; also the loop's natural tick
-WATCH_SOURCES_HOURS = 24  # check once a day whether mastapp.site is back, FAIR-MAST grew, or DEFUSE went public
+WATCH_SOURCES_HOURS = 24  # check once a day whether the shot table answers, FAIR-MAST grew, or DEFUSE went public
 LITERATURE_DAYS = 7  # weekly arXiv check; disruption papers appear a few times a month
 LITERATURE_MAX_RESULTS = 40  # newest matches per check; more than a week ever brings
 CARD_EVERY_SEEDS = 10  # send the status picture after every 10 repeat runs, not after each one

@@ -31,14 +31,14 @@ def test_seen_papers_are_remembered(tmp_path):
 
 
 def test_source_changes():
-    old = {"shot_table_status": 0, "defuse_status": 403, "level2_folders": ["level2/shots/"], "shot_stores": 11573}
+    old = {"table_status": 0, "defuse_status": 403, "level2_folders": ["level2/shots/"], "shot_stores": 11573}
     assert sources.changes(None, old) == []
     assert sources.changes(old, dict(old)) == []
-    new = {"shot_table_status": 206, "defuse_status": 206, "level2_folders": ["level2/mastu/", "level2/shots/"],
+    new = {"table_status": 206, "defuse_status": 206, "level2_folders": ["level2/mastu/", "level2/shots/"],
            "shot_stores": 11600}
     news = " | ".join(sources.changes(old, new))
-    assert "mastapp.site is back" in news and "DEFUSE" in news and "level2/mastu/" in news and "27 new" in news
-    assert "went down" in " ".join(sources.changes(new, old))
+    assert "answers again" in news and "DEFUSE" in news and "level2/mastu/" in news and "27 new" in news
+    assert "stopped answering" in " ".join(sources.changes(new, old))
 
 
 def test_due():
@@ -46,7 +46,9 @@ def test_due():
     assert not server.due(1e9 - 3600, 24, 1e9)
 
 
-def test_table_available_from_mastapp_or_the_s3_copy():
-    assert not sources.table_available({"shot_table_status": 0})
-    assert sources.table_available({"shot_table_status": 0, "shot_table_mirror_status": 206})
-    assert sources.table_available({"shot_table_status": 200, "shot_table_mirror_status": 0})
+def test_table_available_from_the_bucket_also_in_older_snapshots():
+    assert not sources.table_available({"table_status": 0})
+    assert sources.table_available({"table_status": 206})
+    assert sources.table_available({"shot_table_status": 0, "shot_table_mirror_status": 206})  # before 2026-10-27
+    # an old snapshot (mastapp.site down, bucket up) followed by a new one: nothing to report
+    assert sources.changes({"shot_table_status": 0, "shot_table_mirror_status": 206}, {"table_status": 206}) == []

@@ -29,7 +29,7 @@ GitHub forwards the old address, but update both places that name it: `git remot
 ## If the server cannot reach the data servers
 `python scripts/diagnose_network.py` tells you. In that case give the setup a GitHub fine-grained token (this repository only, permission **Actions: read and write**). The server then uses the **GitHub data relay**: a GitHub Actions job (`.github/workflows/fetch_data.yml`) downloads the shots and hands them over as a one-day artifact, which the server unpacks into `~/mast-private/data`. Only public MAST data passes through GitHub, and nothing is committed.
 
-The shot table is read from mastapp.site, or from its copy in the FAIR-MAST S3 bucket (`fairmast-meta/l2_shots.parquet`) when mastapp.site does not answer.
+The shot table comes from the FAIR-MAST S3 bucket (`fairmast-meta/l2_shots.parquet`), the official source since mastapp.site was retired in October 2026. Until the next change to the science code the loader still tries mastapp.site first, which only costs a few seconds before it falls back.
 
 ## Optional notifications (Telegram)
 If a Telegram bot token and chat id are given at setup, the server sends one status picture (`src/status_card.py`) at the end of a full run, every 10 repeat runs (every 10 seeds of the comparisons) and once a day, plus a short message when something fails. Everything else stays in `logs/messages.log` and `results/REPORT.md`. Commands are accepted from that one chat only, and each maps to a fixed action: `/status`, `/report`, `/details`, `/log`, `/predict 11860`, `/diagnose`, `/run`, `/fetch`, `/sources`, `/papers`, `/gold` (optional expert labelling), `/goldreport`, `/update`, `/pause`, `/resume`, `/stop`, `/help`. Without a bot, messages are simply printed.

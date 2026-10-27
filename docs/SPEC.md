@@ -33,7 +33,7 @@ Common precursors, which is why these signals matter:
 ### 3.1 Verified (checked by the owner in Colab, Sept 2026)
 - **Shot table** (one row per shot, 11,573 rows, ~189 columns):
   ```python
-  pd.read_parquet("https://mastapp.site/parquet/level2/shots")
+  pd.read_parquet("https://s3.echo.stfc.ac.uk/mast/fairmast-meta/l2_shots.parquet")  # mastapp.site/parquet/level2/shots until it was retired (Oct 2026)
   ```
   Useful columns: `shot_id`, `campaign` (values like `"M5"`), `shot_postshot_comment`, `plasma_max_current`, `plasma_end_time`, `plasma_flat_top_start_time`, `plasma_flat_top_end_time`, `shot_flat_top_duration`, `shot_abort`, `shot_useful`.
 - **Per-shot signals**, streamed anonymously:
@@ -60,7 +60,7 @@ Common precursors, which is why these signals matter:
 - ~~Units of `neutron_rates_total` and `power_nbi`~~ Checked in Phase 1: plausible SI values (Hz, W), no scaled shots seen. `power_nbi` has small negative sensor offsets; `neutron_rates_total` and `power_nbi` can have leading NaNs.
 - ~~`shot_abort` / `shot_useful`~~ Checked: `shot_useful` is 1 or NaN (never 0), `shot_abort` is 1 for 39 shots. Decision: do not filter on either; shot selection uses the signal checks in 8.1.
 - Campaign values present: M5, M6, M7, M8, M9 and `Unknown` (292 shots).
-- Other groups (e.g. `amc`, `thomson_scattering`, magnetics) for Phase 10. Catalogue: https://mastapp.site.
+- Other groups (e.g. `amc`, `thomson_scattering`, magnetics) for Phase 10. Documentation: https://ukaea.github.io/fair-mast (metadata Parquet files in `s3://mast/fairmast-meta/`).
 
 ## 4. Definitions
 
