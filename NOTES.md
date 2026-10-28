@@ -385,3 +385,16 @@ From the new documentation and code:
 
 What changed here without touching any stamp: the source watcher probes only the bucket table (mastapp.site no longer), the network check no longer tests mastapp.site, and the docs say the bucket is official. Not changed yet: the loader still tries mastapp.site first (a few seconds of timeout before the fallback), because `src/data.py` and the URL values are stamped and changing them now would retrain everything in the middle of the repeat-run comparisons. Do it at the next science change, together with moving the URLs into `NOT_SCIENCE_SETTINGS`.
 
+## 2026-10-28 - Interim repeat-run comparisons: magnetics help; two single-split claims not confirmed
+
+After 199 of 350 comparison runs (27-29 splits per comparison, each paired with the E10 run of the same split; owner's `repeat_runs.py --summary`; numbers stay private, qualitative here):
+- **With magnetic signals:** catches clearly more disruptions in time (the corrected 95% range of the change is above 0), with no clear change in false alarms. With magnetics and without time since start the gain is about the same size, its range just touching 0. The first evidence in this project of better genuine pre-disruption prediction, and it does not come from the time shortcut.
+- **Without plasma current:** clearly fewer caught. **Without radiated power, neutron rate or beam power:** no clear difference. So the E5 single-split reading (radiated power matters most) is not confirmed; README and GUIDE corrected.
+- **Without time since start:** no clear difference. So the E11 single-split reading (part of the skill was a shortcut through shot duration) is not confirmed; README and GUIDE corrected.
+
+Two cautions, now in every comparison message:
+- Multiplicity: 7 comparisons x 2 measures = 14 ranges at 95%, so about one "clear" verdict can come from luck alone. The magnetics range only just clears 0; under a Bonferroni-type correction for 7 comparisons it would not yet. A strong hint, not proof.
+- More splits barely narrow the ranges: the Nadeau-Bengio factor sqrt(1/n + n_test/n_train) is 0.61 at n = 29 and 0.59 at n = 50, because the overlap term (1/3) dominates. The finished sweep will look much like this one. What narrows the ranges is a smaller spread between splits, i.e. larger test sets (more disrupted shots), not more splits.
+
+The status picture now shows these comparisons (bar = average change in disruptions caught, line = corrected 95% range, coloured only when clear) instead of the single-split E5 bars, which it keeps only until the comparisons have ranges.
+

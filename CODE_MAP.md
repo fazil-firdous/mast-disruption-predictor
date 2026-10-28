@@ -174,6 +174,7 @@ Read it top to bottom; each function uses only the ones above it.
 ## src/status_card.py in detail
 - `collect(state)` -> the numbers on the picture, all read from disk: dataset counts (`dataset_info`, from the build's `stamp.json`), experiments finished with the current code (`experiments_done`), repeat runs done, shots labelled automatically (`auto_labels`), `skill()` (average catch and false-alarm rate over the E10 seeds and a verdict against a random alarm, from the corrected 95% range in `src/stats.py`), `signal_usefulness()` (from E5).
 - Repeat-run numbers are shown only if they were made with the current code and data (`seeds_still_valid`); before any repeat run, the single E3 test is shown, labelled as one test only (`one_test`).
+- `comparison_effects()` -> the repeat-run comparisons with a corrected range, read from `E10/comparisons/summary.csv` (short names in `CARD_WORDS`); `draw_effects` draws them (bar = average change in disruptions caught, line = 95% range, coloured only when clear) in place of the single-split E5 bars once they exist.
 - `needs(info)` -> the to-do list (more shots, repeat runs, your labels, `config.NEXT_STEP`). `draw(info, path)` -> the PNG. `send(caption, state)` draws it and sends it.
 - Why a picture: the owner reads on a phone; one picture replaces dozens of messages. Every number on it comes from a file that code wrote.
 

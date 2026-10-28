@@ -55,9 +55,10 @@ MAST was a UK tokamak (2000-2013). Each experiment is a **shot**, a few tenths o
 
 ## 5. What the results say so far (400 shots, real runs)
 - With the 4 basic signals, the model catches about as many disruptions as a random alarm would (E10, 43 repeat runs). That is a real result: these signals alone are not enough on MAST.
-- Radiated power is the signal it relies on most (E5).
+- On one split, radiated power looked like the signal it relies on most (E5). Over the repeat runs so far, only removing the plasma current clearly hurts.
+- Adding the magnetic signals clearly helps it catch more disruptions at the same false-alarm rate (repeat runs, interim).
 - Trained on early years, the alarm level gives too many false alarms in later years (E6).
-- Part of what it learned was "how long the shot has lasted", a shortcut, not physics (E11).
+- On one split, part of what it learned was "how long the shot has lasted", a shortcut (E11). Over the repeat runs so far that is not confirmed: removing it makes no clear difference.
 - False alarms fall mostly on "normal" shots that end in a sudden current drop nobody noted: some of those may be disruptions with a wrong label.
 
 ## 6. What is different here

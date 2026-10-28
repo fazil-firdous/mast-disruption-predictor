@@ -190,7 +190,14 @@ def test_status_card_numbers_and_picture(monkeypatch, tmp_path):
     assert info["shots"] == 0 and info["experiments"] == 0 and info["skill"] is None
     todo = [text for ok, text in status_card.needs({**info, "table_source": "report"}) if not ok]
     assert any("400 report shots" in t for t in todo) and not any("/gold" in t for t in todo)
-    for case in (info, {**info, "skill": status_card.skill(str(seeds)), "signals": useful, "all_shots": 11573}):
+    effects_csv = tmp_path / "comparisons.csv"
+    effects_csv.write_text("comparison,n_seeds,catch_rate_change,catch_rate_change_low,catch_rate_change_high\n"
+                           "magnetics,29,0.037,0.006,0.068\nno_ip_abs,29,-0.024,-0.046,-0.002\nno_prad,3,-0.01,,\n")
+    effects = status_card.comparison_effects(str(effects_csv))
+    assert set(effects) == {"+ magnetic signals", "no plasma current"}  # no range yet for no_prad: left out
+    assert info["effects"] == {}
+    for case in (info, {**info, "skill": status_card.skill(str(seeds)), "signals": useful, "all_shots": 11573},
+                 {**info, "effects": effects}):
         path = status_card.draw(case, str(tmp_path / "card.png"), "abc1234")
         assert os.path.getsize(path) > 10000
 
