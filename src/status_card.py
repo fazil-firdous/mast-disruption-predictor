@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.patches import FancyBboxPatch
 
-from src import config, notify, resume, server, stats
+from src import config, explain, notify, resume, server, stats
 
 EXPERIMENTS = ["E0", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E11", "E12", "E13"]
 SIGNAL_WORDS = {"prad": "radiated power", "neutrons": "neutron rate", "ip_abs": "plasma current",
@@ -87,6 +87,27 @@ def signal_usefulness(e5_csv=None):
     return {SIGNAL_WORDS.get(s, s): float(full - table.at[s, "pr_auc"]) for s in table.index if s != "none"}
 
 
+# short names for the picture; explain.comparison_words has the full ones
+CARD_WORDS = {"no_time": "no time since start", "magnetics": "+ magnetic signals",
+              "magnetics_no_time": "+ magnetics, no time",
+              "no_prad": "no radiated power", "no_ip_abs": "no plasma current", "no_neutrons": "no neutron rate",
+              "no_pnbi": "no beam power"}
+
+
+def comparison_effects(csv=None):
+    """{short words: (change, low, high)} in the catch rate for every repeat-run comparison that has a corrected
+    range (scripts/repeat_runs.py writes E10/comparisons/summary.csv); {} before any has MIN_SEEDS splits."""
+    path = csv or os.path.join(config.RESULTS_DIR, "E10", "comparisons", "summary.csv")
+    if not os.path.exists(path):
+        return {}
+    effects = {}
+    for row in pd.read_csv(path).itertuples():
+        if row.comparison in config.COMPARISONS and pd.notna(row.catch_rate_change_low):
+            effects[CARD_WORDS.get(row.comparison, explain.comparison_words(row.comparison))] = (
+                row.catch_rate_change, row.catch_rate_change_low, row.catch_rate_change_high)
+    return effects
+
+
 def auto_labels(path=None):
     """(shots labelled, shots in the dataset) from the last automatic labelling, or (0, 0) before it has run."""
     path = path or os.path.join(config.RESULTS_DIR, "auto_labels", "summary.json")
@@ -130,7 +151,8 @@ def collect(state=None):
             "comparisons": len(state["comparisons_done"]) if seeds_valid else 0,
             "auto_labelled": auto_labels()[0], "auto_total": auto_labels()[1],
             "skill": (skill() if seeds_valid else None) or one_test(current),
-            "signals": signal_usefulness() if e5_current(current) else {}}
+            "signals": signal_usefulness() if e5_current(current) else {},
+            "effects": comparison_effects() if seeds_valid else {}}
 
 
 def meter(ax, y, label, done, total, text):
@@ -177,6 +199,27 @@ def draw_signals(fig, signals):
         chart.spines[side].set_visible(False)
 
 
+def draw_effects(fig, effects):
+    """What each repeat-run comparison does to the disruptions caught, in percentage points: a bar for the average
+    change and a line for its corrected 95% range. Green or amber only where the range is clear of 0."""
+    chart = fig.add_axes([0.45, 0.25, 0.47, 0.14], facecolor=SURFACE)
+    names = sorted(effects, key=lambda n: effects[n][0])
+    for i, name in enumerate(names):
+        change, low, high = (100 * v for v in effects[name])
+        chart.barh(i, change, height=0.55, color=GOOD if low > 0 else WARNING if high < 0 else BLUE_TRACK)
+        chart.plot([low, high], [i, i], color=INK_2, lw=1)
+        if low > 0 or high < 0:
+            chart.text(high, i, "  clear", va="center", fontsize=8, color=INK_2)
+    chart.axvline(0, color="#c3c2b7", lw=1)
+    chart.set_yticks(range(len(names)), names)
+    chart.tick_params(axis="y", labelsize=8.5, colors=INK_2, length=0)
+    chart.tick_params(axis="x", labelsize=8, colors=MUTED, length=2)
+    chart.xaxis.set_major_formatter(lambda x, _: f"{x:+.0f}")
+    for side in ("top", "right", "left"):
+        chart.spines[side].set_visible(False)
+    chart.spines["bottom"].set_color("#c3c2b7")
+
+
 def draw(info, path, commit=""):
     """Write the status picture (PNG) for the numbers in info (see collect)."""
     fig = plt.figure(figsize=(8, 10.5), dpi=110, facecolor=SURFACE)
@@ -213,7 +256,12 @@ def draw(info, path, commit=""):
                    "worse": f"Worse than guessing  (average of {s['n']} runs)",
                    "one": "One test only: wait for the repeat runs"}[s["verdict"]]
         ax.text(0.105, 0.425, verdict, fontsize=12, color=INK, va="center")
-    if info["signals"]:
+    if info["effects"]:
+        ax.text(0.06, 0.33, "What each\nchange does\n(repeat runs)", fontsize=11, color=INK_2, va="center")
+        ax.text(0.45, 0.205, "points more (+) or fewer (-) disruptions caught; line = 95% range", fontsize=9,
+                color=MUTED)
+        draw_effects(fig, info["effects"])
+    elif info["signals"]:
         ax.text(0.06, 0.34, "Signals it\nrelies on", fontsize=11, color=INK_2, va="center")
         ax.text(0.36, 0.235, "longer bar = worse without it", fontsize=9, color=MUTED)
         draw_signals(fig, info["signals"])

@@ -236,15 +236,21 @@ def comparisons_text(summary):
         return "Repeat-run comparisons: none finished yet."
     lines = ["Repeat-run comparisons: the repeat-run recipe (E10) with one change, on the very same random splits, "
              "tested on each split's test shots. The 95% range is corrected for the splits sharing shots; when it "
-             "includes 0, there is no clear difference yet."]
+             f"includes 0, there is no clear difference yet. With {len(config.COMPARISONS)} comparisons and 2 measures "
+             "each, one 'clear' verdict can come from luck alone, so a range that only just misses 0 is a strong "
+             "hint, not proof."]
     for name, row in summary.items():
-        knob, value = config.COMPARISONS[name]
-        words = VALUE_WORDS[knob][value].replace("+ ", "with ")
-        lines.append(f"- {words} ({row['n_seeds']} splits): caught {pct(row['catch_rate'])} vs "
+        lines.append(f"- {comparison_words(name)} ({row['n_seeds']} splits): caught {pct(row['catch_rate'])} vs "
                      f"{pct(row['e10_catch_rate'])}, {change_text(row, 'catch_rate')}; false alarms "
                      f"{pct(row['false_alarm_rate'])} vs {pct(row['e10_false_alarm_rate'])}, "
                      f"{change_text(row, 'false_alarm_rate')}.")
     return "\n".join(lines)
+
+
+def comparison_words(name):
+    """'with magnetic signals', 'without plasma current', ... for a config.COMPARISONS name."""
+    knob, value = config.COMPARISONS[name]
+    return VALUE_WORDS[knob][value].replace("+ ", "with ")
 
 
 def change_text(row, metric):
