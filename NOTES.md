@@ -74,9 +74,9 @@ Report run (all numbers from `results/label_report/report.md`)
 - 4 note-disrupted shots are not flagged (`review_list.csv`): 15555, 19388, 21673, 25108. All disrupt at low current or during the ramp-down (below the 0.5 floor).
 - Sensitivity: share of note-clean shots flagged is 88% / 84% / 74% / 64% for floor 0.2 / 0.35 / 0.5 / 0.65. Note-disrupted: 99% / 98% / 98% / 96%. No floor value separates the two groups.
 
-Decisions waiting for the owner
-1. ~~`LABEL_SOURCE`~~ Decided 2026-10-02 by the owner: `"both"`. A shot is disrupted only when the note says so AND the detector finds a quench; `t_disrupt` comes from the detector. On the report sample that is 171 shots. Shots where only one source says disrupted (167 detector-only, 4 note-only) count as not disrupted. Consequence to remember for Phase 3: many "clean" shots still end in a fast quench, so the end of every shot must be handled carefully when building windows.
-2. ~~`Unknown` campaign~~ Decided (2026-10-02, owner asked me to decide): left out of the temporal split, used in the random split. They cannot be placed before or after M7, so putting them on either side would blur the "later campaigns" test.
+Decisions
+1. ~~`LABEL_SOURCE`~~ Decided 2026-10-02: `"both"`. A shot is disrupted only when the note says so AND the detector finds a quench; `t_disrupt` comes from the detector. On the report sample that is 171 shots. Shots where only one source says disrupted (167 detector-only, 4 note-only) count as not disrupted. Consequence to remember for Phase 3: many "clean" shots still end in a fast quench, so the end of every shot must be handled carefully when building windows.
+2. ~~`Unknown` campaign~~ Decided (2026-10-02): left out of the temporal split, used in the random split. They cannot be placed before or after M7, so putting them on either side would blur the "later campaigns" test.
 3. ~~`zarr>=3`~~ Decided: keep `zarr>=3,<4` (it is the only version that can read the stores), plus `xarray>=2024.10` (first versions with zarr 3 support).
 
 Not done / not verified
@@ -85,7 +85,7 @@ Not done / not verified
 
 ## 2026-10-02 - Fix-up before Phase 3
 
-The owner asked me to fix the open items myself before Phase 3. What changed and why:
+The open items fixed before Phase 3. What changed and why:
 - **Note time parser.** "at 0.169delay" was read as 0 s because the regex backtracked to "at 0" (shot 22760). The number now has to be followed by a space, a unit or punctuation, and times of 0 or below are NaN. 2 new tests.
 - **Retries.** A shot that does not exist (`FileNotFoundError`, which includes zarr's `GroupNotFoundError`) is no longer retried with 2 + 4 + 8 s waits.
 - **DATA/NETWORK SURPRISE.** With the network blocked, zarr 3 does not raise an error: `xr.open_zarr` waits about 11 s and returns an EMPTY dataset (checked from the sandbox on shot 11860). So an empty group stays retryable and is reported as "empty or has no time (network blocked, or zarr<3 installed?)". Treating it as permanent would silently lose shots on a flaky connection.
@@ -136,11 +136,11 @@ Input for Phase 4 (not decided here; `shot_windows` takes `t_stop` so either opt
 - The same clean shots also keep 189 windows at or after their quench, while disrupted shots stop at `t_disrupt`. A model could learn "the quench is under way, so it's clean", which is the wrong lesson.
 - Suggestion: stop every shot's windows at the detector's quench time (`t_stop` = detector `t_disrupt` whenever a quench is found), so both classes end the same way. The 1,002 near-quench clean windows would remain; whether to keep them (honest, hard), drop them, or weight them is the main Phase 4 decision.
 
-## 2026-10-15 - Phases 4 to 7 in one go, plus the VPS runner (owner's instruction)
+## 2026-10-15 - Phases 4 to 7 in one go, plus a server runner
 
-The owner asked me to finish the whole pipeline without stopping between phases, then run it on a VPS with Telegram updates. So the "one phase at a time / STOP FOR REVIEW" rule was waived for this session at the owner's request.
+The whole pipeline was finished without stopping between phases, to run on a server with Telegram updates; the "one phase at a time / STOP FOR REVIEW" rule was waived for this.
 
-Network: this sandbox still cannot reach `mastapp.site`, `s3.echo.stfc.ac.uk` or `api.telegram.org` (connection reset), and the 801-shot local copy from earlier sessions is gone (fresh container, data is never committed). **So every piece of code below is tested only on synthetic shots. No real-data model result exists yet.** The first real numbers will come from `scripts/run_all.py` on the VPS.
+Network: this sandbox still cannot reach `mastapp.site`, `s3.echo.stfc.ac.uk` or `api.telegram.org` (connection reset), and the 801-shot local copy from earlier sessions is gone (fresh container, data is never committed). **So every piece of code below is tested only on synthetic shots. No real-data model result exists yet.** The first real numbers will come from `scripts/run_all.py` on the research server.
 
 Cleanups from the code review
 - `detect_disruption` takes an optional `min_frac_of_peak`, so `label_report.sensitivity()` no longer changes `config` while it runs.
@@ -149,7 +149,7 @@ Cleanups from the code review
 - `data._log_skipped` is now `data.log_skipped`, because `dataset.py` logs unknown and window-less shots there too.
 - Known small inconsistency, left as is on purpose: the detector finds the plasma start on the median-filtered |Ip|, `features.find_t_start` on the raw |Ip|. They can differ by one sample. Changing the detector would change the Phase 2 labels, and the detector's `t_start` is only used to skip the breakdown when searching for a quench.
 
-Phase 4 decision (owner said "leave everything", so I took my recommendation from the Phase 3 notes)
+Phase 4 decision (the recommendation from the Phase 3 notes)
 - `STOP_AT_QUENCH = True`: every shot's windows end at the detector's quench, disrupted or clean. Before, clean shots kept windows during their own quench while disrupted shots stopped, which would teach "quench under way = clean".
 - `NEAR_QUENCH_CLEAN = "keep"`: clean windows in the 30 ms before an unnoted quench stay in training as label 0. Honest and hard. Setting it to `"drop"` removes them from training only; evaluation always keeps every window, otherwise we would hide exactly the cases that cause false alarms.
 - Shot pool: every note-disrupted shot (under "both" a disruption needs a note) plus 1.5x the needed clean shots at random, then label, then sample `N_DISRUPTED` / `N_CLEAN`. `--scale full` takes every disruption and `FULL_N_CLEAN = 3000` clean shots (SPEC 8.1).
@@ -183,9 +183,9 @@ Built (tested on synthetic shots only; no real-data numbers yet):
 - **A1 PU learning (E9).** Elkan & Noto (2008). Assumes noted disruptions are a random sample of all disruptions (SCAR); operators probably noted the obvious ones more often, so c may be biased high. Weights use 5-fold out-of-fold scores grouped by shot, because in-sample scores of a boosted model are over-confident. Fixed HGB settings (`PU_PARAMS`) for both standard and PU models, so the only difference is the labels. Evaluated on all test shots and on unambiguous ones (disrupted, or no quench at all).
 - Synthetic rehearsal: E8 and E9 run. At alpha = 0.01 the 19 calibration clean shots were too few and the method correctly refused to alarm. In the fake data the unnoted quenches have no radiation precursor, and PU gave them a mean weight of 0.007, which is the expected answer for that data.
 
-## 2026-10-15 - VPS failure, real-data access, termination study, research server
+## 2026-10-15 - Real-data access, termination study, research server
 
-VPS run of commit 4f703f1 (owner's report): 99 tests passed, then `build dataset` failed: `ConnectionTimeoutError` to `s3.echo.stfc.ac.uk` while opening shot 11860. GitHub Actions and (today) this sandbox reach that host, so it looks specific to that server's network path. Not diagnosed yet: `scripts/diagnose_network.py` (new) tests DNS, TCP to each of the host's 4 IPv4 addresses (no IPv6 records), HTTPS and zarr, and says what to do. The build now retries the connection 4 times (`CONNECTION_CHECK_ATTEMPTS`) instead of once.
+Some servers cannot reach `s3.echo.stfc.ac.uk` (`ConnectionTimeoutError` while opening shot 11860) although GitHub Actions and (today) this sandbox reach it, so it depends on the server's network path. `scripts/diagnose_network.py` (new) tests DNS, TCP to each of the host's 4 IPv4 addresses (no IPv6 records), HTTPS and zarr, and says what to do. The build now retries the connection 4 times (`CONNECTION_CHECK_ATTEMPTS`) instead of once.
 
 Data servers today (2026-10-15, from this sandbox)
 - `s3.echo.stfc.ac.uk`: reachable for the first time from this sandbox; shot 11860 reads (385 samples).
@@ -202,13 +202,13 @@ Termination study (`scripts/termination_study.py`, real data, `results/terminati
 - Solenoid current at the quench is more negative for unnoted quenches (median -37.0 vs -33.6 kA), i.e. closer to the end of the swing, consistent with flux exhaustion as part of the story. Weak effect: AUC 0.596, permutation p = 0.0022 (10,000 shuffles); per campaign 0.53 (M5) to 0.69 (M9). The most negative solenoid current seen is -66.5 kA, so the hardware limit is not simply where the unnoted quenches sit.
 - Caveats: the 400-shot sample over-represents noted disruptions; quench times come from our detector; the solenoid limit per campaign is unknown.
 
-Infrastructure (owner's request: public code, private runs, run forever)
-- `MAST_HOME` (from the git-ignored `.env`) decides where data, results, models and logs go. On the VPS it is `~/mast-private`; unset, nothing changes.
+Infrastructure (public code, private runs, run forever)
+- `MAST_HOME` (from the git-ignored `.env`) decides where data, results, models and logs go. `deploy/setup_vps.sh` sets it to `~/mast-private`; unset, nothing changes.
 - `scripts/research_server.py` replaces the nightly cron job and `deploy/run_pipeline.sh` (removed). Judgement calls: pull at most every 10 min; a failed commit is retried every 6 h; seeds are idle work and do not need the network; a lock file prevents two copies (systemd and screen); Telegram commands only from `TELEGRAM_CHAT_ID`, fixed actions only, `/predict` accepts digits only.
-- Trained models are saved with pickle (`src/registry.py`). Pickle can run code from a file, so only the owner's own models should be loaded.
+- Trained models are saved with pickle (`src/registry.py`). Pickle can run code from a file, so only your own models should be loaded.
 
 First full real-data run (2026-10-15, this sandbox, private workspace)
-- `build_dataset.py --from-report` + `run_all.py --skip-build` on the 400 report shots: 400 downloaded from S3, 398 with windows (25424, 25470 have none, as before), 171 disrupted / 227 clean, 26,169 windows. E0-E9 ran with 0 failed steps. Following the owner's wish that training results stay private, the model numbers are not committed; they were reported to the owner directly. What they mean for the plan:
+- `build_dataset.py --from-report` + `run_all.py --skip-build` on the 400 report shots: 400 downloaded from S3, 398 with windows (25424, 25470 have none, as before), 171 disrupted / 227 clean, 26,169 windows. E0-E9 ran with 0 failed steps. Training results stay private, so the model numbers are not committed. What they mean for the plan:
 - Under `LABEL_SOURCE = "both"` no model catches more than a few percent of disruptions at <= 5% false alarms. Expected from the label problem: most clean shots in this sample end in an unnoted quench that looks like a disruption.
 - With "signal" labels (any quench is a disruption) the catch rate at <= 5% false alarms is also near zero (validation, E7), although window PR-AUC is higher. So with only the 4 global signals, the 30 ms before most MAST quenches are hard to tell from normal flat-top. This moves ROADMAP D1 (saddle-coil locked-mode and Mirnov signals) to the top.
 - The most important feature in gradient boosting is `t_since_start`. Possible shortcut (typical shot length rather than physics); an ablation without it is needed.
@@ -218,18 +218,18 @@ First full real-data run (2026-10-15, this sandbox, private workspace)
 
 ## 2026-10-15 - Research server cannot reach the data servers; GitHub data relay
 
-- From the research server, every request to `s3.echo.stfc.ac.uk` and `mastapp.site` timed out with no TCP answer, while GitHub's runners and this sandbox reached both; the network diagnosis showed the packets are dropped before the data servers, so it is a network-path restriction, not our code. We do not try to get around it (no proxies, no tricks): the data comes through GitHub instead.
-- Fix chosen by the owner: a GitHub data relay. GitHub's runners can reach STFC (CI read shot 11860 today). `fetch_data.yml` runs `scripts/relay_fetch.py` and uploads `data/` as a one-day artifact; `src/relay.py` on the server starts the job, waits, downloads and unpacks it; `run_all.py --offline` then trains without touching the network. The data is public (CC BY-SA), nothing is committed, and trained models and results stay on the server. Long-term, a server on an IP range STFC accepts is still better for the multi-GB magnetics data (ROADMAP D1), though the relay could also reduce such signals before sending them.
+- From some servers, every request to `s3.echo.stfc.ac.uk` and `mastapp.site` timed out with no TCP answer, while GitHub's runners and this sandbox reached both; the network diagnosis showed the packets are dropped before the data servers, so it is a network-path restriction, not our code. We do not try to get around it (no proxies, no tricks): the data comes through GitHub instead.
+- Fix: a GitHub data relay. GitHub's runners can reach STFC (CI read shot 11860 today). `fetch_data.yml` runs `scripts/relay_fetch.py` and uploads `data/` as a one-day artifact; `src/relay.py` on the server starts the job, waits, downloads and unpacks it; `run_all.py --offline` then trains without touching the network. The data is public (CC BY-SA), nothing is committed, and trained models and results stay on the server. Long-term, a server on an IP range STFC accepts is still better for the multi-GB magnetics data (ROADMAP D1), though the relay could also reduce such signals before sending them.
 - Rehearsed here: `relay_fetch.py --scale full` with mastapp.site down fell back to the 400 report shots and downloaded all 400 (7.9 MB, so ~20 KB per shot and roughly 80 MB for a full run). Unpacked into a fresh workspace and built with `--offline --from-report` while the data URL pointed to an unreachable host: 398 shots, 26,169 windows, identical to the direct build.
 - Private settings moved to `~/mast-private/.env` (config reads it as well as a repo `.env`), so deleting the code folder loses nothing. `setup_vps.sh` copies an old repo `.env` there (keeping a backup) and asks for the optional GitHub token. The token is read from the environment only when used and is filtered out of `config_snapshot`, so it never lands in result files or the results zip sent to Telegram.
 
 ## 2026-10-15 - Magnetics (D1), watchers, gold tool, literature check
 
-VPS status (owner's report): the research server started on commit 41b9565 in /root/mast-private; the network diagnosis confirms the data servers do not answer from that server, so it works through the GitHub relay. `data.host_reachable` (10 s TCP check) now makes a blocked host fail in seconds; before, the zarr and pandas clients could take minutes per check.
+`data.host_reachable` (10 s TCP check) now makes a blocked host fail in seconds; before, the zarr and pandas clients could take minutes per check.
 
 Magnetics data facts (inspected on shots 11860 (M5), 20259 (M7) and 27000 (M8); nothing below is assumed without a check unless marked)
 - `magnetics/b_field_tor_probe_saddle_field`: 12 channels named M01..M012 (voltage channels M01..M12), units T, UDA `ASM/SAD/OUT`, time base `time_saddle` with a 20 us step (50 kHz).
-- Geometry: three rows of 12 saddle coils (lower, middle, upper; `sad_out_l01`.. etc.), all at R = 1.999 m; the middle row spans z = -0.4..0.4 m, each coil covers 20 degrees, centres at 15, 45, ..., 345 degrees. ASSUMPTION (name match only, not confirmed by documentation): measured channel M0k is middle-row coil k. Ask the FAIR-MAST team to confirm.
+- Geometry: three rows of 12 saddle coils (lower, middle, upper; `sad_out_l01`.. etc.), all at R = 1.999 m; the middle row spans z = -0.4..0.4 m, each coil covers 20 degrees, centres at 15, 45, ..., 345 degrees. ASSUMPTION (name match only, not confirmed by documentation): measured channel M0k is middle-row coil k. Not confirmed.
 - The saddle data is stored only while the plasma exists: NaN before about +2 ms (20259: from 0.0026 s; 27000: from 0.0022 s) and after the plasma ends. So there is no pre-plasma baseline; each coil's offset is its mean over its first 5 ms (`EXTRAS_BASELINE_MS`), and lm_n1 stays NaN until then.
 - Channel M09 is entirely NaN in 20259 and 27000 (dead coil). The n=1 fit skips NaN coils and needs at least 6 (`MIN_SADDLE_CHANNELS`).
 - Centre-column Mirnov coils: 5 poloidal (201, 210, 220, 230, 240) and 3 toroidal (201, 206, 212), units T, 2 us step (500 kHz). In 20259 the first poloidal coil is all NaN; the code takes the first coil with data. Fluctuation RMS is of order 0.02-0.3 uT in flat-top.
@@ -240,7 +240,7 @@ Watchers
 - The S3 listing returns about 700 folders per page and marks the rest as truncated, so pages are followed by continuation token (a count-based stop first gave 701 instead of 11,573). Full count: 11,573 shot stores, exactly the number of rows in the shot table. `level2/` holds defuse/, netcdf/ and shots/. DEFUSE sample file: 403. Shot table: no answer from this sandbox.
 - arXiv API (export.arxiv.org) works; the first check found 40 matching papers; a second check found 0 new (ids without version suffix, so new versions are not new papers).
 
-Real-data results on the 400-shot report sample (private runs; numbers reported to the owner, not committed)
+Real-data results on the 400-shot report sample (private runs; numbers not committed)
 - E11 (validation): removing `t_since_start` cuts the HGB catch rate and PR-AUC clearly. Part of the small v1 skill comes from time since start (shot length), not physics. Every model claim must now be checked with and without it.
 - E12 (validation, current-only labels as in the UKAEA benchmark): window PR-AUC rises with horizon, partly because the positive share rises; compare against each horizon's base rate. Shot-level catch at <= 5% false alarms stays near zero.
 
@@ -248,40 +248,38 @@ Literature check (docs/literature_review.md) corrected two of our earlier "possi
 
 Gold tool design: blind plots (measured and programmed current, radiated power, solenoid current; no note, no detector time). Seeded queue: 35 unnoted quenches, 30 noted quenches, 30 without a quench, 5 noted without a quench. Answers d / n / u stored in MAST_HOME/gold/labels.csv; a later answer for the same shot replaces the earlier one in the evaluation.
 
-E13 on the 400-shot sample (2026-10-15, private run; numbers given to the owner)
+E13 on the 400-shot sample (2026-10-15, private run; numbers not committed)
 - Extras computed for all 398 shots on real data in ~16 min (0 failures). Coverage over windows: lm_n1 92%, Mirnov 94%, solenoid 100%, ip_ref_error 99.6%.
 - Validation result: adding the magnetics did not raise the catch rate with time-since-start present; without time-since-start, the magnetics set did better than v1 without it (E11). With 34 disrupted validation shots, one shot is ~3 percentage points, so every difference here is within a few shots: not significant.
 - Reading: (1) lm_n1 still contains vacuum pickup from the PF coils, so it is mostly noise for now; (2) 19 more features on 238 training shots invites overfitting; (3) the "both" labels still call most quenches clean, which caps every model. Next: vacuum-pickup subtraction for the saddle coils, normalised physics features (e.g. lm_n1 relative to its flat-top level, log Mirnov RMS), the seed sweep with extended features for error bars, and the full dataset once mastapp.site is back.
 
 ## 2026-10-16 - Relay refused by GitHub (403), not a data-server problem
 
-VPS report: the first data-source check failed with `403 Forbidden` on `POST /repos/fazil-mastu/mastu/actions/workflows/fetch_data.yml/dispatches`. That request goes to GitHub, not to STFC or mastapp.site, so the mastapp.site outage plays no part. A 403 (not 401) means GitHub accepted the token as valid but refused this action: the fine-grained token needs repository access to `mastu` and the repository permission "Actions: Read and write". The account is a personal one, so no organisation token-approval policy is involved. The same refusal blocks the relay fetch, so the server cannot run the pipeline until the token is fixed; it retries the data-source check after 24 h, or at once on `/sources`.
+A relay data-source check can fail with `403 Forbidden` on `POST /repos/<owner>/<repo>/actions/workflows/fetch_data.yml/dispatches`. That request goes to GitHub, not to STFC or mastapp.site. A 403 (not 401) means GitHub accepted the token as valid but refused this action: the fine-grained token needs access to the repository and the repository permission "Actions: Read and write". The same refusal blocks the relay fetch, so the server cannot run the pipeline until the token is fixed; it retries the data-source check after 24 h, or at once on `/sources`.
 
 `relay.check(response)` now replaces `raise_for_status()` for GitHub API calls: the Telegram message carries GitHub's own message, the permission GitHub names in `X-Accepted-GitHub-Permissions`, and what to change.
 
-The relay workflow had never run before; a first `probe` run was started from this session (run 38858508318) to check the GitHub side independently of the VPS token.
-
-Result of that first relay run (probe, 2026-10-16 05:57-06:02 UTC, success): from GitHub's machine the S3 bucket answers (11,573 shot stores; level2 holds defuse/, netcdf/, shots/), the shot table gave no answer (status 0, so mastapp.site is down from GitHub as well, not only from the sandbox and the VPS), DEFUSE still 403. Install + probe took about 5 minutes, about 4 of them waiting on mastapp.site. So the GitHub side of the relay works; only the VPS token's permission stands in the way.
+Result of the first relay run (probe, 2026-10-16, success): from GitHub's machine the S3 bucket answers (11,573 shot stores; level2 holds defuse/, netcdf/, shots/), the shot table gave no answer (status 0, so mastapp.site is down from GitHub as well), DEFUSE still 403. Install + probe took about 5 minutes, about 4 of them waiting on mastapp.site. So the GitHub side of the relay works.
 
 ## 2026-10-16 - Resume, plain-English results, status picture, and the saddle-coil pickup test
 
-First full run on the VPS (via the GitHub relay, 400 report shots) and the E10 seed sweep (43 seeds so far, owner's Telegram): averaged over random splits, the v1 model (4 global signals) catches about as many disruptions in time as it raises false alarms on normal shots, i.e. it is not better than an alarm that fires at random as often. The mean false-alarm rate over seeds is also above the 5% the threshold was tuned for on validation shots: with ~46 clean validation shots, the threshold chosen to just meet 5% does not hold on new shots. (Numbers stay private; this is the qualitative reading.)
+First full run on the research server (via the GitHub relay, 400 report shots) and the E10 seed sweep (43 seeds so far): averaged over random splits, the v1 model (4 global signals) catches about as many disruptions in time as it raises false alarms on normal shots, i.e. it is not better than an alarm that fires at random as often. The mean false-alarm rate over seeds is also above the 5% the threshold was tuned for on validation shots: with ~46 clean validation shots, the threshold chosen to just meet 5% does not hold on new shots. (Numbers stay private; this is the qualitative reading.)
 
-Reproducibility: a full run in this sandbox on the same 400 shots gave the same E0-E2 test numbers as the VPS, but E3 (gradient boosting) differed by one false-alarm shot. Library versions differ between the two machines (requirements are not pinned); exact reproducibility needs pinned versions. To do before any paper number.
+Reproducibility: a full run in this sandbox on the same 400 shots gave the same E0-E2 test numbers as the research server, but E3 (gradient boosting) differed by one false-alarm shot. Library versions differ between the two machines (requirements are not pinned); exact reproducibility needs pinned versions. To do before any paper number.
 
 False-alarm breakdown (new, `evaluate.false_alarms_by_ending`): on the test shots of that sandbox run, 34 of the 46 'normal' test shots end in a fast current quench that no note calls a disruption; the false alarms of E0-E3 fall mostly on those shots, and in E9 the usual model's false alarms disappear when the unnoted quenches are left out. The PU step (E9) also rates the windows just before unnoted quenches as clearly more disruption-like than other unlabelled windows. Too few shots to call any of it significant; the seed sweep should pool the false-alarm counts by ending next.
 
 Design decisions
 - Resume (`src/resume.py`): a result is reused only if a fingerprint of the science code, the science settings in config.py and the input data matches. Config is stamped by value (not file text), and server / Telegram / path settings are excluded, so comment edits and server changes never retrain. Even a comment change in a science module reruns once, by design: a reused number must come from exactly the code in the repo.
 - A killed server can leave its job running; the next server stops it (checked against /proc so an unrelated reused pid is never touched). Finished experiments are kept, so only the unfinished one reruns.
-- Telegram: at the owner's request, only a status picture (training progress, what the model can do on average over the seed sweep against a random alarm, signals it relies on from E5, what is needed), failures and events that need action. Everything else goes to LOGS_DIR/messages.log and results/REPORT.md (/report).
-- The picture's "better than guessing" verdict: mean over seeds of (catch rate - false-alarm rate), better only if it stays above zero by two standard errors. Seeds share shots, so this is approximate; it is a summary for the owner, not a paper statistic.
+- Telegram: only a status picture (training progress, what the model can do on average over the seed sweep against a random alarm, signals it relies on from E5, what is needed), failures and events that need action. Everything else goes to LOGS_DIR/messages.log and results/REPORT.md (/report).
+- The picture's "better than guessing" verdict: mean over seeds of (catch rate - false-alarm rate), better only if it stays above zero by two standard errors. Seeds share shots, so this is approximate; it is a summary for the phone, not a paper statistic.
 
 Saddle-coil pickup (ROADMAP D1 next step), tested on real data and NOT adopted
-- `magnetics/b_field_tor_probe_saddle_voltage` (UDA `XMB/SAD/OUT`, V) is stored over the whole time base (from -0.1 s), unlike the field `ASM/SAD/OUT` (plasma time only). In shots 20259 and 27000 the field's channel M09 is all NaN while the voltage's M10-M12 are all NaN, and no field channel equals the same-numbered integrated voltage times a constant (R^2 0.02-0.54; best-matching voltage channel varies). So the field is not a simple integral of the same-numbered voltage; how ASM/SAD/OUT is made (possibly already compensated) is unknown. Ask the FAIR-MAST team.
+- `magnetics/b_field_tor_probe_saddle_voltage` (UDA `XMB/SAD/OUT`, V) is stored over the whole time base (from -0.1 s), unlike the field `ASM/SAD/OUT` (plasma time only). In shots 20259 and 27000 the field's channel M09 is all NaN while the voltage's M10-M12 are all NaN, and no field channel equals the same-numbered integrated voltage times a constant (R^2 0.02-0.54; best-matching voltage channel varies). So the field is not a simple integral of the same-numbered voltage; how ASM/SAD/OUT is made (possibly already compensated) is unknown.
 - 13 PF coil currents (`pf_active/coil_current`, 20 kHz) explain 62-98% of each field channel's variation in those two shots, which first suggested pickup.
 - Test: n=1 cos/sin components of the field (as in lm_n1) regressed on PF current changes, pooled over 89 calibration shots outside the dataset (5 campaigns; 61 of 150 random shot numbers had no usable data), checked on held-out shots in the first 80% of the flat-top. Median quiet-period n=1 amplitude: 1.44 G raw, 3.84 G after subtraction (worse in 70% of held-out shots); even in-sample the pooled fit made the median worse (3.62 G). Per-campaign fits helped in M6 and M8 and hurt in M5, M7, M9. Only a per-shot fit removes it (0.22 G), and that would also absorb real plasma n=1.
-- Reading: the coupling is not a fixed hardware constant across shots (or the signal is already compensated and the rest is plasma response or channel-set changes). A fixed linear pickup subtraction would add error, so lm_n1 stays as it was. Next for the magnetics: features that use change rather than level, and the question to the FAIR-MAST team. Scripts for this test lived in the session scratchpad; the method is described here in full.
+- Reading: the coupling is not a fixed hardware constant across shots (or the signal is already compensated and the rest is plasma response or channel-set changes). A fixed linear pickup subtraction would add error, so lm_n1 stays as it was. Next for the magnetics: features that use change rather than level, and how ASM/SAD/OUT is made. Scripts for this test lived in the session scratchpad; the method is described here in full.
 
 ## 2026-10-24 - The shot table is in the public S3 bucket, so mastapp.site is no longer needed
 
@@ -292,7 +290,7 @@ Verified facts
 - All 400 report shots are in it; campaign agrees for 400 of 400 and the first 80 characters of the operator comment agree for 400 of 400 (the report stored comments cut at 90 characters).
 - So it is treated as the same table as `mastapp.site/parquet/level2/shots`. `data.load_shot_table` now tries mastapp.site, then this copy (`config.SHOT_TABLE_MIRROR_URL`). `scripts/check_live.py` passed with it on the real servers while mastapp.site was down.
 - With this table, a full-scale fetch selects 5,355 shots (all 855 note-disrupted shots plus a pool of 4,500 note-clean ones); small scale selects from 1,305 candidates.
-- `tokamark/v1/` holds per-shot Zarr v2 stores (e.g. `11766.zarr`) with groups equilibrium, gas_injection, interferometer, magnetics, pf_active, pulse_schedule, spectrometer_visible, summary. No documentation found; what it is for (a benchmark subset?) is not known. Note: shot 11766 (M5) has an `equilibrium` group there, while the level-2 store of 11860 (M5) has none (ROADMAP D2). Ask the FAIR-MAST team.
+- `tokamark/v1/` holds per-shot Zarr v2 stores (e.g. `11766.zarr`) with groups equilibrium, gas_injection, interferometer, magnetics, pf_active, pulse_schedule, spectrometer_visible, summary. No documentation found; what it is for (a benchmark subset?) is not known. Note: shot 11766 (M5) has an `equilibrium` group there, while the level-2 store of 11860 (M5) has none (ROADMAP D2).
 
 Decisions
 - The relay uses 16 parallel downloads (`RELAY_WORKERS`) on GitHub's machine: at the 8 used elsewhere, 5,355 shots would take an estimated ~4 h (from 400 shots + extras in ~18 min) of GitHub's 6 h job limit.
@@ -300,9 +298,9 @@ Decisions
 
 ## 2026-10-25 - Automatic termination labels replace hand labelling
 
-Full-data run on the VPS (owner's Telegram pictures, 3,804 shots after selection): averaged over the first 30 repeat runs, the v1 model now catches somewhat more disruptions in time than an alarm that fires at random as often, and the average false-alarm rate sits at the 5% limit (with 400 shots it was above). The single E3 test split was well below the average, which is why the seed sweep matters. (Numbers stay private; qualitative reading only.)
+Full-data run (3,804 shots after selection): averaged over the first 30 repeat runs, the v1 model now catches somewhat more disruptions in time than an alarm that fires at random as often, and the average false-alarm rate sits at the 5% limit (with 400 shots it was above). The single E3 test split was well below the average, which is why the seed sweep matters. (Numbers stay private; qualitative reading only.)
 
-Hand labels: the first two blind labels (by a non-expert) were 27034 'disruption' and 11826 'normal end'. By the operator note and the physics below it is the other way round in both cases (11826: noted 'DISRUPTS AT 300MS (FA TRIP)', lost during flat-top with the solenoid still sweeping; 27034: no note, solenoid stopped at about -44 kA and the current was already decaying, i.e. flux exhaustion). Reading MAST shots is not a beginner's task, so at the owner's request the gold set is left for an expert and labels are made automatically instead.
+Hand labels: two trial shots show why blind labelling needs an expert: 27034 and 11826 are easy to read the wrong way round. By the operator note and the physics below 11826 is a disruption and 27034 a normal end (11826: noted 'DISRUPTS AT 300MS (FA TRIP)', lost during flat-top with the solenoid still sweeping; 27034: no note, solenoid stopped at about -44 kA and the current was already decaying, i.e. flux exhaustion). Reading MAST shots is not a beginner's task, so the gold set is left for an expert and labels are made automatically instead.
 
 Automatic termination labels (`scripts/auto_labels.py`), checked on the 398 shots of the 400-shot report sample (cached extras)
 - At the detector's quench, the programmed current was still at >= 99% of its maximum in 92% of the 337 quenches with signals (>= 80% in 95%), noted or not (as in the termination study), so the programme alone cannot separate endings; only 17 quenches came during a programmed ramp-down.
@@ -314,7 +312,7 @@ Speed check (2026-10-25, 400 report shots, 4 cores): one E10 repeat run took 33 
 
 ## 2026-10-25 - Measured CPU use: one job keeps one core busy; jobs now run side by side, plus repeat-run comparisons
 
-The owner's server has 2 cores and should use them fully. Measured on the 400 report shots, pinned to 2 cores (`taskset -c 0,1`):
+A server should use every core. Measured on the 400 report shots, pinned to 2 cores (`taskset -c 0,1`):
 - One E10 repeat run: 34.0 s wall time, 34.4 s CPU time, so 1.0 of 2 cores in use. The earlier "every core is used" came from the settings, not a measurement.
 - Gradient boosting on these training windows took 3.5-4.1 s per fit with 2 OpenMP threads and 2.9-3.4 s with 1 thread: at this size the threads cost more than they give.
 - Two repeat runs one after another (2 threads each): 52 s. Side by side (1 thread each): 22 s, i.e. 2.4 times faster.
@@ -327,7 +325,7 @@ Repeat-run comparisons (`scripts/repeat_runs.py`): E5, E11 and E13 compare featu
 
 ## 2026-10-25 - Full data: the automatic labels hold up; the "better than guessing" verdict was too optimistic
 
-From the owner's `/report` files (results zip, private workspace; model numbers stay qualitative here).
+From the full-data run (private workspace; model numbers stay qualitative here).
 
 Automatic termination labels on all 3,804 shots used (`scripts/auto_labels.py`, cached extras):
 - 1,755 lost during flat-top with flux left, 1,079 after the solenoid ran out of flux, 144 during a programmed ramp-down, 715 smooth (no fast quench), 111 unknown (signals missing).
@@ -338,11 +336,9 @@ Automatic termination labels on all 3,804 shots used (`scripts/auto_labels.py`, 
 
 E10 over 43 seeds (full data): on average the model catches a little more than the false-alarm rate, but the 95% range of the difference, corrected for the splits sharing shots (Nadeau-Bengio, as in the comparisons), includes zero. The status picture used a plain standard error (2 SE), which ignores that overlap and showed "better than guessing". Fixed: `status_card.skill` now uses the same corrected test (`src/stats.py`, moved out of `scripts/repeat_runs.py` so both share it and changing it never touches a stamp) and needs at least 5 runs. The README now says "not clearly more than a random alarm". The plain-SE verdict in the 2026-10-25 entry above ("somewhat more ... than an alarm that fires at random") is withdrawn.
 
-Timing: on the owner's 2-core VPS one full-data repeat run took 19 minutes (median gap between E10 seeds, one at a time).
-
 ## 2026-10-25 - The termination labels under scrutiny: statistics, replication, sampling, independent evidence
 
-Questions from an outside reader (the owner forwarded them) asked for exact numerators, intervals, tests, the sampling design, independent evidence and the literature. Everything below is reproducible with `scripts/label_statistics.py` and `scripts/termination_evidence.py`; the label numbers are data facts, model numbers stay private.
+This entry gives exact numerators, intervals, tests, the sampling design, independent evidence and the literature. Everything below is reproducible with `scripts/label_statistics.py` and `scripts/termination_evidence.py`; the label numbers are data facts, model numbers stay private.
 
 Statistics (`label_statistics.py` on the full-data `auto_labels/per_shot.csv`):
 - Noted shots lost during flat-top with flux left: 623/847 = 73.6% (Wilson 95% 70.5-76.4%; 79.8% of the 781 with all signals). Un-noted: 1,132/2,957 = 38.3% (36.5-40.0%; 38.9% of 2,912).
@@ -355,17 +351,17 @@ Independent evidence (`termination_evidence.py` on the 400-shot cache: 134 recor
 - Current fall 90%->10% of peak, median: 4 / 4 / 21 ms; within 10 ms: 93% / 82% / 45%.
 - Neutron rate in the last 10 ms over its flat-top median: 0.81 / 0.52 / 0.15 (AUC candidate > flux-exhausted 0.67).
 - Radiated power, Mirnov level, saddle-coil n=1 amplitude and the current spike do not separate even the recorded disruptions from flux-exhausted endings (AUCs 0.52-0.56), so they cannot check the candidates.
-- Reading: the candidates look like disruptions in current-fall time and sit in between in heating at the end: probably a mixture. The fall time is only partly independent (a current already decaying before the quench, as after flux exhaustion, lengthens it). No expert has inspected any candidate; only two shots were looked at in detail, by a non-expert (2026-10-25 entry above). Full-data run below.
+- Reading: the candidates look like disruptions in current-fall time and sit in between in heating at the end: probably a mixture. The fall time is only partly independent (a current already decaying before the quench, as after flux exhaustion, lengthens it). No expert has inspected any candidate. Full-data run below.
 
 Corrections:
 - E9's "share of disruption-like moments that carry a label" (56.7% on the full data) must not be quoted. It is a window-level Elkan-Noto c from a gradient-boosting model trained with balanced class weights, whose scores are not calibrated probabilities as the method requires, and it assumes noted disruptions are a random sample of all disruptions. Fix the calibration when E9 is next changed (a science change, so after the repeat-run comparisons finish).
 - The classes say when the plasma was lost, not whether it disrupted. DECAF on MAST (Berkery et al.) counts ramp-down disruptions as disruptions and finds MAST especially disruptive above the Greenwald limit in the ramp-down, so "programmed ramp-down" and "flux exhausted" quenches are not shown to be harmless.
 
-Literature: targeted search done (docs/literature_review.md, 2026-10-25); nothing found on solenoid-flux-based separation of MAST endings or on auditing MAST operator notes, with DECAF-MAST as the closest work. The FAIR-MAST team has been asked for a blind expert check of about 30 shots or a MAST disruption list to compare with.
+Literature: targeted search done (docs/literature_review.md, 2026-10-25); nothing found on solenoid-flux-based separation of MAST endings or on auditing MAST operator notes, with DECAF-MAST as the closest work. Still needed: a blind expert check, or a MAST disruption list to compare with.
 
 ## 2026-10-25 - Independent evidence on the full data: the candidates look like disruptions at the quench
 
-`scripts/termination_evidence.py` on the owner's server, all shots of the three groups with cached signals (2,721: 623 recorded flat-top disruptions, 1,132 un-noted flat-top drops = the candidates, 966 un-noted flux-exhausted endings). Medians recorded / candidate / flux-exhausted, and AUCs against the flux-exhausted group:
+`scripts/termination_evidence.py` on all shots of the three groups with cached signals (2,721: 623 recorded flat-top disruptions, 1,132 un-noted flat-top drops = the candidates, 966 un-noted flux-exhausted endings). Medians recorded / candidate / flux-exhausted, and AUCs against the flux-exhausted group:
 - Current fall 90%->10% of peak: 4 / 4 / 19 ms; within 10 ms: 95% / 91% / 44% (AUC recorded > flux-exhausted 0.22, candidate 0.25, i.e. both much faster).
 - Current spike just before the quench (the thermal-quench signature): 1.9% / 2.4% / 0.2% (AUC 0.59 for both recorded and candidates).
 - Neutron rate in the last 10 ms over its flat-top median: 0.83 / 0.56 / 0.16 (AUC 0.79 recorded, 0.68 candidates).
@@ -373,9 +369,9 @@ Literature: targeted search done (docs/literature_review.md, 2026-10-25); nothin
 
 Compared with the 400-shot sample (82% of candidates falling within 10 ms), the full data puts the candidates closer to the recorded disruptions on both quench signatures, while their heating at the end stays in between. Reading: most candidates look like disruptions at the quench; the lower neutron rate says the heating was more often already ramping down than in recorded disruptions, so some may be endings operators did not regard as disruptions. Still no expert check; the fall time is only partly independent of the solenoid rule.
 
-## 2026-10-27 - UKAEA: mastapp.site is retired, the bucket table is official; TokaMark dataset
+## 2026-10-27 - mastapp.site is retired, the bucket table is official; TokaMark dataset
 
-Answer from the FAIR-MAST team (Nathan Cummings, UKAEA) on the owner's GitHub issue in ukaea/fair-mast: the API at mastapp.site is down and will not be supported; a new service will come at a different domain in the coming months. `s3://mast/fairmast-meta/l2_shots.parquet` is the same table as `/parquet/level2/shots`, and the documentation (now https://ukaea.github.io/fair-mast, rebuilt without the API on 2026-10-26) gives it as the way to get the metadata. `s3://mast/tokamark/v1/` is the TokaMark benchmark dataset, built from FAIR-MAST (github.com/UKAEA-IBM-STFC-Fusion-FMs/tokamark).
+The API at mastapp.site is retired. `s3://mast/fairmast-meta/l2_shots.parquet` is the same table as `/parquet/level2/shots` (checked on 400 shots, 2026-10-24), and the documentation (now https://ukaea.github.io/fair-mast, rebuilt without the API on 2026-10-26) gives it as the way to get the metadata. `s3://mast/tokamark/v1/` is the TokaMark benchmark dataset, built from FAIR-MAST (github.com/UKAEA-IBM-STFC-Fusion-FMs/tokamark).
 
 From the new documentation and code:
 - Signals are unchanged: level-2 Zarr stores at `https://s3.echo.stfc.ac.uk/mast/level2/shots/<shot_id>.zarr` (Zarr v3), the same paths and names we read. The renamed columns in the shot table (cpf_* -> plasma_*, generic_*, thomson_*) are ones we do not use; we read shot_id, campaign and shot_postshot_comment.
@@ -387,7 +383,7 @@ What changed here without touching any stamp: the source watcher probes only the
 
 ## 2026-10-28 - Interim repeat-run comparisons: magnetics help; two single-split claims not confirmed
 
-After 199 of 350 comparison runs (27-29 splits per comparison, each paired with the E10 run of the same split; owner's `repeat_runs.py --summary`; numbers stay private, qualitative here):
+After 199 of 350 comparison runs (27-29 splits per comparison, each paired with the E10 run of the same split; `repeat_runs.py --summary`; numbers stay private, qualitative here):
 - **With magnetic signals:** catches clearly more disruptions in time (the corrected 95% range of the change is above 0), with no clear change in false alarms. With magnetics and without time since start the gain is about the same size, its range just touching 0. The first evidence in this project of better genuine pre-disruption prediction, and it does not come from the time shortcut.
 - **Without plasma current:** clearly fewer caught. **Without radiated power, neutron rate or beam power:** no clear difference. So the E5 single-split reading (radiated power matters most) is not confirmed; README and GUIDE corrected.
 - **Without time since start:** no clear difference. So the E11 single-split reading (part of the skill was a shortcut through shot duration) is not confirmed; README and GUIDE corrected.
