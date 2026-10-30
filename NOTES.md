@@ -394,3 +394,12 @@ Two cautions, now in every comparison message:
 
 The status picture now shows these comparisons (bar = average change in disruptions caught, line = corrected 95% range, coloured only when clear) instead of the single-split E5 bars, which it keeps only until the comparisons have ranges.
 
+
+## 2026-10-30 - Repeat-run comparisons finished (50 splits each)
+
+All 350 comparison runs are done (`repeat_runs.py --summary`; numbers private, qualitative here). The verdicts are those of the interim entry of 2026-10-28:
+- With magnetic signals, with or without time since start: clearly more disruptions caught in time, no clear change in false alarms.
+- Without plasma current: clearly fewer caught. Without radiated power, neutron rate, beam power or time since start: no clear difference.
+- Multiplicity: the gain from magnetics and the loss without plasma current would not clear zero under a Bonferroni-type correction for seven comparisons. Strong hints, not proof.
+
+What the full run's single split adds (validation and test, `results/REPORT.md`): the window ranking score (PR-AUC) of gradient boosting is several times its random baseline, yet at the 5% shot-level false-alarm limit few disruptions are caught. Most false alarms fall on 'normal' shots that end in an unnoted fast quench, but most normal test shots end that way (453 of 595), so that alone is only a mild lean, not evidence. Whether the doubtful labels hide skill needs its own experiment: train and evaluate with the termination classes.
