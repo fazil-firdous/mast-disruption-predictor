@@ -25,6 +25,12 @@ def split_frames(win, split_column):
     return tuple(win[win[split_column] == name].reset_index(drop=True) for name in ("train", "val", "test"))
 
 
+def usable(columns, train):
+    """The columns that have at least one value in the training windows. A signal no training shot has carries no
+    information, and some scikit-learn versions fail on an all-empty column."""
+    return [c for c in columns if train[c].notna().any()]
+
+
 def training_rows(train):
     """Training windows, minus the near-quench clean ones when NEAR_QUENCH_CLEAN is 'drop'."""
     if config.NEAR_QUENCH_CLEAN == "drop":
@@ -101,6 +107,14 @@ def plot_examples(test, window_scores, shots, t_alarm, result, threshold, path):
     plt.close(fig)
 
 
+def judged(frame, judge):
+    """The shots a model is judged on: 'all', or 'clear' (only endings everyone agrees on: noted disruptions the
+    detector also sees, and shots without a quench), so recipes with different labels face the same exam (E15)."""
+    if judge == "clear":
+        return frame[frame["clear"]].reset_index(drop=True)
+    return frame
+
+
 def test_once(best, test, columns, out_dir):
     """Score the test split once at the validation-chosen threshold; returns metrics and writes plots."""
     window_scores, curve, shots, alarm_matrix = score_split(best["model"], test, columns)
@@ -145,13 +159,21 @@ def config_snapshot():
     return {k: v for k, v in vars(config).items() if k.isupper() and "TOKEN" not in k and "SECRET" not in k}
 
 
-def run_model(name, win, split_column, columns, out_dir, use_test=True, save=True, with_importance=True):
+def run_model(name, win, split_column, columns, out_dir, use_test=True, save=True, with_importance=True,
+              judge="all", drop_candidates=False):
     """Tune one model, optionally test it, write metrics.json and config.json to out_dir, return the metrics.
 
+    judge: the validation and test shots it is tuned and judged on ('all' or 'clear', see judged()).
+    drop_candidates: leave the unrecorded candidates out of training (E15), so they are neither 'normal' nor
+    'disruption' there. Validation and test also report alarms by ending group on all their shots.
     With use_test and save, the fitted model is also saved to MODELS_DIR (see src/registry.py).
     """
     os.makedirs(out_dir, exist_ok=True)
-    train, val, test = split_frames(win, split_column)
+    train, val_all, test_all = split_frames(win, split_column)
+    if drop_candidates:
+        train = train[~train["candidate"]].reset_index(drop=True)
+    val, test = judged(val_all, judge), judged(test_all, judge)
+    columns = usable(columns, train)
     best = tune(name, train, val, columns)
     val_shots = val.groupby("shot_id")["disrupted"].first()
     metrics = {"model": name, "split": split_column, "params": best["params"], "threshold": best["threshold"],
@@ -159,10 +181,12 @@ def run_model(name, win, split_column, columns, out_dir, use_test=True, save=Tru
                "val": {"catch_rate": best["val_catch_rate"], "false_alarm_rate": best["val_false_alarm_rate"],
                        "pr_auc": best["val_pr_auc"], "meets_false_alarm_limit": best["val_meets_limit"],
                        "n_disrupted": int(val_shots.sum()), "n_clean": int((~val_shots).sum()),
-                       "positive_share": float(val["label"].mean())},
-               "trials": best["trials"]}
+                       "positive_share": float(val["label"].mean()),
+                       "alarms_by_ending": ending_alarms(best, val_all, columns)},
+               "judge": judge, "drop_candidates": drop_candidates, "trials": best["trials"]}
     if use_test:
         metrics["test"] = test_once(best, test, columns, out_dir)
+        metrics["test"]["alarms_by_ending"] = ending_alarms(best, test_all, columns)
     if use_test and save:
         tag = os.path.relpath(out_dir, config.RESULTS_DIR).replace(os.sep, "_")
         registry.save(best["model"], tag, name, columns, best["threshold"],
@@ -175,6 +199,11 @@ def run_model(name, win, split_column, columns, out_dir, use_test=True, save=Tru
     write_json(metrics, os.path.join(out_dir, "metrics.json"))
     write_json(config_snapshot(), os.path.join(out_dir, "config.json"))
     return metrics
+
+
+def ending_alarms(best, frame, columns):
+    """evaluate.alarms_by_ending for a tuned model at its chosen threshold."""
+    return evaluate.alarms_by_ending(frame, models.scores(best["model"], frame[columns]), best["threshold"])
 
 
 def best_model_name():
@@ -195,7 +224,7 @@ def run(exp, split="random", model=None, seed=None):
     windows, shots = load_tables()
     split_column = "split" if split == "random" else "split_temporal"
     out_dir = os.path.join(config.RESULTS_DIR, exp if split == "random" else f"{exp}_{split}")
-    all_columns = features.feature_names()
+    all_columns = features.model_features()
     if exp in MODEL_NAMES:
         win = dataset.labelled_windows(windows, shots)
         return run_model(MODEL_NAMES[exp], win, split_column, all_columns, out_dir)
@@ -209,7 +238,7 @@ def run(exp, split="random", model=None, seed=None):
         return {m: run_model(m, win, "split_temporal", all_columns, os.path.join(out_dir, m))["test"]
                 for m in ("baseline", name)}
     if exp == "E7":
-        return sweep(name, windows, shots, split_column, out_dir, "label_source", list(dataset.LABEL_SOURCES))
+        return sweep(name, windows, shots, split_column, out_dir, "label_source", list(dataset.ALL_SOURCES))
     if exp == "E8":
         return run_conformal(name, dataset.labelled_windows(windows, shots), split_column, all_columns, out_dir)
     if exp == "E9":
@@ -221,36 +250,62 @@ def run(exp, split="random", model=None, seed=None):
     if exp == "E12":
         return sweep(name, windows, shots, split_column, out_dir, "ukaea_horizon_ms", [10, 30, 60])
     if exp == "E13":
-        return sweep(name, windows, shots, split_column, out_dir, "feature_set",
-                     ["v1", "v1+magnetics", "v1+magnetics-no-time"])
+        return sweep(name, windows, shots, split_column, out_dir, "feature_set", ["v1", "v1+magnetics", "v2"])
+    if exp == "E14":
+        return sweep(name, windows, shots, split_column, out_dir, "benchmark",
+                     ["default", "machine", "signal", "signal-machine"])
+    if exp == "E15":
+        return sweep(name, windows, shots, split_column, out_dir, "labels",
+                     ["clear", "clear-drop-candidates", "clear-physics"])
     raise ValueError(f"unknown experiment {exp!r}")
 
 
+# named recipes (E14, E15 and their repeat-run comparisons): what changes against the default recipe
+RECIPES = {
+    "default": {},
+    "machine": {"columns": "machine"},
+    "signal": {"source": "signal"},
+    "signal-machine": {"source": "signal", "columns": "machine"},
+    "clear": {"judge": "clear"},
+    "clear-drop-candidates": {"judge": "clear", "drop_candidates": True},
+    "clear-physics": {"judge": "clear", "source": "physics"},
+}
+
+
 def sweep_settings(knob, value):
-    """(horizon in ms, label source, feature columns) for one value of a sweep knob.
+    """Settings for one value of a sweep knob, as a dict: horizon (ms), source (label source, None = config),
+    columns (model inputs), judge ('all' or 'clear') and drop_candidates.
 
     E11 'drop_feature' is the shortcut test (does the result survive without t_since_start?). E13 'feature_set'
-    adds the magnetics and control signals of src/extras.py, with and without t_since_start. E12
+    compares input sets (src/features.py FEATURE_SETS; a '-no-time' suffix drops t_since_start). E12
     'ukaea_horizon_ms' copies the UKAEA FAIR-MAST benchmark protocol as far as it is public: labels from the
     current alone and lead times of 10, 30 and 60 ms. Their split and exact labels are not public, so this is a
-    like-for-like protocol, not their numbers.
+    like-for-like protocol, not their numbers. 'recipe', 'benchmark' (E14) and 'labels' (E15) take a RECIPES name.
     """
-    horizon, source, columns = config.HORIZON_MS, None, features.feature_names()
+    s = {"horizon": config.HORIZON_MS, "source": None, "columns": features.model_features(), "judge": "all",
+         "drop_candidates": False}
     if knob == "horizon_ms":
-        horizon = value
+        s["horizon"] = value
     elif knob == "label_source":
-        source = value
+        s["source"] = value
     elif knob == "drop_signal" and value:
-        columns = features.features_without(value)
+        s["columns"] = features.features_without(value)
+    elif knob == "drop_group" and value:
+        s["columns"] = features.features_without_group(value)
     elif knob == "drop_feature" and value:
-        columns = [c for c in columns if c != value]
+        s["columns"] = [c for c in s["columns"] if c != value]
     elif knob == "ukaea_horizon_ms":
-        horizon, source = value, "signal"
-    elif knob == "feature_set" and value != "v1":
-        columns = features.feature_names(extended=True)
+        s["horizon"], s["source"] = value, "signal"
+    elif knob == "feature_set":
+        s["columns"] = features.model_features(value.removesuffix("-no-time"))
         if value.endswith("-no-time"):
-            columns = [c for c in columns if c != "t_since_start"]
-    return horizon, source, columns
+            s["columns"] = [c for c in s["columns"] if c != "t_since_start"]
+    elif knob in ("recipe", "benchmark", "labels"):
+        recipe = dict(RECIPES[value])
+        if "columns" in recipe:
+            recipe["columns"] = features.model_features(recipe["columns"])
+        s.update(recipe)
+    return s
 
 
 def sweep(name, windows, shots, split_column, out_dir, knob, values):
@@ -260,13 +315,14 @@ def sweep(name, windows, shots, split_column, out_dir, knob, values):
     """
     rows = []
     for value in values:
-        horizon, source, columns = sweep_settings(knob, value)
-        win = dataset.labelled_windows(windows, shots, source=source, horizon_ms=horizon)
+        s = sweep_settings(knob, value)
+        win = dataset.labelled_windows(windows, shots, source=s["source"], horizon_ms=s["horizon"])
         sub_dir = os.path.join(out_dir, f"{knob}_{value}")
-        metrics = run_model(name, win, split_column, columns, sub_dir, use_test=False)
+        metrics = run_model(name, win, split_column, s["columns"], sub_dir, use_test=False, judge=s["judge"],
+                            drop_candidates=s["drop_candidates"])
         rows.append({knob: value if value is not None else "none", "model": name, **metrics["val"]})
     table = pd.DataFrame(rows)
-    table.to_csv(os.path.join(out_dir, "summary.csv"), index=False)
+    table.drop(columns=["alarms_by_ending"]).to_csv(os.path.join(out_dir, "summary.csv"), index=False)
     return table.to_dict(orient="records")
 
 
@@ -290,6 +346,7 @@ def run_conformal(name, win, split_column, columns, out_dir):
     then check on the test shots whether the false-alarm rate really stays under each alpha."""
     os.makedirs(out_dir, exist_ok=True)
     train, val, test = split_frames(win, split_column)
+    columns = usable(columns, train)
     val_tune, val_cal = split_validation(val)
     best = tune(name, train, val_tune, columns)
     cal_levels = conformal.shot_alarm_levels(val_cal, models.scores(best["model"], val_cal[columns]))
@@ -329,6 +386,7 @@ def run_pu(win, shots, split_column, columns, out_dir):
     shots and on the unambiguous ones. Also estimates how many unnoted-quench windows look like disruptions."""
     os.makedirs(out_dir, exist_ok=True)
     train, val, test = split_frames(win, split_column)
+    columns = usable(columns, train)
     fit_rows = training_rows(train)
     standard = models.make_model("hgb", config.PU_PARAMS).fit(fit_rows[columns], fit_rows["label"])
     pu_model, c, weights = pu.fit_pu(config.PU_PARAMS, fit_rows, val, columns)
@@ -357,7 +415,7 @@ def run_seed(name, windows, shots, seed):
     resplit = windows.assign(split=windows["shot_id"].map(split))
     win = dataset.labelled_windows(resplit, shots)
     out_dir = os.path.join(config.RESULTS_DIR, "E10", f"seed_{seed}")
-    run_model(name, win, "split", features.feature_names(), out_dir, save=False, with_importance=False)
+    run_model(name, win, "split", features.model_features(), out_dir, save=False, with_importance=False)
     return seed_summary()
 
 

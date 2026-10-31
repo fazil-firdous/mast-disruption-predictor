@@ -1,4 +1,4 @@
-"""Whole pipeline in one go for a VPS: build the dataset, run E0-E13, describe each result in plain words in the log
+"""Whole pipeline in one go for a VPS: build the dataset, run E0-E15, describe each result in plain words in the log
 and results/REPORT.md, and send one status picture to Telegram at the end.
 
 Work whose code and data have not changed since the last run is reused, not redone (src/resume.py), so a restart
@@ -20,7 +20,7 @@ from scripts.build_dataset import build, table_from_report
 from src import config, experiment, explain, notify, resume, server, status_card
 
 MAIN_EXPERIMENTS = ["E0", "E1", "E2", "E3"]
-EXTRA_EXPERIMENTS = ["E4", "E5", "E6", "E7", "E8", "E9", "E11", "E12", "E13"]
+EXTRA_EXPERIMENTS = ["E4", "E5", "E6", "E7", "E8", "E9", "E11", "E12", "E13", "E14", "E15"]
 
 
 def step(name, func, *args):

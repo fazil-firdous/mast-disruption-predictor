@@ -3,7 +3,7 @@ import json
 import os
 import time
 
-from src import config
+from src import config, extras
 
 STATE_PATH = os.path.join(config.LOGS_DIR, "server_state.json")
 HELP = """MAST research server
@@ -75,10 +75,13 @@ def next_job(state, head, now, processed_ready):
 
 
 def idle_jobs(state, limit):
-    """Up to limit idle jobs still to do, as (kind, seed): first the E10 seeds, then the repeat-run comparisons
-    (config.COMPARISONS) seed by seed. All of one kind, so jobs run side by side take about as long."""
-    seeds = range(1, config.SEED_SWEEP_MAX + 1)
-    queue = [("E10", seed) for seed in seeds] + [(name, seed) for seed in seeds for name in config.COMPARISONS]
+    """Up to limit idle jobs still to do, as (kind, seed): the E10 seeds the comparisons pair with, then the repeat-run
+    comparisons (config.COMPARISONS, COMPARISON_SEEDS splits each), then the rest of the E10 seeds, so the
+    comparisons' answers come days sooner. All of one kind, so jobs run side by side take about as long."""
+    paired = range(1, min(config.COMPARISON_SEEDS, config.SEED_SWEEP_MAX) + 1)
+    rest = range(len(paired) + 1, config.SEED_SWEEP_MAX + 1)
+    queue = ([("E10", seed) for seed in paired] + [(name, seed) for seed in paired for name in config.COMPARISONS]
+             + [("E10", seed) for seed in rest])
     done = {("E10", seed) for seed in state["seeds_done"]} | {tuple(job) for job in state["comparisons_done"]}
     pending = [job for job in queue if job not in done]
     return [job for job in pending if job[0] == pending[0][0]][:limit]
@@ -174,9 +177,13 @@ def access_mode(data_ok, table_ok, relay_ok):
 
 
 def relay_needed(state, scale):
-    """True if the relay has not yet brought data for this scale, or a re-fetch was asked for."""
+    """True if the relay has not yet brought data for this scale, a re-fetch was asked for, or what it brought no
+    longer matches what a run needs (another set of shots, or extras made before a column was added)."""
     manifest = state["relay_manifest"]
-    return state["force_fetch"] or manifest is None or manifest.get("scale") != scale
+    if state["force_fetch"] or manifest is None or manifest.get("scale") != scale:
+        return True
+    return (manifest.get("full_n_clean", 3000) != config.FULL_N_CLEAN
+            or manifest.get("extras_columns") != list(extras.COLUMNS))
 
 
 def pipeline_args(scale, mode, manifest=None):

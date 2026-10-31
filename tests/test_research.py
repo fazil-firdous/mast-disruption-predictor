@@ -82,10 +82,20 @@ def test_seed_sweep_accumulates(tiny_project):  # noqa: F811
 
 def test_sweep_settings():
     from src import features
-    horizon, source, columns = experiment.sweep_settings("drop_feature", "t_since_start")
-    assert "t_since_start" not in columns and len(columns) == len(features.feature_names()) - 1
-    assert experiment.sweep_settings("ukaea_horizon_ms", 60)[:2] == (60, "signal")
-    assert experiment.sweep_settings("drop_feature", None)[2] == features.feature_names()
+    columns = experiment.sweep_settings("drop_feature", "t_since_start")["columns"]
+    assert "t_since_start" not in columns and len(columns) == len(features.model_features()) - 1
+    s = experiment.sweep_settings("ukaea_horizon_ms", 60)
+    assert (s["horizon"], s["source"]) == (60, "signal")
+    assert experiment.sweep_settings("drop_feature", None)["columns"] == features.model_features()
+    assert experiment.sweep_settings("feature_set", "v1")["columns"] == features.feature_names()
+    no_density = experiment.sweep_settings("drop_group", "density")["columns"]
+    assert not any(c.startswith(("ne_", "fgw_")) or c in ("has_ne", "has_fgw") for c in no_density)
+    assert "neutrons_mean" in no_density and "ip_abs_mean" in no_density
+    machine = experiment.sweep_settings("recipe", "signal-machine")
+    assert machine["source"] == "signal" and machine["columns"] == features.machine_names()
+    physics = experiment.sweep_settings("labels", "clear-physics")
+    assert (physics["source"], physics["judge"], physics["drop_candidates"]) == ("physics", "clear", False)
+    assert experiment.sweep_settings("recipe", "clear-drop-candidates")["drop_candidates"]
 
 
 def test_shortcut_and_ukaea_experiments_run(tiny_project):  # noqa: F811

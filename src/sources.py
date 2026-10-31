@@ -53,7 +53,7 @@ def probe():
     """Snapshot of what the data sources offer right now (a small dict, safe to store and compare)."""
     level2_folders, _ = _list("level2/")
     # mastapp.site is retired (UKAEA, 2026-10-27): the table in the bucket is the official one, so only it is probed
-    return {"table_status": status_code(config.SHOT_TABLE_MIRROR_URL, byte_range=True),
+    return {"table_status": status_code(config.SHOT_TABLE_URL, byte_range=True),
             "defuse_status": status_code(DEFUSE_SAMPLE, byte_range=True),
             "level2_folders": sorted(level2_folders),
             "shot_stores": count_shot_stores()}

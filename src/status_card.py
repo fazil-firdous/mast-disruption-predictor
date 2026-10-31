@@ -13,7 +13,7 @@ from matplotlib.patches import FancyBboxPatch
 
 from src import config, explain, notify, resume, server, stats
 
-EXPERIMENTS = ["E0", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E11", "E12", "E13"]
+EXPERIMENTS = ["E0", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E11", "E12", "E13", "E14", "E15"]
 SIGNAL_WORDS = {"prad": "radiated power", "neutrons": "neutron rate", "ip_abs": "plasma current",
                 "pnbi": "beam heating power"}
 INK, INK_2, MUTED, SURFACE = "#0b0b0b", "#52514e", "#898781", "#fcfcfb"
@@ -88,10 +88,11 @@ def signal_usefulness(e5_csv=None):
 
 
 # short names for the picture; explain.comparison_words has the full ones
-CARD_WORDS = {"no_time": "no time since start", "magnetics": "+ magnetic signals",
-              "magnetics_no_time": "+ magnetics, no time",
-              "no_prad": "no radiated power", "no_ip_abs": "no plasma current", "no_neutrons": "no neutron rate",
-              "no_pnbi": "no beam power"}
+CARD_WORDS = {"signal_labels": "current-only labels", "signal_machine": "machine only, current-only labels",
+              "machine": "machine only", "clear": "judged on clear endings",
+              "clear_drop_candidates": "candidates left out", "clear_physics": "candidates as disruptions",
+              "v1": "only 4 basic signals", "v1_magnetics": "4 basic + magnetics", "no_time": "no time since start",
+              "no_density": "no density", "no_efit": "no EFIT", "no_mirnov_bands": "no Mirnov bands"}
 
 
 def comparison_effects(csv=None):
@@ -123,18 +124,21 @@ def needs(info):
     items = []
     full = info["table_source"] != "report"
     items.append((full, "full MAST shot list" if full else "more shots: only the 400 report shots so far"))
-    if info["seeds"] < config.SEED_SWEEP_MAX:
-        items.append((False, f"repeat runs {info['seeds']}/{config.SEED_SWEEP_MAX}"))
-    else:
-        total = config.SEED_SWEEP_MAX * len(config.COMPARISONS)
-        items.append((info["comparisons"] >= total, f"repeat-run comparisons {info['comparisons']}/{total}"))
+    items.append((info["seeds"] >= config.SEED_SWEEP_MAX, f"repeat runs {info['seeds']}/{config.SEED_SWEEP_MAX}"))
+    total = comparison_total()
+    items.append((info["comparisons"] >= total, f"repeat-run comparisons {info['comparisons']}/{total}"))
     items.append((False, f"next: {config.NEXT_STEP}"))
     return items
 
 
+def comparison_total():
+    """Every comparison run planned: each comparison of scripts/repeat_runs.py on COMPARISON_SEEDS splits."""
+    return min(config.COMPARISON_SEEDS, config.SEED_SWEEP_MAX) * len(config.COMPARISONS)
+
+
 def repeat_total():
-    """Every repeat run planned: the E10 seeds, then each comparison of scripts/repeat_runs.py on as many seeds."""
-    return config.SEED_SWEEP_MAX * (1 + len(config.COMPARISONS))
+    """Every repeat run planned: the E10 seeds and the comparison runs."""
+    return config.SEED_SWEEP_MAX + comparison_total()
 
 
 def collect(state=None):

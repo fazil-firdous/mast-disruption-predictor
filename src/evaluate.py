@@ -77,6 +77,41 @@ def false_alarms_by_ending(shot_ids, result, quench_ids):
     return out
 
 
+ENDING_GROUPS = ["recorded", "candidate", "flux_exhausted", "programmed_rampdown", "smooth_end", "other"]
+
+
+def ending_group(note, termination, has_quench):
+    """Which kind of ending a shot had, for alarms_by_ending: a recorded (noted) disruption, an unrecorded candidate
+    (lost during flat-top with flux left, no note), a flux-exhausted or ramp-down ending nobody noted, a smooth end,
+    or other (signals missing)."""
+    if note and has_quench:
+        return "recorded"
+    if not has_quench:
+        return "smooth_end"
+    if termination == "flat_top_drop":
+        return "candidate"
+    return termination if termination in ("flux_exhausted", "programmed_rampdown") else "other"
+
+
+def alarms_by_ending(frame, window_scores, threshold):
+    """Share of shots of each ending group that raised an alarm at least MIN_WARNING_MS before their quench (any
+    alarm, for shots without one), at one threshold. If a model that never saw the candidates as disruptions
+    alarms on them about as often as on recorded disruptions, and far more than on other endings, the candidates
+    look like disruptions before the quench, not only at it. Returns {group: {'n', 'alarms'}}."""
+    shots, alarm_matrix = shot_alarm_table(frame, window_scores, np.array([threshold]))
+    info = frame.groupby("shot_id")[["note", "termination", "t_quench"]].first().loc[shots["shot_id"]]
+    t_quench = info["t_quench"].to_numpy(dtype=float)
+    deadline = np.where(np.isfinite(t_quench), t_quench - config.MIN_WARNING_MS / 1000, np.inf)
+    alarmed = np.isfinite(alarm_matrix[:, 0]) & (alarm_matrix[:, 0] <= deadline + 1e-9)
+    groups = [ending_group(n, e, np.isfinite(q)) for n, e, q in zip(info["note"], info["termination"], t_quench)]
+    out = {}
+    for group in ENDING_GROUPS:
+        members = np.array([g == group for g in groups], dtype=bool)
+        if members.any():
+            out[group] = {"n": int(members.sum()), "alarms": int((members & alarmed).sum())}
+    return out
+
+
 def tradeoff_curve(shots, alarm_matrix, thresholds=THRESHOLDS):
     """Catch rate and false-alarm rate (and the rest of shot_metrics) at every threshold."""
     rows = []

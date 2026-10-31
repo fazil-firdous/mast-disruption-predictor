@@ -12,17 +12,19 @@ from src import config, experiment, explain, resume, server, stats
 from tests.test_evaluate import tiny_project  # noqa: F401  (pytest fixture)
 
 
-def test_idle_queue_runs_e10_first_then_each_comparison_seed_by_seed():
+def test_idle_queue_runs_paired_e10_seeds_then_the_comparisons_then_the_rest():
     state = server.new_state()
+    paired = config.COMPARISON_SEEDS
     assert server.idle_jobs(state, 2) == [("E10", 1), ("E10", 2)]
-    state["seeds_done"] = list(range(1, config.SEED_SWEEP_MAX + 1))
+    state["seeds_done"] = list(range(1, paired + 1))
     first, second = list(config.COMPARISONS)[:2]
     assert server.idle_jobs(state, 2) == [(first, 1), (first, 2)]  # same kind side by side: they finish together
     state["comparisons_done"] = [[first, 1], [first, 2]]
     assert server.idle_jobs(state, 2) == [(second, 1), (second, 2)]
     assert server.idle_jobs(state, 1) == [(second, 1)]
-    state["comparisons_done"] = [[name, seed] for seed in range(1, config.SEED_SWEEP_MAX + 1)
-                                 for name in config.COMPARISONS]
+    state["comparisons_done"] = [[name, seed] for seed in range(1, paired + 1) for name in config.COMPARISONS]
+    assert server.idle_jobs(state, 2) == [("E10", paired + 1), ("E10", paired + 2)]  # then the rest of E10
+    state["seeds_done"] = list(range(1, config.SEED_SWEEP_MAX + 1))
     assert server.idle_jobs(state, 2) == []
 
 
@@ -102,6 +104,9 @@ def write_metrics(path, catch, false_alarm):
 
 def test_summary_pairs_each_run_with_e10_of_the_same_seed(monkeypatch, tmp_path):
     monkeypatch.setattr(config, "RESULTS_DIR", str(tmp_path))
+    monkeypatch.setattr(config, "COMPARISONS", {"magnetics": ("feature_set", "v1+magnetics"),
+                                                "no_time": ("drop_feature", "t_since_start")})
+    monkeypatch.setattr(config, "COMPARISON_BASELINES", {})
     for seed in range(1, 7):
         write_metrics(tmp_path / "E10" / f"seed_{seed}", 0.10, 0.05)
         write_metrics(tmp_path / "E10" / "comparisons" / "magnetics" / f"seed_{seed}", 0.20 + 0.01 * seed, 0.05)
@@ -142,7 +147,7 @@ def test_comparison_stamp_is_separate_from_the_science_stamp(monkeypatch, tmp_pa
     monkeypatch.setattr(config, "PROCESSED_DIR", str(tmp_path))
     science, comparisons = resume.stamp(resume.processed_files()), repeat_runs.stamp()
     monkeypatch.setattr(config, "COMPARISONS", {**config.COMPARISONS, "extra": ("drop_signal", "prad")})
-    assert resume.stamp(resume.processed_files()) == science  # adding a comparison never reruns E0-E13
+    assert resume.stamp(resume.processed_files()) == science  # adding a comparison never reruns E0-E15
     assert repeat_runs.stamp() != comparisons
 
 

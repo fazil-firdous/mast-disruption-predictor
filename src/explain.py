@@ -29,19 +29,52 @@ SWEEP_INTRO = {
                          "Labels from the current drop alone and warnings 10, 30 and 60 ms ahead, as in the UKAEA "
                          "study. Their exact shots and labels are not public, so this is the same kind of test, "
                          "not a number to put next to theirs."),
-    "feature_set": ("E13 - do magnetic signals help?",
+    "feature_set": ("E13 - which signals help?",
                     "v1 uses the 4 basic signals. '+magnetics' adds the saddle-coil locked-mode signal, Mirnov "
-                    "coil fluctuations, solenoid current and the current-control error."),
+                    "coil fluctuations, solenoid current and the current-control error. v2 adds Mirnov frequency "
+                    "bands, density and the Greenwald fraction, EFIT shape and stability numbers, the programmed "
+                    "current, and how each fluctuation changed against the shot's own earlier values."),
+    "benchmark": ("E14 - what do current-only labels reward?",
+                  "Labels from the current drop alone, as in the published FAIR-MAST benchmark, also call flux-"
+                  "exhausted and ramp-down endings disruptions. A 'machine-only' model sees only the solenoid, the "
+                  "programmed current and the time, never the plasma. If it does about as well as the full model on "
+                  "current-only labels, but not on ours, those labels mostly reward predicting the machine's "
+                  "programme, not plasma instabilities."),
+    "labels": ("E15 - do the doubtful labels hide skill?",
+               "Three ways to label the shots nobody called a disruption but that were lost during flat-top with "
+               "flux left (the candidates): as normal (our default), left out of training, or as disruptions. All "
+               "three are tuned and judged on the same clear-ending shots (noted disruptions and smooth ends)."),
 }
 VALUE_WORDS = {
     "drop_signal": {"none": "all four signals", "ip_abs": "without plasma current",
                     "prad": "without radiated power", "neutrons": "without neutron rate",
                     "pnbi": "without beam heating power"},
-    "label_source": {"both": "note and detector agree", "signal": "detector only", "note": "notes only"},
+    "label_source": {"both": "note and detector agree", "signal": "detector only", "note": "notes only",
+                     "physics": "note and detector agree, or lost during flat-top with flux left"},
     "drop_feature": {"none": "all features", "t_since_start": "without time since start"},
     "feature_set": {"v1": "4 basic signals", "v1+magnetics": "+ magnetic signals",
-                    "v1+magnetics-no-time": "+ magnetic signals, no time since start"},
+                    "v1+magnetics-no-time": "+ magnetic signals, no time since start", "v2": "all signals (v2)",
+                    "machine": "machine only"},
+    "drop_group": {"density": "without density", "efit": "without EFIT", "mirnov_bands": "without Mirnov bands"},
+    "benchmark": {"default": "all signals, our labels", "machine": "machine only, our labels",
+                  "signal": "all signals, current-only labels", "signal-machine": "machine only, current-only labels"},
+    "labels": {"clear": "candidates as normal", "clear-drop-candidates": "candidates left out of training",
+               "clear-physics": "candidates as disruptions"},
 }
+# comparison names that read better than the knob's value words (their baseline differs from E10)
+COMPARISON_WORDS = {
+    "signal_labels": "current-only labels (vs our labels)",
+    "signal_machine": "machine only on current-only labels (vs all signals on them)",
+    "machine": "machine only (vs all signals)",
+    "clear": "judged on clear endings only (vs all shots)",
+    "clear_drop_candidates": "candidates left out of training (judged on clear endings)",
+    "clear_physics": "candidates as disruptions (judged on clear endings)",
+    "v1": "only the 4 basic signals (vs all signals)",
+    "v1_magnetics": "4 basic signals + magnetics (vs all signals)",
+}
+ENDING_WORDS = {"recorded": "recorded disruptions", "candidate": "unrecorded candidates",
+                "flux_exhausted": "flux-exhausted endings", "programmed_rampdown": "ramp-down endings",
+                "smooth_end": "smooth endings", "other": "other endings"}
 VALIDATION_NOTE = ("These numbers are on validation shots (the ones used for tuning), so they are hints. With few "
                    "shots, a difference of 1-3 shots can be luck; the seed sweep (E10) shows which ones hold up.")
 
@@ -110,6 +143,7 @@ def model_text(exp, metrics):
     else:
         lines.append(chance_text(t))
     lines.append(ending_text(t.get("false_alarms_by_ending")))
+    lines.append(alarms_text(t.get("alarms_by_ending")))
     if not metrics["val"]["meets_false_alarm_limit"]:
         lines.append("Note: no alarm level kept validation false alarms under the limit, so the quietest one was used.")
     return "\n".join(line for line in lines if line)
@@ -136,13 +170,24 @@ def sweep_text(rows):
     worst = min(rows, key=lambda r: (r["catch_rate"] or 0, r["pr_auc"] or 0))
     nd = best.get("n_disrupted")
     # label sources disagree on which shots are disrupted, so their rates are not on the same shots
-    if nd and best is not worst and knob != "label_source":
+    if nd and best is not worst and knob not in ("label_source", "benchmark"):
         gap = round(((best["catch_rate"] or 0) - (worst["catch_rate"] or 0)) * nd)
         lines.append(f"Best: {value_words(knob, best[knob])}. Best and worst differ by {gap} caught shot(s).")
+    if knob == "labels":
+        lines += [f"  {value_words(knob, row[knob])}: {alarms_text(row.get('alarms_by_ending'))}" for row in rows]
     lines.append("Ranking score = PR-AUC: how well the model puts the moments just before a disruption above all "
                  "the others (0 to 1, higher is better; random guessing scores the share of such moments).")
     lines.append(VALIDATION_NOTE)
     return "\n".join(lines)
+
+
+def alarms_text(by_ending):
+    """'Alarms in time on: 30 of 100 recorded disruptions (30.0%), ...' from evaluate.alarms_by_ending."""
+    if not by_ending:
+        return ""
+    parts = [f"{g['alarms']} of {g['n']} {ENDING_WORDS.get(name, name)} ({pct(g['alarms'] / max(g['n'], 1))})"
+             for name, g in by_ending.items()]
+    return "Alarms in time, by how the shot ended: " + ", ".join(parts) + "."
 
 
 def score(x):
@@ -235,7 +280,8 @@ def comparisons_text(summary):
     if not summary:
         return "Repeat-run comparisons: none finished yet."
     lines = ["Repeat-run comparisons: the repeat-run recipe (E10) with one change, on the very same random splits, "
-             "tested on each split's test shots. The 95% range is corrected for the splits sharing shots; when it "
+             "tested on each split's test shots, each against its baseline (E10 unless the words say otherwise). "
+             "The 95% range is corrected for the splits sharing shots; when it "
              f"includes 0, there is no clear difference yet. With {len(config.COMPARISONS)} comparisons and 2 measures "
              "each, one 'clear' verdict can come from luck alone, so a range that only just misses 0 is a strong "
              "hint, not proof."]
@@ -248,9 +294,13 @@ def comparisons_text(summary):
 
 
 def comparison_words(name):
-    """'with magnetic signals', 'without plasma current', ... for a config.COMPARISONS name."""
+    """'without density', 'machine only (vs all signals)', ... for a config.COMPARISONS name."""
+    if name in COMPARISON_WORDS:
+        return COMPARISON_WORDS[name]
     knob, value = config.COMPARISONS[name]
-    return VALUE_WORDS[knob][value].replace("+ ", "with ")
+    if knob == "drop_signal":
+        return VALUE_WORDS["drop_signal"].get(value, f"without {value}")
+    return VALUE_WORDS.get(knob, {}).get(value, str(value)).replace("+ ", "with ")
 
 
 def change_text(row, metric):
@@ -289,7 +339,7 @@ def dataset_text(counts):
 
 
 def describe(exp, outcome):
-    """The Telegram message for one experiment's outcome."""
+    """The Telegram message for one experiment's outcome (E4, E5, E7 and E11-E15 are sweeps)."""
     if exp in ("E0", "E1", "E2", "E3"):
         return model_text(exp, outcome)
     if exp == "E6":

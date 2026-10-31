@@ -266,7 +266,7 @@ def run_relay(state, task, scale, data_dir):
 
 def fetch_via_relay(state, scale):
     """Have GitHub download the shots into DATA_DIR. Returns the relay manifest, or None."""
-    notify.log(f"STFC does not answer this server; asking GitHub to fetch the data ({scale}). This takes 10-60 min.")
+    notify.log(f"STFC does not answer this server; asking GitHub to fetch the data ({scale}). This takes 1-6 h.")
     CURRENT["job"] = "GitHub data relay"
     manifest = run_relay(state, "fetch", scale, config.DATA_DIR)
     if manifest is not None:
@@ -401,7 +401,7 @@ def report_idle(state, kind, n_new):
         n, total, every = len(state["seeds_done"]), config.SEED_SWEEP_MAX, config.CARD_EVERY_SEEDS
     else:
         notify.log(explain.comparisons_text(repeat_runs.summary()))
-        n, total = len(state["comparisons_done"]), config.SEED_SWEEP_MAX * len(config.COMPARISONS)
+        n, total = len(state["comparisons_done"]), status_card.comparison_total()
         every = config.CARD_EVERY_SEEDS * len(config.COMPARISONS)  # a picture per 10 seeds of every comparison
     if n // every > (n - n_new) // every or n == total:
         status_card.send(f"{'repeat runs' if kind == 'E10' else 'comparisons'} {n}/{total}", state)

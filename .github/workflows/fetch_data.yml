@@ -1,13 +1,15 @@
-# Data relay: some servers (e.g. the owner's VPS) cannot reach STFC because their IP range is blocked there.
-# GitHub's machines can, so this job downloads the shots and attaches them as a short-lived artifact, which the
-# research server downloads (src/relay.py). Only public MAST data passes through here; nothing is committed.
+# Data relay: some servers cannot reach STFC because their IP range is blocked there. GitHub's machines can, so
+# this job downloads the shots and attaches them as short-lived artifacts, which the research server downloads and
+# merges (src/relay.py). A fetch runs as config.RELAY_PARTS jobs side by side, each on every RELAY_PARTS-th shot,
+# because all MAST shots with their extras take longer than one job may run. Only public MAST data passes through
+# here; nothing is committed.
 name: fetch_data
 
 on:
   workflow_dispatch:
     inputs:
       scale:
-        description: "small (300+300 shots) or full (every disruption + 3000 clean)"
+        description: "small (300+300 shots) or full (every shot)"
         default: full
         type: choice
         options: [small, full]
@@ -23,7 +25,11 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        part: ${{ fromJSON(inputs.task == 'fetch' && '[0, 1, 2, 3]' || '[0]') }}
     env:
       MAST_HOME: ${{ github.workspace }}/relay
     steps:
@@ -33,10 +39,12 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt
       - name: download shots or probe the sources
-        run: python scripts/relay_fetch.py --scale ${{ inputs.scale }} --task ${{ inputs.task }}
+        run: >-
+          python scripts/relay_fetch.py --scale ${{ inputs.scale }} --task ${{ inputs.task }}
+          --part ${{ matrix.part }} --parts ${{ inputs.task == 'fetch' && 4 || 1 }}
       - uses: actions/upload-artifact@v4
         with:
-          name: mast-data
+          name: mast-data-${{ matrix.part }}
           path: relay/data
           retention-days: 1
           if-no-files-found: error

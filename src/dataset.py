@@ -3,24 +3,28 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from src import config, extras, features, labels
+from src import config, extras, features, labels, termination
 from src.data import load_shot, log_skipped
 
-LABEL_SOURCES = ("both", "signal", "note")
+LABEL_SOURCES = ("both", "signal", "note")  # computed from the current and the note alone (src/labels.py)
+# plus "physics", which also needs how the shot ended (add_endings): every label source an experiment can use
+ALL_SOURCES = LABEL_SOURCES + ("physics",)
 
 
 def candidate_ids(table, n_clean, seed=config.RANDOM_SEED):
     """Shots worth downloading: every note-disrupted shot, plus a random pool of note-clean ones.
 
     Under LABEL_SOURCE 'both' a disruption needs a note, so the note-disrupted shots are the whole supply.
-    The clean pool is CLEAN_POOL_FACTOR times n_clean because some shots turn out unknown once labelled.
+    The clean pool is CLEAN_POOL_FACTOR times n_clean because some shots turn out unknown once labelled;
+    n_clean None means every note-clean shot.
     """
     rng = np.random.default_rng(seed)
     is_note = table["shot_postshot_comment"].map(labels.note_label).to_numpy()
     disrupted = table.loc[is_note, "shot_id"].to_numpy()
     clean = table.loc[~is_note, "shot_id"].to_numpy()
-    n_pool = min(int(n_clean * config.CLEAN_POOL_FACTOR), len(clean))
-    clean = rng.choice(clean, size=n_pool, replace=False)
+    if n_clean is not None:
+        n_pool = min(int(n_clean * config.CLEAN_POOL_FACTOR), len(clean))
+        clean = rng.choice(clean, size=n_pool, replace=False)
     return sorted(int(i) for i in np.concatenate([disrupted, clean]))
 
 
@@ -54,6 +58,35 @@ def label_shots(ids, table):
     return shots[shots["status"] != "unknown"].reset_index(drop=True)
 
 
+def add_endings(shots, allow_download=False):
+    """shots plus how each one ended (src/termination.py) and the labels that need it.
+
+    Adds termination, ref_frac and sol_ratio; candidate (a quench nobody noted, lost during flat-top with flux left:
+    a possible unrecorded disruption); clear (an ending everyone agrees on: a noted disruption the detector also
+    sees, or no quench at all); and the 'physics' label source: disrupted when the detector sees a quench and the
+    note says so or the plasma was lost during flat-top with flux left. Its time is the detector's, as for 'both'.
+    Needs the shots' extras (programmed and solenoid current); without them a shot's ending is 'unknown'.
+    """
+    out = shots.copy()
+    endings = [termination.shot_ending(row.t_quench, extras.load_extras(int(row.shot_id), allow_download))
+               for row in out.itertuples()]
+    out["termination"] = [ending for ending, _ in endings]
+    out["ref_frac"] = [m["ref_frac"] for _, m in endings]
+    out["sol_ratio"] = [m["sol_ratio"] for _, m in endings]
+    quench = np.isfinite(out["t_quench"].astype(float))
+    note = out["note"].astype(bool)
+    out["candidate"] = quench & ~note & (out["termination"] == "flat_top_drop")
+    out["clear"] = (out["status_both"] == "disrupted") | ~quench
+    physics = quench & (note | (out["termination"] == "flat_top_drop"))
+    out["status_physics"] = np.where(physics, "disrupted", "clean")
+    out["t_disrupt_physics"] = np.where(physics, out["t_quench"].astype(float), np.nan)
+    if config.LABEL_SOURCE == "physics":
+        out["status"] = out["status_physics"]
+        out["disrupted"] = physics
+        out["t_disrupt"] = out["t_disrupt_physics"]
+    return out
+
+
 def select_shots(shots, n_disrupted, n_clean, seed=config.RANDOM_SEED):
     """Seeded random sample of n_disrupted disrupted and n_clean clean shots (None means take all of them)."""
     rng = np.random.default_rng(seed)
@@ -74,7 +107,8 @@ def stop_time(row):
     """
     candidates = [row["t_disrupt"]]
     if config.STOP_AT_QUENCH:
-        candidates += [row["t_quench"]] + [row[f"t_disrupt_{source}"] for source in LABEL_SOURCES]
+        candidates += [row["t_quench"]] + [row[f"t_disrupt_{source}"] for source in ALL_SOURCES
+                                           if f"t_disrupt_{source}" in row]
     finite = [t for t in candidates if np.isfinite(t)]
     return min(finite) if finite else np.inf
 
@@ -89,9 +123,16 @@ def build_windows(shots):
             empty.append([int(row["shot_id"]), "no windows (no visible breakdown, or plasma too short)"])
             continue
         win.insert(0, "shot_id", int(row["shot_id"]))
-        tables.append(win)
+        tables.append(compact(win))
     log_skipped(empty)
     return pd.concat(tables, ignore_index=True)
+
+
+def compact(win):
+    """Feature columns as float32: with every MAST shot and ~120 features, float64 would need twice the memory, and
+    no feature needs more than float32's 7 significant digits. Times stay float64, so window ends compare exactly."""
+    keep = {"shot_id", "t_end", "t_start"}
+    return win.astype({c: "float32" for c in win.columns if c not in keep and win[c].dtype == "float64"})
 
 
 def window_labels(t_end, t_disrupt, horizon_ms=config.HORIZON_MS):
@@ -104,7 +145,8 @@ def window_labels(t_end, t_disrupt, horizon_ms=config.HORIZON_MS):
 
 
 def labelled_windows(windows, shots, source=None, horizon_ms=config.HORIZON_MS):
-    """Windows with label, disrupted, t_disrupt, t_quench and near_quench columns for one label source.
+    """Windows with label, disrupted, t_disrupt, t_quench and near_quench columns for one label source, and the
+    shot's ending (termination, candidate, clear; defaults when the shot table has no endings).
 
     Windows at or after t_disrupt are dropped (SPEC 6). near_quench marks clean-shot windows within the horizon
     before an unnoted quench; training may drop them (NEAR_QUENCH_CLEAN), evaluation always keeps them.
@@ -125,6 +167,10 @@ def labelled_windows(windows, shots, source=None, horizon_ms=config.HORIZON_MS):
     out["t_quench"] = t_quench
     near = (t_end >= t_quench - horizon - features.EPS) & (t_end < t_quench - features.EPS)
     out["near_quench"] = near & ~out["disrupted"].to_numpy()
+    defaults = {"termination": "unknown", "candidate": False, "clear": True, "note": False}
+    for column, default in defaults.items():
+        values = out["shot_id"].map(info[column]) if column in info else pd.Series(default, index=out.index)
+        out[column] = values.fillna(default).astype(type(default))
     return out
 
 

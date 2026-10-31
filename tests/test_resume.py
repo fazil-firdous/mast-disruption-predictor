@@ -5,7 +5,7 @@ import os
 import numpy as np
 import pytest
 
-from src import config, evaluate, experiment, explain, resume, server
+from src import config, evaluate, experiment, explain, resume, server, status_card
 from tests.test_evaluate import tiny_project  # noqa: F401  (pytest fixture)
 
 
@@ -192,9 +192,11 @@ def test_status_card_numbers_and_picture(monkeypatch, tmp_path):
     assert any("400 report shots" in t for t in todo) and not any("/gold" in t for t in todo)
     effects_csv = tmp_path / "comparisons.csv"
     effects_csv.write_text("comparison,n_seeds,catch_rate_change,catch_rate_change_low,catch_rate_change_high\n"
-                           "magnetics,29,0.037,0.006,0.068\nno_ip_abs,29,-0.024,-0.046,-0.002\nno_prad,3,-0.01,,\n")
+                           "machine,29,0.037,0.006,0.068\nno_efit,29,-0.024,-0.046,-0.002\nno_time,3,-0.01,,\n"
+                           "magnetics,29,0.03,0.01,0.05\n")
     effects = status_card.comparison_effects(str(effects_csv))
-    assert set(effects) == {"+ magnetic signals", "no plasma current"}  # no range yet for no_prad: left out
+    # no range yet for no_time, and magnetics is no longer a comparison: both left out
+    assert set(effects) == {"machine only", "no EFIT"}
     assert info["effects"] == {}
     for case in (info, {**info, "skill": status_card.skill(str(seeds)), "signals": useful, "all_shots": 11573},
                  {**info, "effects": effects}):
@@ -222,6 +224,6 @@ def test_banner_and_progress_block():
             "auto_total": 0,
             "skill": {"n": 30, "catch": 0.07, "false_alarm": 0.05, "verdict": "better"}}
     text = banner.progress(info, "E10 seed 31", colour=False)
-    assert "Shots learned from" in text and "30 / 400" in text and "✓ better than guessing" in text
+    assert "Shots learned from" in text and f"30 / {status_card.repeat_total()}" in text and "✓ better than guessing" in text
     assert banner.bar(0, 0, colour=False) == " " * banner.BAR_WIDTH
     assert banner.skill_text(None) == "" and "one test only" in banner.skill_text({**info["skill"], "verdict": "one"}, False)
