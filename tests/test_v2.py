@@ -138,3 +138,15 @@ def test_workflow_runs_as_many_parts_as_config_says():
     parts = list(range(config.RELAY_PARTS))
     assert f"'{json.dumps(parts)}'" in text
     assert f"inputs.task == 'fetch' && {config.RELAY_PARTS} || 1" in text
+
+
+def test_extras_download_stops_starting_shots_after_its_deadline(monkeypatch, tmp_path):
+    import time
+    monkeypatch.setattr(config, "DATA_DIR", str(tmp_path))
+    done = []
+    monkeypatch.setattr(extras, "load_extras", lambda shot_id: done.append(shot_id) or time.sleep(0.05))
+    result = extras.download_extras(list(range(6)), workers=1, deadline=time.time() - 1)  # already past
+    # the worker may already have picked up the next shot when the deadline is noticed; nothing after that starts
+    assert len(done) <= 2 and result["ok"] == len(done) and sorted(result["failed"]) == list(range(len(done), 6))
+    done.clear()
+    assert extras.download_extras(list(range(3)), workers=2)["ok"] == 3 and sorted(done) == [0, 1, 2]

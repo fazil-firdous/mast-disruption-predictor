@@ -27,7 +27,7 @@ NOT_SCIENCE_SETTINGS = {
     # stamped on its own by scripts/repeat_runs.py, so adding a comparison never reruns E0-E15
     "COMPARISONS", "COMPARISON_BASELINES", "COMPARISON_SEEDS",
     # where the data comes from: the data itself is stamped by content, so a moved address retrains nothing
-    "SHOT_TABLE_URL", "SHOT_ZARR_URL", "SUMMARY_GROUP", "RELAY_PARTS"}
+    "SHOT_TABLE_URL", "SHOT_ZARR_URL", "SUMMARY_GROUP", "RELAY_PARTS", "RELAY_WORK_HOURS"}
 SCIENCE_SCRIPTS = ["build_dataset.py"]  # scripts with science logic in them (shot selection, splits)
 STAMP_FILE = "stamp.json"
 

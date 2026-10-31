@@ -146,6 +146,7 @@ RELAY_TIMEOUT_HOURS = 7  # GitHub allows 6 h per job; an hour more for the parts
 # every MAST shot with its extras (~29 s each to compute) is more than one 6 h GitHub job can fetch, so the workflow
 # runs this many jobs side by side, each on every RELAY_PARTS-th shot (.github/workflows/fetch_data.yml must match)
 RELAY_PARTS = 4
+RELAY_WORK_HOURS = 5.25  # a relay job stops starting new extras after this, so it uploads before GitHub's 6 h cut-off
 
 # Research server (scripts/research_server.py)
 NETWORK_RETRY_MINUTES = 30  # when the data server is unreachable, check again this often instead of giving up

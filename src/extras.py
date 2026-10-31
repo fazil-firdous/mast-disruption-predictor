@@ -16,6 +16,7 @@ Every value at grid time t uses only fast samples with t_prev < time <= t, so it
 Cached per shot in data/extras/{shot_id}.parquet; a cached file from before a column was added is computed again.
 """
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
@@ -233,20 +234,31 @@ def load_extras(shot_id, allow_download=True):
     return frame
 
 
-def download_extras(ids, workers=config.DOWNLOAD_WORKERS):
-    """Compute and cache extras for every shot in ids (skipping cached ones). Returns {'ok': n, 'failed': [ids]}.
+def download_extras(ids, workers=config.DOWNLOAD_WORKERS, deadline=None):
+    """Compute and cache extras for every shot in ids (skipping current cached ones). Returns {'ok': n, 'failed': [ids]}.
 
-    Each shot reads ~3-4 MB of fast magnetics from STFC, so this runs in parallel like download_shots.
+    Each shot reads ~3-4 MB of fast magnetics and several groups from STFC, so this runs in parallel like
+    download_shots. deadline (time.time() seconds): shots not started by then are left out and counted as failed,
+    so a time-limited job (the GitHub relay) still hands over what it has.
     """
     todo = [i for i in ids if not is_current(cache_path(i))]
     failed = []
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(load_extras, i): i for i in todo}
+    pool = ThreadPoolExecutor(max_workers=workers)
+    futures = {pool.submit(load_extras, i): i for i in todo}
+    try:
         for future in tqdm(as_completed(futures), total=len(futures), desc="extras"):
+            if future.cancelled():
+                failed.append(futures[future])
+                continue
             try:
                 future.result()
             except Exception:
                 failed.append(futures[future])
+            if deadline is not None and time.time() > deadline:
+                for pending in futures:
+                    pending.cancel()
+    finally:
+        pool.shutdown(wait=True, cancel_futures=True)
     return {"ok": len(ids) - len(failed), "failed": failed}
 
 

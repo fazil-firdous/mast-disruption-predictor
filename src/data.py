@@ -28,7 +28,8 @@ def load_shot_table(use_cache=True):
     if not host_reachable(url):
         raise RuntimeError(f"shot table unavailable: {urllib.parse.urlparse(url).hostname} does not answer")
     try:
-        table = pd.read_parquet(url, storage_options=STORAGE if url.startswith("http") else None)
+        # pandas fetches web addresses with urllib, which honours HTTPS_PROXY by itself
+        table = pd.read_parquet(url)
     except Exception as error:
         raise RuntimeError(f"shot table unavailable: {url}: {type(error).__name__}: {error}"[:300]) from error
     os.makedirs(os.path.dirname(config.SHOT_TABLE_CACHE), exist_ok=True)

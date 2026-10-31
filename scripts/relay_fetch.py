@@ -13,6 +13,8 @@ from scripts.build_dataset import shot_counts, table_from_report
 from src import config, dataset, extras, sources
 from src.data import download_shots, load_shot_table
 
+START = time.time()
+
 
 
 def choose_shots(scale):
@@ -54,7 +56,7 @@ def main():
     # the server cannot compute extras itself (it cannot reach STFC), so do it here for every shot it may select
     extra = {"ok": 0, "failed": []}
     if config.USE_EXTRAS:
-        extra = extras.download_extras(have, workers=config.RELAY_WORKERS)
+        extra = extras.download_extras(have, workers=config.RELAY_WORKERS, deadline=START + config.RELAY_WORK_HOURS * 3600)
     manifest = {"task": "fetch", "scale": args.scale, "table_source": source, "part": args.part, "parts": args.parts,
                 "full_n_clean": config.FULL_N_CLEAN, "extras_columns": list(extras.COLUMNS), "requested": len(ids),
                 "available": len(result["cached"]) + len(result["downloaded"]), "failed": len(result["failed"]),
