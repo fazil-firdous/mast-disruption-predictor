@@ -116,21 +116,46 @@ def unpack(zip_path, data_dir):
         return json.load(f)
 
 
+def is_part(name):
+    """True for the run's data artifacts: 'mast-data', or 'mast-data-<part>' when the fetch ran in parts."""
+    return name == ARTIFACT_NAME or name.startswith(ARTIFACT_NAME + "-")
+
+
+def merge_manifests(manifests):
+    """One manifest for a fetch that ran in parts: counts added up, the rest from the first part. If any part had
+    to use the 400 report shots, the whole fetch counts as 'report'."""
+    merged = dict(manifests[0])
+    for key in ("requested", "available", "failed", "extras", "extras_failed"):
+        if key in merged:
+            merged[key] = sum(m.get(key, 0) for m in manifests)
+    if any(m.get("table_source") == "report" for m in manifests):
+        merged["table_source"] = "report"
+    merged.pop("part", None)
+    return merged
+
+
 def download(run_id, data_dir=None):
-    """Download the run's artifact and unpack it into data_dir (default DATA_DIR). Returns the manifest."""
+    """Download every data artifact of the run (one per part), unpack each into data_dir (default DATA_DIR) and
+    write their merged manifest there. Returns it."""
     data_dir = data_dir or config.DATA_DIR
     response = requests.get(_api(f"/actions/runs/{run_id}/artifacts"), headers=_headers(), timeout=30)
     check(response)
-    artifacts = [a for a in response.json().get("artifacts", []) if a["name"] == ARTIFACT_NAME]
+    artifacts = sorted((a for a in response.json().get("artifacts", []) if is_part(a["name"])), key=lambda a: a["name"])
     if not artifacts:
         raise RuntimeError(f"run {run_id} has no '{ARTIFACT_NAME}' artifact")
     zip_path = os.path.join(config.HOME_DIR, "relay_download.zip")
-    with requests.get(artifacts[0]["archive_download_url"], headers=_headers(), stream=True, timeout=600) as r:
-        r.raise_for_status()
-        with open(zip_path, "wb") as f:
-            for chunk in r.iter_content(1 << 20):
-                f.write(chunk)
-    try:
-        return unpack(zip_path, data_dir)
-    finally:
-        os.remove(zip_path)
+    manifests = []
+    for artifact in artifacts:
+        with requests.get(artifact["archive_download_url"], headers=_headers(), stream=True, timeout=600) as r:
+            r.raise_for_status()
+            with open(zip_path, "wb") as f:
+                for chunk in r.iter_content(1 << 20):
+                    f.write(chunk)
+        try:
+            manifests.append(unpack(zip_path, data_dir))
+        finally:
+            os.remove(zip_path)
+    merged = merge_manifests(manifests)
+    with open(os.path.join(data_dir, "manifest.json"), "w") as f:
+        json.dump(merged, f, indent=2)
+    return merged

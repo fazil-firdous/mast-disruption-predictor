@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 from scripts import auto_labels
-from src import config
+from src import config, termination
 
 T = np.round(np.arange(0, 0.4, 0.001), 3)
 FLAT_REF = np.clip(T / 0.1, 0, 1) * 600e3          # programmed current: ramp up, then flat-top at 600 kA
@@ -12,11 +12,11 @@ STOPPED = np.where(T < 0.25, SWEEPING, 45e3 - 250e3 * 0.25)   # solenoid stops s
 
 
 def label(ref, sol, t_q, has_quench=True):
-    return auto_labels.classify(has_quench, auto_labels.measures(T, ref, sol, t_q))
+    return termination.classify(has_quench, termination.measures(T, ref, sol, t_q))
 
 
 def test_flat_top_drop_with_solenoid_still_sweeping():
-    m = auto_labels.measures(T, FLAT_REF, SWEEPING, 0.3)
+    m = termination.measures(T, FLAT_REF, SWEEPING, 0.3)
     assert m["ref_frac"] == 1.0 and abs(m["sol_ratio"] - 1.0) < 0.05
     assert label(FLAT_REF, SWEEPING, 0.3) == "flat_top_drop"
 

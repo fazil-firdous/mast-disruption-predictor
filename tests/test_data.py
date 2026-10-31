@@ -149,8 +149,10 @@ def test_check_connection_reports_both_outcomes(monkeypatch):
 
 
 @pytest.mark.real_host_check
-def test_host_reachable_on_localhost():
+def test_host_reachable_on_localhost(monkeypatch):
     import socket
+    monkeypatch.delenv("HTTPS_PROXY", raising=False)
+    monkeypatch.delenv("https_proxy", raising=False)
     server = socket.socket()
     server.bind(("127.0.0.1", 0))
     server.listen(1)
@@ -161,23 +163,27 @@ def test_host_reachable_on_localhost():
     assert data.host_reachable("/local/path/{shot_id}.zarr")
 
 
-def test_shot_table_falls_back_to_the_s3_copy(monkeypatch, tmp_path):
+def test_shot_table_from_the_bucket_is_cached(monkeypatch, tmp_path):
     copy = tmp_path / "l2_shots.parquet"
     pd.DataFrame({"shot_id": [11860], "campaign": ["M5"], "shot_postshot_comment": ["DISRUPTION AT 220MS"]}).to_parquet(copy)
-    monkeypatch.setattr(config, "SHOT_TABLE_URL", str(tmp_path / "mastapp_down.parquet"))
-    monkeypatch.setattr(config, "SHOT_TABLE_MIRROR_URL", str(copy))
+    monkeypatch.setattr(config, "SHOT_TABLE_URL", str(copy))
     monkeypatch.setattr(config, "SHOT_TABLE_CACHE", str(tmp_path / "cache" / "shot_table.parquet"))
     table = data.load_shot_table()
     assert list(table["shot_id"]) == [11860] and os.path.exists(config.SHOT_TABLE_CACHE)
     assert data.check_shot_table() == (True, "shot table cached")
 
 
-def test_shot_table_error_names_both_sources(monkeypatch, tmp_path):
+def test_shot_table_error_names_the_source(monkeypatch, tmp_path):
     monkeypatch.setattr(config, "SHOT_TABLE_URL", str(tmp_path / "a.parquet"))
-    monkeypatch.setattr(config, "SHOT_TABLE_MIRROR_URL", str(tmp_path / "b.parquet"))
     monkeypatch.setattr(config, "SHOT_TABLE_CACHE", str(tmp_path / "cache.parquet"))
     with pytest.raises(RuntimeError) as error:
         data.load_shot_table()
-    assert "a.parquet" in str(error.value) and "b.parquet" in str(error.value)
+    assert "a.parquet" in str(error.value)
     ok, message = data.check_shot_table()
-    assert not ok and "b.parquet" in message
+    assert not ok and "a.parquet" in message
+
+
+@pytest.mark.real_host_check
+def test_host_reachable_checks_the_proxy_when_one_is_set(monkeypatch):
+    monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:9")  # the discard port: nothing listens there
+    assert not data.host_reachable("https://s3.echo.stfc.ac.uk/mast", timeout=2)

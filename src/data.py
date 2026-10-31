@@ -13,40 +13,42 @@ from tqdm import tqdm
 from src import config
 
 COLUMNS = ["time"] + list(config.SIGNAL_VARIABLES)
+# let the HTTP client use a proxy named in the environment (HTTPS_PROXY), as most tools do; without one it changes nothing
+STORAGE = {"client_kwargs": {"trust_env": True}}
 
 
 def load_shot_table(use_cache=True):
     """Return the shot table (one row per shot) as a DataFrame, cached locally after the first download.
 
-    Tries mastapp.site first, then the copy in the FAIR-MAST S3 bucket (same table; mastapp.site has had long
-    outages). Raises RuntimeError naming both failures if neither can be read.
+    Reads the official table in the FAIR-MAST bucket. Raises RuntimeError saying why if it cannot be read.
     """
     if use_cache and os.path.exists(config.SHOT_TABLE_CACHE):
         return pd.read_parquet(config.SHOT_TABLE_CACHE)
-    problems = []
-    for url in (config.SHOT_TABLE_URL, config.SHOT_TABLE_MIRROR_URL):
-        if not host_reachable(url):
-            problems.append(f"{urllib.parse.urlparse(url).hostname} does not answer")
-            continue
-        try:
-            table = pd.read_parquet(url)
-        except Exception as error:
-            problems.append(f"{url}: {type(error).__name__}: {error}"[:200])
-            continue
-        os.makedirs(os.path.dirname(config.SHOT_TABLE_CACHE), exist_ok=True)
-        table.to_parquet(config.SHOT_TABLE_CACHE)
-        return table
-    raise RuntimeError("shot table unavailable: " + "; ".join(problems))
+    url = config.SHOT_TABLE_URL
+    if not host_reachable(url):
+        raise RuntimeError(f"shot table unavailable: {urllib.parse.urlparse(url).hostname} does not answer")
+    try:
+        # pandas fetches web addresses with urllib, which honours HTTPS_PROXY by itself
+        table = pd.read_parquet(url)
+    except Exception as error:
+        raise RuntimeError(f"shot table unavailable: {url}: {type(error).__name__}: {error}"[:300]) from error
+    os.makedirs(os.path.dirname(config.SHOT_TABLE_CACHE), exist_ok=True)
+    table.to_parquet(config.SHOT_TABLE_CACHE)
+    return table
 
 
 def host_reachable(url, timeout=config.TCP_CHECK_TIMEOUT_S):
     """True if a plain TCP connection to the URL's host opens within timeout. Local paths count as reachable.
 
     A blocked server never answers, and the HTTP libraries can take minutes to give up; this takes seconds.
+    Behind an HTTPS proxy (HTTPS_PROXY set) only the proxy can be reached directly, so the proxy is checked.
     """
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme not in ("http", "https"):
         return True
+    proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+    if proxy:
+        parsed = urllib.parse.urlparse(proxy)
     port = parsed.port or (443 if parsed.scheme == "https" else 80)
     try:
         with socket.create_connection((parsed.hostname, port), timeout=timeout):
@@ -56,7 +58,7 @@ def host_reachable(url, timeout=config.TCP_CHECK_TIMEOUT_S):
 
 
 def check_shot_table():
-    """(ok, message): the shot table is cached, or can be downloaded now (from mastapp.site or its S3 copy)."""
+    """(ok, message): the shot table is cached, or can be downloaded now (from the FAIR-MAST bucket)."""
     if os.path.exists(config.SHOT_TABLE_CACHE):
         return True, "shot table cached"
     try:
@@ -71,7 +73,7 @@ def _open_summary(shot_id):
     # zarr v3 stores since 2026-09-22 (zarr<3 cannot read them). The array list lives only in the root's
     # consolidated metadata and S3 cannot list folders, so consolidated=False sees an empty group.
     url = config.SHOT_ZARR_URL.format(shot_id=shot_id)
-    return xr.open_zarr(url, group=config.SUMMARY_GROUP, consolidated=True)
+    return xr.open_zarr(url, group=config.SUMMARY_GROUP, consolidated=True, storage_options=storage(url))
 
 
 def open_group(shot_id, group):
@@ -80,7 +82,12 @@ def open_group(shot_id, group):
     Not cached: used for studies and for checking a group before it becomes a feature.
     """
     url = config.SHOT_ZARR_URL.format(shot_id=shot_id)
-    return xr.open_zarr(url, group=group, consolidated=True)
+    return xr.open_zarr(url, group=group, consolidated=True, storage_options=storage(url))
+
+
+def storage(url):
+    """fsspec options for a store URL: the proxy-aware HTTP settings for web addresses, nothing for local paths."""
+    return STORAGE if url.startswith("http") else None
 
 
 def _summary_to_frame(ds):

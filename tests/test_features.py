@@ -120,8 +120,11 @@ def test_pnbi_on_and_ratios():
 def test_feature_names_match_window_features():
     shot = make_shot("rampdown")
     win = features.shot_windows(shot)
-    assert set(features.feature_names(extended=True)) == set(win.columns) - {"t_end", "t_start"}
+    assert set(features.v2_names()) == set(win.columns) - {"t_end", "t_start"}
     assert len(features.feature_names()) == 30
+    assert len(set(features.v2_names())) == len(features.v2_names())
+    assert set(features.feature_names(extended=True)) < set(features.v2_names())
+    assert set(features.machine_names()) < set(features.v2_names())
 
 
 def test_tiny_shot_has_no_windows():
@@ -160,19 +163,25 @@ def test_breakdown_dip_is_not_a_plasma_end():
 
 @pytest.mark.parametrize("t_end", [0.1, 0.2, 0.219])
 def test_causality_with_extra_signals(t_end):
+    from src import extras
     rng = np.random.default_rng(3)
     shot = make_shot("quench", t_quench=0.22)
-    for column in ["lm_n1", "mirnov_rms", "sol_current", "ip_ref"]:
-        shot[column] = rng.normal(0, 1, len(shot))
+    columns = extras.COLUMNS[1:]  # every extra signal, v2 included
+    for column in columns:
+        # positive values, so the change features (log ratios) are defined
+        shot[column] = 0.1 + np.abs(rng.normal(0, 1, len(shot)))
+    shot["ne_line_avg"] *= 3e19
     changed = shot.copy()
     future = changed["time"] > t_end + 1e-9
-    for column in ["lm_n1", "mirnov_rms", "sol_current", "ip_ref"]:
+    for column in columns:
         changed.loc[future, column] = 1e9
     sig_a, sig_b = features.prepare_signals(shot), features.prepare_signals(changed)
     t_start = features.find_t_start(sig_a)
     a, b = features.window_features(sig_a, t_end, t_start), features.window_features(sig_b, t_end, t_start)
     same(a, b)
-    assert a["has_lm"] == 1.0 and np.isfinite(a["ip_ref_error"])
+    assert a["has_lm"] == 1.0 and np.isfinite(a["ip_ref_error"]) and np.isfinite(a["fgw_last"])
+    if t_end >= 0.2:
+        assert np.isfinite(a["lm_rel"]) and np.isfinite(a["li_slope_long"])
 
 
 def test_missing_extras_give_nan_features():

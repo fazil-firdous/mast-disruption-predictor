@@ -6,7 +6,7 @@ import zipfile
 import pytest
 import requests
 
-from src import config, relay, server
+from src import config, extras, relay, server
 
 
 def test_pick_run_finds_the_new_manual_run():
@@ -73,9 +73,13 @@ def test_pipeline_args():
 def test_relay_needed():
     state = server.new_state()
     assert server.relay_needed(state, "full")
-    state["relay_manifest"] = {"scale": "full"}
+    current = {"scale": "full", "full_n_clean": config.FULL_N_CLEAN, "extras_columns": list(extras.COLUMNS)}
+    state["relay_manifest"] = current
     assert not server.relay_needed(state, "full")
     assert server.relay_needed(state, "small")
+    state["relay_manifest"] = {"scale": "full"}  # fetched before the extras grew new columns: fetch again
+    assert server.relay_needed(state, "full")
+    state["relay_manifest"] = current
     state["force_fetch"] = True
     assert server.relay_needed(state, "full")
 

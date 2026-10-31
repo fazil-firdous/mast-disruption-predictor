@@ -6,21 +6,29 @@
   lm_n1 = sqrt(a1^2 + b1^2) in tesla. It stays NaN until that offset is known, so it never looks ahead.
 - mirnov_rms: RMS of one centre-column Mirnov coil about its 1 ms mean (fluctuations above ~1 kHz), tesla.
 - ip_ref: programmed plasma current (pulse_schedule), A; sol_current: central solenoid current (pf_active), A.
+- mirnov_lf / _tm / _mf / _hf: RMS of the same Mirnov coil in the frequency bands of config.MIRNOV_BANDS_KHZ, from
+  the spectrum of each 1 ms bin (~500 samples at 500 kHz), tesla. Which band carries a mode differs between shots.
+- ne_line_avg: line-average electron density from the summary group (m^-3), on the summary grid itself.
+- efit_*: EFIT minor radius, q95, li, beta_N, elongation and magnetic-axis height (config.EFIT_VARIABLES), each
+  held from EFIT_DELAY_MS after its slice time, so an EFIT value is used only once it is surely known.
 
 Every value at grid time t uses only fast samples with t_prev < time <= t, so it is known at t.
-Cached per shot in data/extras/{shot_id}.parquet.
+Cached per shot in data/extras/{shot_id}.parquet; a cached file from before a column was added is computed again.
 """
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 from tqdm import tqdm
 
 from src import config
 from src.data import load_shot, open_group
 
-COLUMNS = ["time", "lm_n1", "mirnov_rms", "ip_ref", "sol_current"]
+COLUMNS = (["time", "lm_n1", "mirnov_rms", "ip_ref", "sol_current"] + list(config.MIRNOV_BANDS_KHZ)
+           + ["ne_line_avg"] + list(config.EFIT_VARIABLES))
 SADDLE_PHI_DEG = np.arange(15.0, 360.0, 30.0)  # centres of the middle-row saddle coils M01..M12 (see NOTES.md)
 MIN_SADDLE_CHANNELS = 6  # fewer working coils cannot pin down an n=1 cosine plus offset reliably
 
@@ -108,18 +116,59 @@ def saddle_n1(shot_id, t_grid):
     return amplitude
 
 
-def mirnov_rms(shot_id, t_grid):
-    """mirnov_rms on t_grid from the first centre-column poloidal Mirnov coil that has data (else all NaN)."""
+def band_rms(t_fast, x, t_grid, dt):
+    """RMS of x in each band of config.MIRNOV_BANDS_KHZ within each grid bin, from the bin's own spectrum.
+
+    Returns {band name: array over t_grid}; NaN where a bin has fewer than 16 finite samples or a gap.
+    By Parseval, summing the squared spectrum over a band gives that band's share of the variance.
+    """
+    idx = bin_index(t_fast, t_grid)
+    out = {name: np.full(len(t_grid), np.nan) for name in config.MIRNOV_BANDS_KHZ}
+    bounds = np.searchsorted(idx, np.arange(len(t_grid) + 1), side="left")
+    for i in range(len(t_grid)):
+        block = x[bounds[i]:bounds[i + 1]]
+        if len(block) < 16 or not np.isfinite(block).all():
+            continue
+        spectrum = np.abs(np.fft.rfft(block - block.mean())) ** 2
+        freq = np.fft.rfftfreq(len(block), dt)
+        # one-sided spectrum: interior bins stand for both signs of frequency
+        scale = 2.0 / len(block) ** 2
+        for name, (low, high) in config.MIRNOV_BANDS_KHZ.items():
+            band = (freq >= low * 1e3) & (freq < high * 1e3)
+            out[name][i] = np.sqrt(scale * spectrum[band].sum())
+    return out
+
+
+def mirnov_signals(shot_id, t_grid):
+    """mirnov_rms and the band RMS columns on t_grid, from the first centre-column poloidal Mirnov coil that has
+    data (all NaN if none)."""
+    empty = {name: np.full(len(t_grid), np.nan) for name in ["mirnov_rms"] + list(config.MIRNOV_BANDS_KHZ)}
     mag = open_group(shot_id, "magnetics")
     name = "b_field_pol_probe_cc_field"
     if name not in mag:
-        return np.full(len(t_grid), np.nan)
+        return empty
     t_fast = mag["time_mirnov"].values
     for k in range(mag[name].shape[0]):
         x = mag[name][k].values
         if np.isfinite(x).any():
-            return bin_rms(t_fast, x, t_grid)
-    return np.full(len(t_grid), np.nan)
+            dt = float(np.median(np.diff(t_fast)))
+            return {"mirnov_rms": bin_rms(t_fast, x, t_grid), **band_rms(t_fast, x, t_grid, dt)}
+    return empty
+
+
+def efit_signals(shot_id, t_grid):
+    """The config.EFIT_VARIABLES columns on t_grid, each EFIT slice held from EFIT_DELAY_MS after its time
+    (all NaN if the shot has no equilibrium group)."""
+    out = {name: np.full(len(t_grid), np.nan) for name in config.EFIT_VARIABLES}
+    try:
+        efit = open_group(shot_id, "equilibrium")
+    except Exception:
+        return out
+    known_at = efit["time"].values + config.EFIT_DELAY_MS / 1000
+    for name, variable in config.EFIT_VARIABLES.items():
+        if variable in efit and efit[variable].ndim == 1:
+            out[name] = hold_last(known_at, np.asarray(efit[variable].values, dtype=float), t_grid)
+    return out
 
 
 def slow_signal(shot_id, group, variable, t_grid, channel=None):
@@ -143,14 +192,20 @@ def compute_extras(shot_id):
     """All extra signals of one shot on its summary time grid, as a DataFrame with COLUMNS."""
     t_grid = load_shot(shot_id)["time"].to_numpy()
     out = pd.DataFrame({"time": t_grid})
-    for column, func in [("lm_n1", saddle_n1), ("mirnov_rms", mirnov_rms)]:
+    try:
+        out["lm_n1"] = saddle_n1(shot_id, t_grid)
+    except Exception:
+        out["lm_n1"] = np.nan
+    for func in (mirnov_signals, efit_signals):
         try:
-            out[column] = func(shot_id, t_grid)
+            for column, values in func(shot_id, t_grid).items():
+                out[column] = values
         except Exception:
-            out[column] = np.nan
+            pass
     out["ip_ref"] = np.abs(slow_signal(shot_id, "pulse_schedule", "i_plasma", t_grid))
     out["sol_current"] = slow_signal(shot_id, "pf_active", "coil_current", t_grid, channel="SOL")
-    return out[COLUMNS]
+    out["ne_line_avg"] = slow_signal(shot_id, "summary", "line_average_n_e", t_grid)
+    return out.reindex(columns=COLUMNS)
 
 
 def cache_path(shot_id):
@@ -158,11 +213,18 @@ def cache_path(shot_id):
     return os.path.join(config.DATA_DIR, "extras", f"{shot_id}.parquet")
 
 
+def is_current(path):
+    """True if the cached extras file at path exists and has every column in COLUMNS."""
+    if not os.path.exists(path):
+        return False
+    return set(COLUMNS) <= set(pq.read_schema(path).names)
+
+
 def load_extras(shot_id, allow_download=True):
-    """Extras for one shot from data/extras/, computed and cached on first use. None if not cached and
-    allow_download is False (offline runs)."""
+    """Extras for one shot from data/extras/, computed and cached on first use (or again if the cached file lacks
+    a column). Offline (allow_download False): the cached file as it is, or None if there is none."""
     path = cache_path(shot_id)
-    if os.path.exists(path):
+    if is_current(path) or (os.path.exists(path) and not allow_download):
         return pd.read_parquet(path)
     if not allow_download:
         return None
@@ -172,20 +234,31 @@ def load_extras(shot_id, allow_download=True):
     return frame
 
 
-def download_extras(ids, workers=config.DOWNLOAD_WORKERS):
-    """Compute and cache extras for every shot in ids (skipping cached ones). Returns {'ok': n, 'failed': [ids]}.
+def download_extras(ids, workers=config.DOWNLOAD_WORKERS, deadline=None):
+    """Compute and cache extras for every shot in ids (skipping current cached ones). Returns {'ok': n, 'failed': [ids]}.
 
-    Each shot reads ~3-4 MB of fast magnetics from STFC, so this runs in parallel like download_shots.
+    Each shot reads ~3-4 MB of fast magnetics and several groups from STFC, so this runs in parallel like
+    download_shots. deadline (time.time() seconds): shots not started by then are left out and counted as failed,
+    so a time-limited job (the GitHub relay) still hands over what it has.
     """
-    todo = [i for i in ids if not os.path.exists(cache_path(i))]
+    todo = [i for i in ids if not is_current(cache_path(i))]
     failed = []
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(load_extras, i): i for i in todo}
+    pool = ThreadPoolExecutor(max_workers=workers)
+    futures = {pool.submit(load_extras, i): i for i in todo}
+    try:
         for future in tqdm(as_completed(futures), total=len(futures), desc="extras"):
+            if future.cancelled():
+                failed.append(futures[future])
+                continue
             try:
                 future.result()
             except Exception:
                 failed.append(futures[future])
+            if deadline is not None and time.time() > deadline:
+                for pending in futures:
+                    pending.cancel()
+    finally:
+        pool.shutdown(wait=True, cancel_futures=True)
     return {"ok": len(ids) - len(failed), "failed": failed}
 
 
@@ -193,9 +266,7 @@ def with_extras(shot_df, shot_id):
     """shot_df plus the cached extra columns (NaN columns if this shot has none cached)."""
     extra = load_extras(shot_id, allow_download=False)
     out = shot_df.copy()
+    matches = extra is not None and len(extra) == len(out) and np.allclose(extra["time"], out["time"])
     for column in COLUMNS[1:]:
-        if extra is not None and len(extra) == len(out) and np.allclose(extra["time"], out["time"]):
-            out[column] = extra[column].to_numpy()
-        else:
-            out[column] = np.nan
+        out[column] = extra[column].to_numpy() if matches and column in extra else np.nan
     return out

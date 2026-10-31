@@ -24,10 +24,10 @@ NOT_SCIENCE_SETTINGS = {
     "RELAY_BRANCH", "RELAY_TIMEOUT_HOURS", "NETWORK_RETRY_MINUTES", "PIPELINE_RETRY_HOURS", "HEARTBEAT_HOURS",
     "SEED_SWEEP_MAX", "TELEGRAM_POLL_S", "WATCH_SOURCES_HOURS", "LITERATURE_DAYS", "LITERATURE_MAX_RESULTS",
     "CARD_EVERY_SEEDS", "NEXT_STEP", "UPDATE_CHECK_MINUTES", "JOB_NICE", "MEMORY_SPARE",
-    # stamped on its own by scripts/repeat_runs.py, so adding a comparison never reruns E0-E13
-    "COMPARISONS",
-    # used only by scripts/auto_labels.py, which no experiment reads yet; remove from here once one does
-    "AUTO_FLATTOP_FRAC", "AUTO_MIN_FLATTOP_MS", "AUTO_SOL_WINDOW_MS", "AUTO_SOL_STOPPED_RATIO", "AUTO_RAMPDOWN_FRAC"}
+    # stamped on its own by scripts/repeat_runs.py, so adding a comparison never reruns E0-E15
+    "COMPARISONS", "COMPARISON_BASELINES", "COMPARISON_SEEDS",
+    # where the data comes from: the data itself is stamped by content, so a moved address retrains nothing
+    "SHOT_TABLE_URL", "SHOT_ZARR_URL", "SUMMARY_GROUP", "RELAY_PARTS", "RELAY_WORK_HOURS"}
 SCIENCE_SCRIPTS = ["build_dataset.py"]  # scripts with science logic in them (shot selection, splits)
 STAMP_FILE = "stamp.json"
 

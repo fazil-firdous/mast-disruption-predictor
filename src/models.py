@@ -41,8 +41,11 @@ class PhysicsBaseline:
         return np.column_stack([1 - score, score])
 
 
-def make_model(name, params):
-    """A fresh unfitted model. name is 'baseline', 'logreg', 'forest' or 'hgb'; params come from GRIDS."""
+def make_model(name, params, balanced=True):
+    """A fresh unfitted model. name is 'baseline', 'logreg', 'forest' or 'hgb'; params come from GRIDS.
+
+    balanced=False (hgb only) trains without class weights, so its scores are probabilities (PU learning needs that).
+    """
     seed = config.RANDOM_SEED
     if name == "baseline":
         return PhysicsBaseline(**params)
@@ -59,7 +62,8 @@ def make_model(name, params):
     if name == "hgb":
         # handles NaN natively, so no imputer
         return HistGradientBoostingClassifier(learning_rate=params["learning_rate"],
-                                              max_leaf_nodes=params["max_leaf_nodes"], class_weight="balanced",
+                                              max_leaf_nodes=params["max_leaf_nodes"],
+                                              class_weight="balanced" if balanced else None,
                                               early_stopping=True,
                                               validation_fraction=config.HGB_VALIDATION_FRACTION,
                                               random_state=seed)

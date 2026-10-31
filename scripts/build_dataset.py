@@ -32,7 +32,7 @@ def table_from_report(path):
 
 def shot_counts(scale):
     """(n_disrupted, n_clean) for a scale: 'small' is the balanced SPEC subset, 'full' every disruption plus
-    FULL_N_CLEAN clean shots (None means all)."""
+    FULL_N_CLEAN clean shots (None means all: every shot in the table)."""
     if scale == "small":
         return config.N_DISRUPTED, config.N_CLEAN
     return None, config.FULL_N_CLEAN
@@ -65,6 +65,7 @@ def build(scale="small", skip_check=False, table=None, offline=False):
     shots = dataset.select_shots(labelled, n_disrupted, n_clean)
     if config.USE_EXTRAS and not offline:
         extras.download_extras([int(i) for i in shots["shot_id"]])
+    shots = dataset.add_endings(shots)
 
     current = build_stamp(shots, scale)
     saved = resume.load(config.PROCESSED_DIR, current)
@@ -83,6 +84,8 @@ def build(scale="small", skip_check=False, table=None, offline=False):
               "shots": len(shots), "disrupted": int(shots["disrupted"].sum()),
               "clean": int((~shots["disrupted"]).sum()), "windows": len(windows),
               "split_counts": shots["split"].value_counts().to_dict(),
+              "physics_disrupted": int((shots["status_physics"] == "disrupted").sum()),
+              "unrecorded_candidates": int(shots["candidate"].sum()),
               "table_source": "live" if from_live_table else "report"}
     resume.save(config.PROCESSED_DIR, current, counts)
     return counts
@@ -102,7 +105,7 @@ def build_stamp(shots, scale):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scale", choices=["small", "full"], default="small",
-                        help="small: N_DISRUPTED + N_CLEAN shots; full: every disruption + FULL_N_CLEAN clean")
+                        help="small: N_DISRUPTED + N_CLEAN shots; full: every shot (FULL_N_CLEAN clean, None = all)")
     parser.add_argument("--skip-check", action="store_true", help="do not test the connection first")
     parser.add_argument("--from-report", help="use the shots and labels of a Phase 2 per_shot.csv (mastapp.site down)")
     parser.add_argument("--offline", action="store_true", help="no network: use only shots already on disk")

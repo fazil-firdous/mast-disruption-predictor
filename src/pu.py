@@ -32,13 +32,16 @@ def fit_pu(params, train, holdout, columns):
 
     Step 1: g separates labelled positives from everything else. Step 2: c from holdout positives.
     Step 3: each unlabelled window enters twice, as positive with weight w and as negative with weight 1 - w.
-    The weights use out-of-fold g (grouped by shot), because in-sample scores are over-confident.
+    The weights use out-of-fold g (grouped by shot), because in-sample scores are over-confident. g is trained
+    without class weights: Elkan-Noto needs g to be a probability, which balanced weights would distort
+    (NOTES 2026-10-25).
     """
     s = train["label"].to_numpy()
-    g_model = models.make_model("hgb", params).fit(train[columns], s)
+    g_model = models.make_model("hgb", params, balanced=False).fit(train[columns], s)
     c = label_frequency(g_model, holdout[holdout["label"] == 1], columns)
     unlabelled = s == 0
-    g_oof = cross_val_predict(models.make_model("hgb", params), train[columns], s, groups=train["shot_id"],
+    g_oof = cross_val_predict(models.make_model("hgb", params, balanced=False), train[columns], s,
+                              groups=train["shot_id"],
                               cv=GroupKFold(n_splits=N_FOLDS), method="predict_proba")[:, 1]
     w = unlabelled_weights(g_oof[unlabelled], c)
 

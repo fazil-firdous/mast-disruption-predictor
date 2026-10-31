@@ -22,12 +22,9 @@ PRIVATE_ENV = os.path.expanduser(os.path.join("~", "mast-private", ".env"))
 _load_env_file(os.path.join(REPO_DIR, ".env"))
 _load_env_file(PRIVATE_ENV)
 
-# Data sources (SPEC 3.1). mastapp.site is retired (UKAEA, 2026-10-27; a new service will come at another domain) and
-# the table in the bucket is the official one. The order is swapped at the next science change, since these values
-# are stamped and changing them now would retrain everything (NOTES 2026-10-27).
-SHOT_TABLE_URL = "https://mastapp.site/parquet/level2/shots"
-# the official shot table (11,573 shots) in the FAIR-MAST bucket next to the shots; used whenever mastapp.site fails
-SHOT_TABLE_MIRROR_URL = "https://s3.echo.stfc.ac.uk/mast/fairmast-meta/l2_shots.parquet"
+# Data sources (SPEC 3.1). mastapp.site is retired (2026-10-27); the shot table in the FAIR-MAST bucket next to the
+# shots is the official one (11,573 shots), so it is the only one read.
+SHOT_TABLE_URL = "https://s3.echo.stfc.ac.uk/mast/fairmast-meta/l2_shots.parquet"
 # env override lets tests and offline work point at a local copy of the stores
 SHOT_ZARR_URL = os.environ.get("MAST_ZARR_URL", "https://s3.echo.stfc.ac.uk/mast/level2/shots/{shot_id}.zarr")
 SUMMARY_GROUP = "summary"
@@ -46,7 +43,7 @@ MIN_PEAK_IP = 100e3  # A; shots that never reach 100 kA are too weak to say anyt
 RANDOM_SEED = 42  # one seed for splits, sampling and models, so every run is repeatable
 
 # Label policy (SPEC 5.3)
-LABEL_SOURCE = "both"  # "signal" | "note" | "both"; owner chose "both" after the Phase 2 report: the detector alone flags ~74% of note-clean shots
+LABEL_SOURCE = "both"  # "signal" | "note" | "both" | "physics"; "both" was chosen after the Phase 2 report: the detector alone flags ~74% of note-clean shots
 SPIKE_LOOKBACK_MS = 3  # Ip spike within 3 ms before the CQ marks the thermal quench (SPEC 5.2 step 4)
 MEDIAN_FILTER_SAMPLES = 3  # smallest median filter that removes single-sample glitches
 CQ_MIN_FRAC_OF_PEAK = 0.5  # quench must start above half of peak |Ip|; the last stretch of any linear ramp-down also falls 80% in 10 ms once |Ip| is small
@@ -66,7 +63,7 @@ N_CLEAN = 300
 DOWNLOAD_WORKERS = 8  # parallel downloads; more risks being throttled by the server
 RELAY_WORKERS = 16  # on GitHub's machine: 5355 shots at 8 workers would use ~4 h of the 6 h job limit
 DOWNLOAD_RETRIES = 3  # transient HTTP errors are common when streaming many shots
-FULL_N_CLEAN = 3000  # SPEC 8.1 "scale up": all detected disruptions plus ~3000 clean shots (run_all.py --scale full)
+FULL_N_CLEAN = None  # every clean shot: the termination classes find disruptions among un-noted shots, so all 11,573 count (NOTES 2026-10-30)
 CLEAN_POOL_FACTOR = 1.5  # download 1.5x the clean shots needed, since some turn out unknown or disrupted once labelled
 SPLIT_FRACTIONS = (0.6, 0.2, 0.2)  # train / val / test, split by shot
 TEMPORAL_VAL_FRACTION = 0.2  # in the temporal split, 20% of the M5-M7 shots are held back for tuning
@@ -91,11 +88,22 @@ PREMATURE_WARNING_MS = 200  # MAST flat-tops last ~200-300 ms, so an alarm earli
 # Extra physics signals (src/extras.py, ROADMAP D1)
 USE_EXTRAS = True  # also fetch magnetics, programmed current and solenoid current (~3-4 MB read per shot)
 EXTRAS_BASELINE_MS = 5  # saddle-coil offsets: mean of each coil's first 5 ms of data (stored only while plasma exists)
+# Mirnov band RMS (kHz). On real flat-tops the power sits in different bands from shot to shot (NOTES 2026-10-30):
+# 1-5 kHz slow modes, 5-20 kHz tearing modes, 20-50 kHz, and 50-250 kHz up to the 500 kHz sampling's useful limit
+MIRNOV_BANDS_KHZ = {"mirnov_lf": (1, 5), "mirnov_tm": (5, 20), "mirnov_mf": (20, 50), "mirnov_hf": (50, 250)}
+# EFIT (equilibrium group, a 5 ms grid): each slice is taken as known one slice after its time, so any averaging
+# inside the reconstruction can never look ahead
+EFIT_DELAY_MS = 5
+EFIT_VARIABLES = {"efit_a": "minor_radius", "efit_q95": "q95", "efit_li": "li", "efit_betan": "beta_tor_normal",
+                  "efit_kappa": "elongation", "efit_zmag": "magnetic_axis_z"}
+REL_MIN_SAMPLES = 10  # a signal's own history needs 10 ms of samples before 'change against it' means anything
+LONG_WINDOW_MS = 100  # slow trends (a locked mode growing, density creeping up) show over ~100 ms, not 20 ms
+FEATURE_SET = "v2"  # model inputs (src/features.py FEATURE_SETS): every signal; "v1" is the 4 summary signals only
 
 # Gold labels by hand (src/gold.py, ROADMAP A2): over-sample the unnoted quenches, the case that matters most
 GOLD_PLAN = {"unnoted_quench": 35, "noted_quench": 30, "no_quench": 30, "noted_no_quench": 5}
 
-# Automatic termination labels (scripts/auto_labels.py, ROADMAP A4); an analysis, not used by any experiment yet
+# Automatic termination labels (src/termination.py, ROADMAP A4): the "physics" label source and the E15 recipes
 AUTO_FLATTOP_FRAC = 0.9  # flat-top = programmed current at least 90% of its maximum
 AUTO_MIN_FLATTOP_MS = 30  # need 30 ms of flat-top to know the solenoid's usual sweep rate
 AUTO_SOL_WINDOW_MS = 20  # solenoid sweep measured over the last 20 ms before the quench
@@ -134,7 +142,11 @@ REPORT_CSV = os.path.join(REPO_DIR, "results", "label_report", "per_shot.csv")  
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "fazil-firdous/mast-disruption-predictor")
 RELAY_WORKFLOW = "fetch_data.yml"
 RELAY_BRANCH = "main"  # GitHub only runs dispatched workflows that exist on this branch
-RELAY_TIMEOUT_HOURS = 6  # GitHub's own limit for one job
+RELAY_TIMEOUT_HOURS = 7  # GitHub allows 6 h per job; an hour more for the parts to wait their turn and for the download
+# every MAST shot with its extras (~29 s each to compute) is more than one 6 h GitHub job can fetch, so the workflow
+# runs this many jobs side by side, each on every RELAY_PARTS-th shot (.github/workflows/fetch_data.yml must match)
+RELAY_PARTS = 4
+RELAY_WORK_HOURS = 5.25  # a relay job stops starting new extras after this, so it uploads before GitHub's 6 h cut-off
 
 # Research server (scripts/research_server.py)
 NETWORK_RETRY_MINUTES = 30  # when the data server is unreachable, check again this often instead of giving up
@@ -146,18 +158,32 @@ WATCH_SOURCES_HOURS = 24  # check once a day whether the shot table answers, FAI
 LITERATURE_DAYS = 7  # weekly arXiv check; disruption papers appear a few times a month
 LITERATURE_MAX_RESULTS = 40  # newest matches per check; more than a week ever brings
 CARD_EVERY_SEEDS = 10  # send the status picture after every 10 repeat runs, not after each one
-NEXT_STEP = "magnetic signals as change, not level"  # the research step in progress (docs/ROADMAP.md), shown on the status picture
+NEXT_STEP = "v2: every shot, new signals, E14 and E15"  # the research step in progress (docs/ROADMAP.md), shown on the status picture
 UPDATE_CHECK_MINUTES = 10  # look for new commits on GitHub this often; more often is pointless load on GitHub
 JOB_NICE = 10  # training jobs run at low priority, so other programs on the server stay responsive
 MEMORY_SPARE = 1.3  # jobs run side by side only if free memory covers 1.3x what one such job was measured to use
-# Repeat-run comparisons (scripts/repeat_runs.py), run after the E10 sweep: the E10 recipe with one change, paired seed by
-# seed with E10, so the E11, E13 and E5 claims get error bars. name -> (knob, value) as in experiment.sweep_settings
+# Repeat-run comparisons (scripts/repeat_runs.py), run after the E10 sweep: a recipe with one change, paired seed by seed
+# with its baseline (E10 unless COMPARISON_BASELINES names another comparison), so every claim gets error bars.
+# name -> (knob, value) as in experiment.sweep_settings. Listed in the order they run: the headline questions first.
 COMPARISONS = {
-    "no_time": ("drop_feature", "t_since_start"),  # E11: is part of the skill a shortcut through shot duration?
-    "magnetics": ("feature_set", "v1+magnetics"),  # E13: do the magnetic and control signals help?
-    "magnetics_no_time": ("feature_set", "v1+magnetics-no-time"),
-    "no_prad": ("drop_signal", "prad"),  # E5: how much does each signal matter?
-    "no_ip_abs": ("drop_signal", "ip_abs"),
-    "no_neutrons": ("drop_signal", "neutrons"),
-    "no_pnbi": ("drop_signal", "pnbi"),
+    # E14: what do current-only labels (the published FAIR-MAST benchmark's kind) reward?
+    "signal_labels": ("recipe", "signal"),  # all features, current-only labels
+    "signal_machine": ("recipe", "signal-machine"),  # same labels, only the machine's programme and solenoid
+    "machine": ("recipe", "machine"),  # the machine-only predictor on our labels
+    # E15: do the doubtful labels hide skill? All three are judged on the same clear-ending shots
+    "clear": ("recipe", "clear"),
+    "clear_drop_candidates": ("recipe", "clear-drop-candidates"),
+    "clear_physics": ("recipe", "clear-physics"),
+    # what each part of the v2 inputs adds
+    "v1": ("feature_set", "v1"),
+    "v1_magnetics": ("feature_set", "v1+magnetics"),
+    "no_time": ("drop_feature", "t_since_start"),
+    "no_density": ("drop_group", "density"),
+    "no_efit": ("drop_group", "efit"),
+    "no_mirnov_bands": ("drop_group", "mirnov_bands"),
 }
+# a comparison judged against another comparison instead of E10: the same labels or the same judging shots on both sides
+COMPARISON_BASELINES = {"signal_machine": "signal_labels", "clear_drop_candidates": "clear", "clear_physics": "clear"}
+# splits per comparison: the corrected range barely narrows after 20 (Nadeau-Bengio factor 0.62 at 20, 0.59 at 50,
+# NOTES 2026-10-28), so 20 buys almost the same certainty for 40% of the time
+COMPARISON_SEEDS = 20

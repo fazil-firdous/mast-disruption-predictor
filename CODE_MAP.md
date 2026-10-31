@@ -16,8 +16,9 @@ A plain-English tour of the repo. Read the files in the order below.
 | `src/config.py` | done | Constants: URLs, window/horizon/threshold settings, seeds, paths, Phase 4 window policy, model settings. |
 | `src/data.py` | done (checked against the real servers by CI) | Load shot table (the official copy in the FAIR-MAST S3 bucket; still tries the retired mastapp.site first) and per-shot signals, with a local cache. |
 | `src/labels.py` | done | Note-based and signal-based disruption labels. |
-| `src/features.py` | done | Causal window features. |
-| `src/dataset.py` | done (synthetic tests) | Shot pool, labels for every source, shot selection, window table, splits by shot. |
+| `src/features.py` | done | Causal window features; feature sets v1, v1+magnetics, v2 (default), machine. |
+| `src/termination.py` | done (real data) | How each shot ended (flat-top drop, flux exhausted, ramp-down, smooth), from the programmed current and the solenoid sweep at the quench. |
+| `src/dataset.py` | done (synthetic tests) | Shot pool, labels for every source (incl. 'physics'), endings, candidates, shot selection, window table, splits by shot. |
 | `src/alarms.py` | done | Turn a score sequence into a first-alarm time. |
 | `src/models.py` | done | Physics baseline B0 and the three ML models with their small grids. |
 | `src/evaluate.py` | done | Shot outcomes, metrics, trade-off curve, threshold choice, bootstrap CIs, plots. |
@@ -38,7 +39,7 @@ A plain-English tour of the repo. Read the files in the order below.
 | `scripts/run_all.py` | done | The whole pipeline with plain-English Telegram messages, `results/SUMMARY.md` and a results zip; reuses every result whose code and data are unchanged; after E0-E3 runs the other experiments side by side, one per CPU core while memory allows. |
 | `deploy/setup_vps.sh` | done | One-time VPS setup: venv, private `.env` (token, chat id, `MAST_HOME`), tests, network check, systemd service for the research server. |
 | `scripts/research_server.py` | done | Runs forever: waits out outages, full run per new commit, repeat runs when idle (E10 seeds, then the comparisons), one per CPU core, daily heartbeat, Telegram commands from the owner only. |
-| `scripts/repeat_runs.py` | done | Repeat-run comparisons: the E10 recipe with one change (`config.COMPARISONS`: no time since start, + magnetics, without each signal), paired seed by seed with E10, judged with the Nadeau-Bengio corrected t-test. `--summary` prints them in words. |
+| `scripts/repeat_runs.py` | done | Repeat-run comparisons: the E10 recipe with one change (`config.COMPARISONS`: E14 and E15 recipes, input groups, time since start), paired seed by seed with its baseline (E10 or `COMPARISON_BASELINES`), judged with the Nadeau-Bengio corrected t-test. `--summary` prints them in words. |
 | `src/server.py` | done | The research server's decisions and texts (state file, command parsing, what to run next), kept separate so they are testable. |
 | `src/resume.py` | done | Reuse finished work: a result is reused only when the science code and data that made it are unchanged (a fingerprint, the "stamp"). Restarts and docs-only commits never retrain. |
 | `src/explain.py` | done | Every result in plain English: what the experiment asks, the numbers as shot counts, chance level, and what they mean. Goes to the log and `results/REPORT.md`. |
@@ -47,15 +48,15 @@ A plain-English tour of the repo. Read the files in the order below.
 | `src/status_card.py` | done | The one picture Telegram gets: training progress, what the model can do against a random guess, signals it relies on, what is needed next. |
 | `src/registry.py` | done | Save / load trained models with their feature list and threshold, in `MODELS_DIR` (private). |
 | `src/predict.py`, `scripts/predict_shot.py` | done | Run a saved model over a whole shot as if live; plot score, alarm and the detector's quench. |
-| `src/relay.py` | done | GitHub data relay, server side: start the fetch job, find and follow its run, download and safely unpack the artifact into `DATA_DIR`. |
+| `src/relay.py` | done | GitHub data relay, server side: start the fetch job, find and follow its run, download and safely unpack every part's artifact into `DATA_DIR` and merge their manifests. |
 | `scripts/relay_fetch.py`, `.github/workflows/fetch_data.yml` | done | GitHub data relay, GitHub side: download the shots a run needs (live shot table, or the 400 report shots if mastapp.site is down) and write `manifest.json`. |
-| `src/extras.py` | done (real data checked) | Magnetics and control signals reduced causally to 1 ms: saddle-coil n=1 (locked mode), Mirnov RMS, programmed current, solenoid current. Cached per shot. |
+| `src/extras.py` | done (real data checked) | Signals beyond the summary, reduced causally to 1 ms: saddle-coil n=1 (locked mode), Mirnov RMS and band RMS, programmed and solenoid current, line-average density, EFIT scalars. Cached per shot. |
 | `src/sources.py` | done | Data-source watcher: shot-table status, FAIR-MAST folders and shot-store count, DEFUSE status, and what changed. |
 | `src/literature.py` | done | Weekly arXiv search for new disruption-prediction papers; each reported once on Telegram. |
 | `src/gold.py` | done (for an expert) | Blind hand-labelling on Telegram (/gold, /d /n /u) and agreement report (/goldreport). |
 | `scripts/label_statistics.py` | done (real data) | Statistics of the automatic labels: shares with Wilson intervals, the solenoid ratio of noted vs un-noted quench endings (AUC with a bootstrap interval, Mann-Whitney, Cliff's delta), the same on the shots outside the 400-shot rule sample (replication), and the sampling weight to all MAST shots. Writes `auto_labels/statistics.txt`. |
 | `scripts/termination_evidence.py` | done (real data) | Independent evidence: current fall time, heating, radiation, Mirnov and locked-mode levels at the quench, compared between recorded disruptions, the candidates and flux-exhausted endings. Writes `results/termination_evidence/`. |
-| `scripts/auto_labels.py` | done (real data) | Automatic termination labels: how each shot ended, from the programmed current and the solenoid sweep at the quench. Run by the server after each new dataset. |
+| `scripts/auto_labels.py` | done (real data) | Writes the termination classes of `src/termination.py` for every shot to `results/auto_labels/`. Run by the server after each new dataset. |
 | `docs/literature_review.md`, `docs/paper/draft.md` | started | Checked references and what they mean for our claims; paper skeleton (numbers TBD from real runs). |
 | `scripts/diagnose_network.py` | done | DNS, TCP per address, HTTPS and zarr checks, with a plain-language verdict; sent to Telegram. |
 | `scripts/inspect_groups.py` | done | Catalogue of every signal stored for a shot (all groups) from the store metadata. Writes `results/data_catalogue/`. |
@@ -109,24 +110,26 @@ A plain-English tour of the repo. Read the files in the order below.
 ## src/features.py in detail
 Read it top to bottom; each function uses only the ones above it.
 - `SIGNALS` maps feature prefixes to shot columns: `ip_abs` (|ip|), `prad`, `neutrons`, `pnbi`. `STATS` = mean, std, last, slope, delta.
-- `prepare_signals(shot_df)` -> DataFrame with `time` and the four signals (ip made absolute).
+- `EXTRA_SIGNALS` (lm, mirnov, sol) and `V2_SIGNALS` (Mirnov bands, ne, fgw, q95, li, betan, kappa, zmag, ref); `GROUPS` (density, efit, mirnov_bands) for leave-one-group-out; `REL_SIGNALS` (change against the shot's own earlier median) and `LONG_SIGNALS` (100 ms trend).
+- `prepare_signals(shot_df)` -> DataFrame with `time` and every signal (ip made absolute; missing ones NaN); `greenwald_fraction(ne, ip, a)` builds fgw sample by sample.
 - `find_t_start(sig)` -> first time |Ip| >= IP_ON, or NaN (never, or already on at the first sample).
 - `find_t_plasma_off(sig, t_start)` -> first time the plasma has ended (|Ip| < IP_ON, from t_start + WINDOW_MS on, after reaching MIN_PEAK_IP), or +inf.
-- `window_features(sig, t_end, t_start)` -> dict of 30 features from samples in (t_end - WINDOW_MS, t_end] plus causal running values. This is the function the causality tests target.
+- `window_features(sig, t_end, t_start)` -> dict of every feature from samples in (t_end - WINDOW_MS, t_end], the shot's own history before it and the last LONG_WINDOW_MS. This is the function the causality tests target. `slope` (closed-form least squares) and `relative_change` are its helpers.
 - `window_ends(sig, t_start, t_stop)` -> array of window end times (real sample times, every STRIDE_MS, before t_stop and before the plasma ends).
 - `shot_windows(shot_df, t_stop=inf)` -> one row per window: `t_end`, `t_start`, then the features. Pass `t_stop = t_disrupt` for disrupted shots.
-- `feature_names()` -> the 30 model input columns in a fixed order.
-- `DERIVED_INPUTS` and `features_without(signal)` -> feature list minus everything built from one signal (E5 ablation).
+- `feature_names()` -> the 30 v1 columns (`extended=True`: + 19 magnetics); `v2_names()` -> every feature; `machine_names()` -> solenoid, programmed current and time only (E14). `FEATURE_SETS` / `model_features(name)` pick one (default `config.FEATURE_SET`).
+- `DERIVED_INPUTS`, `uses_signal`, `features_without(signal)` and `features_without_group(group)` -> feature list minus everything built from one signal or group (E5, comparisons).
 
 ## src/dataset.py in detail
 - `candidate_ids(table, n_clean)` -> every note-disrupted shot plus a random pool of note-clean shots, worth downloading.
 - `label_shot(shot_id, comment, campaign)` -> one row with `status_/t_disrupt_` for each of "both", "signal", "note", plus `t_quench`, and `status`, `disrupted`, `t_disrupt` for the configured source.
 - `label_shots(ids, table)` -> those rows for many shots; `unknown` shots are logged to `skipped.csv` and left out.
 - `select_shots(shots, n_disrupted, n_clean)` -> seeded sample (None = take all).
+- `add_endings(shots)` -> adds `termination`, `ref_frac`, `sol_ratio`, `candidate` (un-noted flat-top drop), `clear` (noted disruption the detector sees, or no quench) and the 'physics' label source (`status_physics`, `t_disrupt_physics`). Needs the cached extras.
 - `stop_time(row)` -> when that shot's windows end. With `STOP_AT_QUENCH`, at the detector's quench for every shot.
-- `build_windows(shots)` -> all windows of all shots; window-less shots are logged.
+- `build_windows(shots)` -> all windows of all shots, features as float32 (`compact`); window-less shots are logged.
 - `window_labels(t_end, t_disrupt, horizon_ms)` -> 1 inside the horizon, else 0 (the SPEC 8.3 rule for one shot).
-- `labelled_windows(windows, shots, source, horizon_ms)` -> windows with `label`, `disrupted`, `t_disrupt`, `near_quench` for one label source and horizon; windows at or after `t_disrupt` dropped.
+- `labelled_windows(windows, shots, source, horizon_ms)` -> windows with `label`, `disrupted`, `t_disrupt`, `near_quench` for one label source and horizon, plus the shot's `termination`, `candidate`, `clear`, `note`; windows at or after `t_disrupt` dropped.
 - `random_split(shots)` / `temporal_split(shots)` -> shot_id -> split name. Whole shots only, stratified by label.
 
 ## src/alarms.py in detail
@@ -152,8 +155,10 @@ Read it top to bottom; each function uses only the ones above it.
 ## src/experiment.py in detail
 - `tune(name, train, val, columns)` -> best grid combination by validation catch rate at the chosen threshold.
 - `test_once(best, test, columns, out_dir)` -> test metrics with CIs, writes the trade-off, warning-time and example plots.
-- `run_model(...)` -> tune, optionally test, permutation importance, `metrics.json`, `config.json`. The validation part also records the shot counts and the share of positive windows (what random guessing scores in PR-AUC), so messages can give counts and a chance level.
-- `run(exp, split, model)` -> one experiment id. E0-E3 one model each; E4 horizon sweep, E5 signal ablation, E7 label source (all three on validation only, via `sweep`); E6 baseline and best model on the temporal split.
+- `usable(columns, train)` drops columns with no value in the training windows. `judged(frame, judge)` keeps all shots or only the clear endings.
+- `run_model(..., judge, drop_candidates)` -> tune, optionally test, permutation importance, `metrics.json`, `config.json`. The validation part also records the shot counts, the share of positive windows (what random guessing scores in PR-AUC) and, on all shots, `alarms_by_ending` (`ending_alarms`).
+- `RECIPES` and `sweep_settings(knob, value)` -> a dict (horizon, source, columns, judge, drop_candidates) for one sweep or comparison value.
+- `run(exp, split, model)` -> one experiment id. E0-E3 one model each; E4 horizon sweep, E5 signal ablation, E7 label source (incl. physics), E13 feature sets, E14 machine-only vs all signals on current-only and our labels, E15 the three ways to treat candidates (all on validation only, via `sweep`); E6 baseline and best model on the temporal split.
 
 ## src/notify.py in detail
 - `send(text)` and `send_file(path, caption)` post to Telegram using `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` from the environment or `.env`. They never raise, so a network hiccup cannot kill a training run. `log(text)` keeps a message off Telegram; every message, sent or not, is appended to `LOGS_DIR/messages.log`.
@@ -202,8 +207,8 @@ Read it top to bottom; each function uses only the ones above it.
 - Data access (`server.access_mode`): 'direct' (STFC and shot table answer), 'direct-report' (STFC answers, no shot table), 'relay' (STFC blocks this server and `GITHUB_TOKEN` is set), or wait. `server.pipeline_args` turns that into `run_all.py` options (`--offline`, `--from-report`). `relay_needed` fetches again only for a new scale or after `/fetch`.
 
 ## The GitHub data relay in detail
-- `scripts/relay_fetch.py` runs on GitHub's machine: `choose_shots(scale)` -> (ids, 'live' or 'report'); downloads them; writes `data/manifest.json` (scale, table source, counts, commit, time).
-- `src/relay.py` runs on the server: `trigger(scale)` -> request time; `find_run(requested_at)` / `pick_run(runs, requested_at)` -> the run that request started (GitHub gives no id back); `run_status(run_id)`; `download(run_id)` -> manifest; `unpack(zip, data_dir)` refuses entries that would land outside `data_dir`. `check(response)` turns a failed GitHub call into a plain error with GitHub's message and, for 401/403, what to change on the token. The token is read from the environment at call time and is never part of `config` (so never in results).
+- `scripts/relay_fetch.py` runs on GitHub's machine: `choose_shots(scale)` -> (ids, 'live' or 'report'); `--part k --parts n` keeps every n-th shot; downloads them and their extras; writes `data/manifest.json` (scale, table source, part, `full_n_clean`, `extras_columns`, counts, commit, time). The workflow runs `config.RELAY_PARTS` such jobs side by side.
+- `src/relay.py` runs on the server: `trigger(scale)` -> request time; `find_run(requested_at)` / `pick_run(runs, requested_at)` -> the run that request started (GitHub gives no id back); `run_status(run_id)`; `download(run_id)` -> every part's artifact (`is_part`) unpacked and the manifests merged (`merge_manifests`); `server.relay_needed` asks for a new fetch when the manifest's shot selection or extras columns differ from the code's; `unpack(zip, data_dir)` refuses entries that would land outside `data_dir`. `check(response)` turns a failed GitHub call into a plain error with GitHub's message and, for 401/403, what to change on the token. The token is read from the environment at call time and is never part of `config` (so never in results).
 - `build_dataset.build(..., offline=True)` and `run_all.py --offline` use only shots already on disk (`data.is_cached`).
 
 ## Models you can reuse
@@ -215,19 +220,19 @@ Read it top to bottom; each function uses only the ones above it.
 - `bin_index`, `bin_mean`, `bin_rms`: fast samples into 1 ms bins ending at each grid time (only past samples).
 - `hold_last`: a slow signal held at its last value (programmed current, solenoid current).
 - `early_offset`, `n1_amplitude`, `saddle_n1`: per-coil offset from its first 5 ms of data, then a cosine fit around the 12 coils at each time; NaN until the offset is known.
-- `mirnov_rms`, `slow_signal`, `compute_extras`, `load_extras`, `download_extras`, `with_extras` (merges cached extras into a shot, NaN if none).
-- In `features.py`: `EXTRA_SIGNALS` (lm, mirnov, sol) and `ip_ref_error`; `feature_names(extended=True)` adds 19 features; the 30 v1 features are unchanged.
+- `band_rms` (each 1 ms bin's own spectrum, summed over each `MIRNOV_BANDS_KHZ` band, Parseval-scaled), `mirnov_signals` (RMS and bands from one coil read), `efit_signals` (EFIT scalars held from `EFIT_DELAY_MS` after each slice), `slow_signal` (also the summary's `line_average_n_e`), `compute_extras`, `is_current` (a cached file lacking a column is computed again), `load_extras`, `download_extras`, `with_extras` (merges cached extras into a shot, NaN where missing).
 
-## Automatic termination labels in detail (scripts/auto_labels.py)
+## Automatic termination labels in detail (src/termination.py, scripts/auto_labels.py)
 - `measures(t, ref, sol, t_q)` -> programmed current at the quench as a fraction of its maximum (`ref_frac`) and `solenoid_ratio`: the solenoid's sweep rate over the last `AUTO_SOL_WINDOW_MS` divided by its average rate during the programmed flat-top (about 1 = still sweeping, about 0 = stopped).
 - `classify(has_quench, m)` -> 'smooth_end' (no fast quench), 'programmed_rampdown' (`ref_frac` < `AUTO_RAMPDOWN_FRAC`), 'flux_exhausted' (ratio < `AUTO_SOL_STOPPED_RATIO`), 'flat_top_drop' (otherwise), 'unknown' (signals missing).
-- `label_shot(row)` reads the cached extras (programmed and solenoid current on the 1 ms grid); `summarise(table)` counts classes overall and by operator note; `summary_text` is the Telegram message. Output: `RESULTS_DIR/auto_labels/`.
+- `shot_ending(t_quench, extras)` -> (class, measures) for one shot; `dataset.add_endings` uses it for every shot of the dataset.
+- In `scripts/auto_labels.py`: `label_shot(row)` reads the cached extras; `summarise(table)` counts classes overall and by operator note; `summary_text` is the Telegram message. Output: `RESULTS_DIR/auto_labels/`.
 - The research server runs it after a full run whenever the dataset is newer than the last labels (`label_shots`), and `/report` sends the per-shot table.
-- It sits outside the experiments on purpose: changing it never retrains anything. Its settings are listed in `resume.NOT_SCIENCE_SETTINGS` until an experiment uses the labels.
+- Since v2 (NOTES 2026-10-30) the classes feed the 'physics' label source and E15, so `src/termination.py` and the `AUTO_*` settings are science: changing them retrains.
 
 ## Repeat-run comparisons in detail (scripts/repeat_runs.py)
 - `run(name, seed)`: the E10 split of that seed (`dataset.random_split`), the change `config.COMPARISONS[name]` applied through `experiment.sweep_settings`, then `experiment.run_model` with the best model, tested once. Output: `RESULTS_DIR/E10/comparisons/<name>/seed_<n>/` (inside E10, so it is archived with the seeds it is paired with).
-- `pairs()` puts each finished run next to the E10 run of the same seed; `summary()` gives per comparison the mean test catch and false-alarm rates, both sides, and `stats.corrected_interval(changes)`: the 95% range of the paired change with the variance scaled by (1/n + n_test/n_train) instead of 1/n (Nadeau & Bengio 2003), because repeated random splits share shots. No range before `MIN_SEEDS` (5) splits. Writes `comparisons/summary.csv`; `explain.comparisons_text` words it.
+- `pairs()` puts each finished run next to its baseline run of the same seed (`baseline_folder`: E10, or the comparison `COMPARISON_BASELINES` names); only `COMPARISON_SEEDS` splits each, run by the server after E10 seeds 1-20 (`server.idle_jobs`); `summary()` gives per comparison the mean test catch and false-alarm rates, both sides, and `stats.corrected_interval(changes)`: the 95% range of the paired change with the variance scaled by (1/n + n_test/n_train) instead of 1/n (Nadeau & Bengio 2003), because repeated random splits share shots. No range before `MIN_SEEDS` (5) splits. Writes `comparisons/summary.csv`; `explain.comparisons_text` words it.
 - In `run_all.py`: `run_side_by_side` reuses unchanged experiments after E0-E3 and runs the rest in spawned processes (`run_in_processes`), one per core while memory allows (its own peak after E0-E3 is the estimate); a process that breaks down (for example out of memory) is rerun on its own.
 
 ## Watchers and the gold tool in detail

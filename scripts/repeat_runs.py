@@ -1,15 +1,17 @@
 """Repeat-run comparisons: the E10 recipe (a fresh random split per seed, tuned on validation shots, tested once) with
-one change from config.COMPARISONS, so the claims of E11, E13 and E5 get error bars instead of resting on one split.
+one change from config.COMPARISONS, so the claims of E11, E13-E15 get error bars instead of resting on one split.
 
-Each run is paired with the E10 run of the same seed: the same shots in train, validation and test and the same model;
-only the features differ. The change is judged with the corrected resampled t-test (src/stats.py), because
-repeated random splits share shots and a plain t-test would be far too sure of itself.
+Each run is paired with its baseline run of the same seed (E10, or the comparison named in COMPARISON_BASELINES): the
+same shots in train, validation and test and the same model; only the change differs. The change is judged with the
+corrected resampled t-test (src/stats.py), because repeated random splits share shots and a plain t-test would be
+far too sure of itself.
 
     python scripts/repeat_runs.py --comparison magnetics --seed 3   # one run, into results/E10/comparisons/
     python scripts/repeat_runs.py --summary                         # every comparison so far, in words
 
 The results are stamped on their own (science code, data, this file and config.COMPARISONS), so editing this file
-reruns only the comparisons, never E0-E13. The research server runs them after the E10 sweep, one per CPU core.
+reruns only the comparisons, never E0-E15. The research server runs them after the first COMPARISON_SEEDS E10 seeds,
+one per CPU core, before the remaining E10 seeds.
 """
 import argparse
 import json
@@ -33,7 +35,8 @@ def folder():
 
 def stamp():
     """Fingerprint of everything a comparison result depends on."""
-    extra = resume.file_digest([os.path.abspath(__file__)]) + json.dumps(config.COMPARISONS, sort_keys=True)
+    extra = resume.file_digest([os.path.abspath(__file__)]) + json.dumps(
+        [config.COMPARISONS, config.COMPARISON_BASELINES], sort_keys=True)
     return resume.stamp(resume.processed_files(), extra=extra)
 
 
@@ -43,11 +46,17 @@ def run(name, seed):
     windows, shots = experiment.load_tables()
     split = dataset.random_split(shots, seed=seed)
     resplit = windows.assign(split=windows["shot_id"].map(split))
-    horizon, source, columns = experiment.sweep_settings(knob, value)
-    win = dataset.labelled_windows(resplit, shots, source=source, horizon_ms=horizon)
+    s = experiment.sweep_settings(knob, value)
+    win = dataset.labelled_windows(resplit, shots, source=s["source"], horizon_ms=s["horizon"])
     out_dir = os.path.join(folder(), name, f"seed_{seed}")
-    return experiment.run_model(experiment.best_model_name(), win, "split", columns, out_dir, save=False,
-                                with_importance=False)
+    return experiment.run_model(experiment.best_model_name(), win, "split", s["columns"], out_dir, save=False,
+                                with_importance=False, judge=s["judge"], drop_candidates=s["drop_candidates"])
+
+
+def baseline_folder(name):
+    """Where the paired baseline runs of a comparison live: E10's seeds, or another comparison's."""
+    other = config.COMPARISON_BASELINES.get(name)
+    return os.path.join(folder(), other) if other else os.path.join(config.RESULTS_DIR, "E10")
 
 
 def test_metrics(path):
@@ -59,13 +68,14 @@ def test_metrics(path):
 
 
 def pairs():
-    """One row per finished comparison run, with the E10 run of the same seed next to it."""
+    """One row per finished comparison run, with its baseline run of the same seed next to it (columns e10_*,
+    whichever the baseline is)."""
     rows = []
     for name in config.COMPARISONS:
         base = os.path.join(folder(), name)
         for entry in sorted(os.listdir(base)) if os.path.isdir(base) else []:
             test = test_metrics(os.path.join(base, entry, "metrics.json"))
-            e10 = test_metrics(os.path.join(config.RESULTS_DIR, "E10", entry, "metrics.json"))
+            e10 = test_metrics(os.path.join(baseline_folder(name), entry, "metrics.json"))
             if test is None or e10 is None:
                 continue
             row = {"comparison": name, "seed": int(entry[len("seed_"):])}

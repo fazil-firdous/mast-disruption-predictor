@@ -5,9 +5,9 @@ Machine learning that watches a MAST tokamak plasma pulse as it unfolds and trie
 *Built by a high-school student who is passionate about fusion energy and wants to go further in plasma physics and machine learning.*
 
 ## How it works
-1. **Data**: public MAST data from FAIR-MAST (UKAEA): plasma current, radiated power, neutron rate and beam power at 1 ms, plus magnetic and control signals.
-2. **Labels**: a shot counts as disrupted only if the operator's note says so and a fast current quench is found; the quench gives the disruption time.
-3. **Windows**: every 5 ms, features from the last 20 ms only. No future samples, enforced by tests.
+1. **Data**: every MAST shot in FAIR-MAST (UKAEA, 11,573 shots): plasma current, radiated power, neutron rate and beam power at 1 ms; saddle-coil locked-mode signal; Mirnov coil fluctuations in four frequency bands; density and the Greenwald fraction; EFIT q95, li, beta_N, elongation and vertical position; solenoid and programmed current.
+2. **Labels**: a shot counts as disrupted only if the operator's note says so and a fast current quench is found; the quench gives the disruption time. Every shot also gets an automatic ending class (flat-top drop, flux exhausted, ramp-down, smooth), which gives a second, physics-based label set.
+3. **Windows**: every 5 ms, features from the last 20 ms (and slow trends over 100 ms, and each fluctuation's change against the shot's own earlier values). No future samples, enforced by tests.
 4. **Models**: a physics rule, logistic regression, random forest and gradient boosting.
 5. **Alarm**: two windows in a row above a threshold, chosen on validation shots so at most 5% of normal shots raise an alarm.
 6. **Evaluation per shot**: caught, late, missed, false alarm, warning time, with bootstrap 95% intervals, on test shots used once. Also train-on-early-campaigns, test-on-late (M5–M7 vs M8–M9), and 50 repeat runs on random splits for error bars.
@@ -20,10 +20,10 @@ Machine learning that watches a MAST tokamak plasma pulse as it unfolds and trie
   - The detector fires on 3,089 shots, and 1,223 of those (40%) ended after the solenoid ran out of flux or during a programmed ramp-down, endings that labels from the current alone count as disruptions.
   - The rules were set on the 400-shot sample; on the 3,562 shots outside it the shares are the same (72.7% and 38.4%), and the solenoid ratio separates noted from un-noted quench endings with AUC 0.66 (95% 0.64-0.68): a real but modest difference (`scripts/label_statistics.py`).
   - On signals the rules never use (`scripts/termination_evidence.py`, all 2,721 shots of the three groups), the candidates look like recorded disruptions where the quench itself is concerned: the current falls within 10 ms in 91% of them, 95% of recorded disruptions and 44% of flux-exhausted endings, and they show the same small current spike before the quench. In heating at the end they sit in between, so they are probably mostly, not all, disruptions. No expert has checked them yet, and a quench during ramp-down or after flux exhaustion can still be a disruption: the classes describe when the plasma was lost, not whether it disrupted.
-- **Four global signals are not enough.** On 3,804 shots, over 43 repeat runs, the predictor does not clearly catch more disruptions than an alarm that fires at random as often, once the repeat runs' shared shots are allowed for. Over the repeat runs so far, plasma current is the only one of the four whose removal clearly costs caught disruptions; the single-split hint that radiated power matters most is not confirmed.
-- **Magnetic signals help (interim).** Adding the saddle-coil locked-mode signal, Mirnov fluctuations, solenoid current and the current-control error clearly raises the share of disruptions caught in time at the same false-alarm rate, and by about as much without time since start. Interim, from 29 of 50 paired repeat runs, and one of seven comparisons: a strong hint until all 50 are done.
-- **Shortcut check.** On one split, part of what the model learned was how long a shot had lasted (E11); over the repeat runs so far, removing that feature makes no clear difference, so the shortcut is not confirmed. Every claim is still checked with and without that feature.
-- **Error bars for every claim.** The single-split findings (E5, E11, E13) are being re-tested on 50 random splits each, paired with the repeat runs and judged with a test that allows for the splits sharing shots (`scripts/repeat_runs.py`).
+- **Four global signals are not enough.** On 3,804 shots, over 50 repeat runs, the predictor does not clearly catch more disruptions than an alarm that fires at random as often, once the repeat runs' shared shots are allowed for. Over the 50 paired repeat runs, plasma current is the only one of the four whose removal clearly costs caught disruptions; the single-split hint that radiated power matters most is not confirmed.
+- **Magnetic signals help.** Adding the saddle-coil locked-mode signal, Mirnov fluctuations, solenoid current and the current-control error raises the share of disruptions caught in time at the same false-alarm rate, by about as much without time since start (all 50 paired repeat runs). It is one of seven comparisons, and under a Bonferroni-type correction for seven its range would not clear zero: a strong hint, not proof.
+- **Shortcut check.** On one split, part of what the model learned was how long a shot had lasted (E11); over the 50 repeat runs, removing that feature makes no clear difference, so the shortcut is not confirmed. Every claim is still checked with and without that feature.
+- **Error bars for every claim.** The single-split findings (E5, E11, E13) were re-tested on 50 random splits each, paired with the repeat runs and judged with a test that allows for the splits sharing shots (`scripts/repeat_runs.py`).
 - **A negative result.** A fixed correction for coil pickup in the saddle-coil locked-mode signal made it worse on held-out shots, so it is not used (`NOTES.md`, 2026-10-16).
 
 Trained models and their exact numbers stay in a private workspace, not in this repository.
@@ -43,8 +43,10 @@ The plan is in `docs/ROADMAP.md`; the checked references are in `docs/literature
 | E10 | Repeat runs for error bars |
 | E11 | Shortcut test (without time since start) |
 | E12 | The rules of the UKAEA FAIR-MAST benchmark |
-| E13 | Magnetic signals (saddle-coil locked modes, Mirnov coils, solenoid current) |
-| Comparisons | Do the E5, E11 and E13 findings hold on 50 different splits? |
+| E13 | Which signals help: v1, + magnetics, all signals (v2) |
+| E14 | What do current-only labels reward? A predictor that never sees the plasma, on those labels and on ours |
+| E15 | Do the doubtful labels hide skill? Candidates as normal, left out, or as disruptions, judged on the same clear endings |
+| Comparisons | Does each finding hold on many different splits? (20 per comparison, corrected for shared shots) |
 
 ## How to run
 Everything runs from `notebooks/colab_pipeline.ipynb` or a terminal:
@@ -52,13 +54,13 @@ Everything runs from `notebooks/colab_pipeline.ipynb` or a terminal:
 ```
 pip install -r requirements.txt
 pytest
-python scripts/build_dataset.py --scale small      # 300 disrupted + 300 normal shots -> data/processed/
+python scripts/build_dataset.py --scale small      # 300 disrupted + 300 normal shots -> data/processed/ (--scale full: every shot)
 python scripts/run_experiment.py --exp E3          # one experiment -> results/E3/
-python scripts/run_all.py --scale small            # everything, E0-E13 (unchanged results are reused)
+python scripts/run_all.py --scale small            # everything, E0-E15 (unchanged results are reused)
 python scripts/auto_labels.py                      # how each shot ended -> results/auto_labels/
 python scripts/label_statistics.py                 # their shares, intervals, tests and the replication
 python scripts/termination_evidence.py             # the candidates on signals the rules never use
-python scripts/repeat_runs.py --comparison magnetics --seed 1   # one paired repeat run with one change
+python scripts/repeat_runs.py --comparison machine --seed 1     # one paired repeat run with one change
 python scripts/repeat_runs.py --summary            # every comparison so far, with corrected 95% ranges
 python scripts/predict_shot.py --shot 11860        # the best trained model on one shot, as if live
 ```
@@ -69,7 +71,7 @@ Outputs (data, models, results, logs) go to the folder named by `MAST_HOME`, or 
 `docs/GUIDE.md` tells the story in simple words; `CODE_MAP.md` describes every file and function; `NOTES.md` is the log of data facts and decisions; `CONTRIBUTING.md` has the rules for changing the code.
 
 ## Limitations
-Labels are algorithmic and not yet checked by a MAST expert. The main models use four global signals; the magnetics are a first version, and there are no profiles. MAST (2000–2013), not MAST-U. Offline evaluation, not real-time control.
+Labels are algorithmic and not yet checked by a MAST expert. EFIT values are assumed to be slice-by-slice reconstructions (each is used only one slice after its time); there are no profiles. MAST (2000–2013), not MAST-U. Offline evaluation, not real-time control.
 
 ## Credits
 Data: FAIR-MAST, UKAEA, licence CC BY-SA 4.0 (documentation: https://ukaea.github.io/fair-mast). Please cite S. Jackson et al., "FAIR-MAST: A fusion device data management system", *SoftwareX* 27, 101869 (2024), and S. Jackson et al., "An Open Data Service for Supporting Research in Machine Learning on Tokamak Data", *IEEE Transactions on Plasma Science* (2025), doi:10.1109/TPS.2025.3583419.

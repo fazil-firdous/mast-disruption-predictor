@@ -53,13 +53,18 @@ MAST was a UK tokamak (2000-2013). Each experiment is a **shot**, a few tenths o
 - **Watchers**: `src/sources.py` (is the data site back? did FAIR-MAST grow?) and `src/literature.py` (new papers on arXiv every week).
 - **Automatic labels** (`scripts/auto_labels.py`): the server works out how each shot ended, from two signals at the moment the current dropped. Was the programme already ramping the current down? Had the solenoid (the coil that drives the current) stopped sweeping, meaning the machine ran out of flux? If neither, the plasma was lost while everything was still running: most likely a real disruption. No hand labelling needed.
 
-## 5. What the results say so far (400 shots, real runs)
-- With the 4 basic signals, the model catches about as many disruptions as a random alarm would (E10, 43 repeat runs). That is a real result: these signals alone are not enough on MAST.
-- On one split, radiated power looked like the signal it relies on most (E5). Over the repeat runs so far, only removing the plasma current clearly hurts.
-- Adding the magnetic signals clearly helps it catch more disruptions at the same false-alarm rate (repeat runs, interim).
+## 5. What the results say so far (3,804 shots, real runs)
+- With the 4 basic signals, the model catches about as many disruptions as a random alarm would (E10, 50 repeat runs). That is a real result: these signals alone are not enough on MAST.
+- On one split, radiated power looked like the signal it relies on most (E5). Over the 50 repeat runs, only removing the plasma current clearly hurts.
+- Adding the magnetic signals clearly helps it catch more disruptions at the same false-alarm rate (50 repeat runs; a strong hint rather than proof, because seven comparisons were made).
 - Trained on early years, the alarm level gives too many false alarms in later years (E6).
-- On one split, part of what it learned was "how long the shot has lasted", a shortcut (E11). Over the repeat runs so far that is not confirmed: removing it makes no clear difference.
-- False alarms fall mostly on "normal" shots that end in a sudden current drop nobody noted: some of those may be disruptions with a wrong label.
+- On one split, part of what it learned was "how long the shot has lasted", a shortcut (E11). Over the 50 repeat runs that is not confirmed: removing it makes no clear difference.
+- False alarms fall mostly on "normal" shots that end in a sudden current drop nobody noted, but most normal shots end that way, so this alone proves little.
+
+### What v2 asks next (results still to come)
+- **More of everything.** Every MAST shot (11,573), and new signals: how strongly the coils wobble in four frequency bands, how dense the plasma is compared with its density limit (the Greenwald fraction), and the plasma's shape and current profile from EFIT. Fluctuations are also measured as change against the same shot's earlier values, because their level differs from shot to shot.
+- **E14: what do labels from the current alone reward?** A model that never sees the plasma (only the solenoid, the programmed current and the clock) is trained on those labels and on ours. If it does nearly as well as the full model on current-only labels, those labels mostly reward guessing when the machine runs out of flux, not spotting instabilities.
+- **E15: do doubtful labels hide skill?** The shots nobody called a disruption but that look like one at the end (the candidates) are treated as normal, left out, or treated as disruptions, and all three models sit the same exam: shots whose ending everyone agrees on. If a model that never saw the candidates as disruptions still alarms on them much more than on other endings, they look like disruptions before the end, not only at it.
 
 ## 6. What is different here
 What others have done (so it is **not** new here, we cite them):
