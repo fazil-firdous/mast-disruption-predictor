@@ -333,6 +333,10 @@ def dataset_text(counts):
     text = (f"Dataset: {counts['shots']} shots ({counts['disrupted']} disrupted, {counts['clean']} normal), cut "
             f"into {counts['windows']:,} windows of {config.WINDOW_MS} ms. Split by shot: {split.get('train', 0)} "
             f"to learn from, {split.get('val', 0)} to tune on, {split.get('test', 0)} kept for the final test.")
+    if "physics_disrupted" in counts:
+        text += (f"\nBy how the shots ended: {counts['unrecorded_candidates']} shots nobody called a disruption were "
+                 f"lost during flat-top with flux left (candidates); the physics labels count "
+                 f"{counts['physics_disrupted']} disruptions.")
     if counts.get("reused"):
         text += "\nSame code, shots and labels as last time, so the existing dataset was reused (not rebuilt)."
     return text
