@@ -132,7 +132,8 @@ def test_comparison_without_a_change_reproduces_e10(monkeypatch, tiny_project): 
     (tiny_project / "results" / "E1").mkdir(parents=True)
     with open(tiny_project / "results" / "E1" / "metrics.json", "w") as f:  # makes logreg (fast here) the best model
         json.dump({"val": {"catch_rate": 1.0}}, f)
-    experiment.run("E10", seed=3)
+    monkeypatch.setattr(config, "SWEEP_MODEL", "logreg")  # fast here; the server passes it to E10 as --model
+    experiment.run("E10", model=config.SWEEP_MODEL, seed=3)
     same = repeat_runs.run("same", 3)
     with open(tiny_project / "results" / "E10" / "seed_3" / "metrics.json") as f:
         assert same["test"]["catch_rate"] == json.load(f)["test"]["catch_rate"]
