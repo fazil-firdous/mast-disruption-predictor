@@ -162,6 +162,10 @@ NEXT_STEP = "v2: every shot, new signals, E14 and E15"  # the research step in p
 UPDATE_CHECK_MINUTES = 10  # look for new commits on GitHub this often; more often is pointless load on GitHub
 JOB_NICE = 10  # training jobs run at low priority, so other programs on the server stay responsive
 MEMORY_SPARE = 1.3  # jobs run side by side only if free memory covers 1.3x what one such job was measured to use
+# The model the experiments after E3, the E10 seeds and the comparisons retrain. Gradient boosting: on every MAST
+# shot the random forest took 316 min per tuning against 7 min (2 cores), with test catch rates within each other's
+# 95% ranges (NOTES 2026-11-01), so a forest would stretch the sweeps and ~290 repeat runs from days to weeks.
+SWEEP_MODEL = "hgb"
 # Repeat-run comparisons (scripts/repeat_runs.py), run after the E10 sweep: a recipe with one change, paired seed by seed
 # with its baseline (E10 unless COMPARISON_BASELINES names another comparison), so every claim gets error bars.
 # name -> (knob, value) as in experiment.sweep_settings. Listed in the order they run: the headline questions first.

@@ -47,6 +47,7 @@ The plan is in `docs/ROADMAP.md`; the checked references are in `docs/literature
 | E14 | What do current-only labels reward? A predictor that never sees the plasma, on those labels and on ours |
 | E15 | Do the doubtful labels hide skill? Candidates as normal, left out, or as disruptions, judged on the same clear endings |
 | Comparisons | Does each finding hold on many different splits? (20 per comparison, corrected for shared shots) |
+| TCABR | A second tokamak (2,189 Ohmic discharges, 435 disruptive): the same recipe, with inputs MAST also has and with TCABR's own |
 
 ## How to run
 Everything runs from `notebooks/colab_pipeline.ipynb` or a terminal:
@@ -63,6 +64,8 @@ python scripts/termination_evidence.py             # the candidates on signals t
 python scripts/repeat_runs.py --comparison machine --seed 1     # one paired repeat run with one change
 python scripts/repeat_runs.py --summary            # every comparison so far, with corrected 95% ranges
 python scripts/predict_shot.py --shot 11860        # the best trained model on one shot, as if live
+python scripts/blind_sample.py                     # a coded, label-free sample for an expert check (private key)
+python scripts/tcabr.py tcabr_data.nc              # a second tokamak: TCABR (Zenodo 21843354), same recipe
 ```
 
 Outputs (data, models, results, logs) go to the folder named by `MAST_HOME`, or the current folder if unset (git-ignored). `python scripts/diagnose_network.py` explains any connection problem. To run continuously on a server, see `docs/SERVER.md`.

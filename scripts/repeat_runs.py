@@ -37,7 +37,7 @@ def stamp():
     """Fingerprint of everything a comparison result depends on."""
     extra = resume.file_digest([os.path.abspath(__file__)]) + json.dumps(
         [config.COMPARISONS, config.COMPARISON_BASELINES], sort_keys=True)
-    return resume.stamp(resume.processed_files(), extra=extra)
+    return resume.sweep_stamp(extra=extra)
 
 
 def run(name, seed):
@@ -49,7 +49,7 @@ def run(name, seed):
     s = experiment.sweep_settings(knob, value)
     win = dataset.labelled_windows(resplit, shots, source=s["source"], horizon_ms=s["horizon"])
     out_dir = os.path.join(folder(), name, f"seed_{seed}")
-    return experiment.run_model(experiment.best_model_name(), win, "split", s["columns"], out_dir, save=False,
+    return experiment.run_model(config.SWEEP_MODEL, win, "split", s["columns"], out_dir, save=False,
                                 with_importance=False, judge=s["judge"], drop_candidates=s["drop_candidates"])
 
 

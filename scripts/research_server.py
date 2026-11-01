@@ -339,7 +339,7 @@ def label_shots(state):
 def keep_or_restart_seeds(state, commit):
     """Keep the repeat runs if the science code and data are unchanged (and, for the comparisons, their own code);
     otherwise archive them and start again, because runs made with old code cannot be averaged with new ones."""
-    stamp = resume.stamp(resume.processed_files())
+    stamp = resume.sweep_stamp()
     if not server.seeds_still_valid(state, stamp):
         archive(os.path.join(config.RESULTS_DIR, "E10"), commit)  # the comparisons inside it go along
         state.update(seeds_done=[], seeds_stamp=stamp, comparisons_done=[], comparisons_stamp=None)
@@ -359,7 +359,8 @@ def archive(folder, commit):
 def idle_command(kind, seed):
     """(label, command) of one idle job: an E10 seed or one repeat-run comparison."""
     if kind == "E10":
-        return f"E10 seed {seed}", [PY, "scripts/run_experiment.py", "--exp", "E10", "--seed", str(seed)]
+        return f"E10 seed {seed}", [PY, "scripts/run_experiment.py", "--exp", "E10", "--seed", str(seed),
+                                    "--model", config.SWEEP_MODEL]
     return f"{kind} seed {seed}", [PY, "scripts/repeat_runs.py", "--comparison", kind, "--seed", str(seed)]
 
 
