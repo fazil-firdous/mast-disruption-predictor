@@ -79,7 +79,7 @@ def test_run_all_reuses_an_unchanged_experiment(monkeypatch, tmp_path):
     from scripts import run_all
     calls = []
     monkeypatch.setattr(config, "RESULTS_DIR", str(tmp_path))
-    monkeypatch.setattr(experiment, "run", lambda exp: calls.append(exp) or [{"horizon_ms": 10, "catch_rate": 0.5,
+    monkeypatch.setattr(experiment, "run", lambda exp, *args: calls.append(exp) or [{"horizon_ms": 10, "catch_rate": 0.5,
                                                                              "false_alarm_rate": 0.0, "pr_auc": 0.3}])
     reused = []
     first = run_all.run_or_reuse("E4", "stamp1", reused)

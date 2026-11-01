@@ -165,3 +165,23 @@ def test_blind_sample_hides_everything_but_the_code():
     sheet = blind_sample.answer_sheet(key)
     assert list(sheet["code"]) == list(key["code"])
     assert "shot_id" not in sheet and "group" not in sheet
+
+
+def test_sweep_model_is_stamped_only_where_it_is_used(monkeypatch, tmp_path):
+    from src import resume
+    for name in ("shots.parquet", "windows.parquet"):
+        (tmp_path / name).write_text("data")
+    monkeypatch.setattr(config, "PROCESSED_DIR", str(tmp_path))
+    main, sweep = resume.stamp(resume.processed_files()), resume.sweep_stamp()
+    monkeypatch.setattr(config, "SWEEP_MODEL", "forest")
+    assert resume.stamp(resume.processed_files()) == main  # E0-E3 do not use it: never rerun for it
+    assert resume.sweep_stamp() != sweep  # the sweeps, seeds and comparisons do
+
+
+def test_run_all_gives_the_sweep_model_to_every_experiment_after_e3(monkeypatch):
+    from scripts import run_all
+    calls = []
+    monkeypatch.setattr(run_all.experiment, "run", lambda exp, split, model: calls.append((exp, model)))
+    run_all.run_exp("E2")
+    run_all.run_exp("E14")
+    assert calls == [("E2", None), ("E14", config.SWEEP_MODEL)]

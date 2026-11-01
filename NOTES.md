@@ -442,3 +442,11 @@ TCABR results and a confound in the dataset (`scripts/tcabr.py` and checks, 2026
 - Inside disruptive shots only (last 30 ms vs earlier windows, split by shot), the test cannot decide: disruptions come ~46 ms after plasma start, so 86% of windows are in the last 30 ms and the time since start alone scores like the real inputs.
 - Consequences: TCABR as released cannot support a fair within-machine disruption benchmark with random splits; any use must split by period or control for it. A model trained only on MAST cannot learn TCABR's periods, so a train-on-MAST, test-on-TCABR check stays meaningful, with the caveat that diagnostic levels differ between the periods. Worth telling the dataset's authors.
 - h5py is added to requirements.txt (scripts/tcabr.py reads the file; imported only there, and its test skips without it).
+
+## 2026-11-01 - First v2 results on every shot; a fast model for the sweeps and repeat runs
+
+From the research server (read through a read-only helper session on the server; numbers private, qualitative here):
+- The relay brought all 11,573 shots and their extras (16 extra signals) with no failures; the window table is ~392 MB on disk.
+- E2 (random forest) and E3 (gradient boosting) on one split of the full v2 data: for the first time the lower end of the 95% range of the catch rate is above the false-alarm rate, i.e. real skill on that split, at about the 5% false-alarm limit. One split only; the repeat runs decide.
+- Time on the 2-core server: E2's tuning took 316 min, E3's 7 min. One job used ~3.4 GB, so jobs run one at a time. E4 then retrained the 'best' model, the forest, for every sweep value: at ~5 h per training, the sweeps and ~290 repeat runs would take weeks.
+- Decision: `SWEEP_MODEL = "hgb"` for everything after E3, the E10 seeds and the comparisons. E3's catch rate is within E2's 95% range, so little is lost, and runs take minutes. E0-E3 still tune all four models. The setting is stamped only where it is used (`resume.sweep_stamp`), so this change reruns nothing of E0-E3.

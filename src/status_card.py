@@ -28,10 +28,13 @@ def current_stamp():
 
 
 def experiments_done(current):
-    """How many of the run_all experiments have a result made with the current code and dataset."""
+    """How many of the run_all experiments have a result made with the current code and dataset (and, after E0-E3,
+    the current SWEEP_MODEL)."""
     if current is None:
         return 0
-    return sum(resume.load(os.path.join(config.RESULTS_DIR, exp), current) is not None for exp in EXPERIMENTS)
+    sweep = resume.sweep_stamp()
+    return sum(resume.load(os.path.join(config.RESULTS_DIR, exp), current if exp in EXPERIMENTS[:4] else sweep)
+               is not None for exp in EXPERIMENTS)
 
 
 def dataset_info():
@@ -72,7 +75,7 @@ def one_test(current):
 
 def e5_current(current):
     """True if the saved E5 result was made with the current code and dataset."""
-    return current is not None and resume.load(os.path.join(config.RESULTS_DIR, "E5"), current) is not None
+    return current is not None and resume.load(os.path.join(config.RESULTS_DIR, "E5"), resume.sweep_stamp()) is not None
 
 
 def signal_usefulness(e5_csv=None):
@@ -148,7 +151,7 @@ def collect(state=None):
     data = dataset_info()
     probe = state.get("last_probe") or {}
     # repeat runs made with older code or data are not shown as if they were current
-    seeds_valid = current is not None and server.seeds_still_valid(state, current)
+    seeds_valid = current is not None and server.seeds_still_valid(state, resume.sweep_stamp())
     return {"shots": data.get("shots", 0), "disrupted": data.get("disrupted", 0),
             "table_source": data.get("table_source", "live"), "all_shots": probe.get("shot_stores"),
             "experiments": experiments_done(current), "seeds": len(state["seeds_done"]) if seeds_valid else 0,

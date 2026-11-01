@@ -3,7 +3,7 @@ and results/REPORT.md, and send one status picture to Telegram at the end.
 
 Work whose code and data have not changed since the last run is reused, not redone (src/resume.py), so a restart
 or a commit that only touches docs or the server never retrains anything. After E0-E3, the other experiments run side
-by side, one per CPU core while memory allows.
+by side, one per CPU core while memory allows, all with config.SWEEP_MODEL.
 """
 import argparse
 import multiprocessing
@@ -37,6 +37,12 @@ def step(name, func, *args):
     return result, (time.time() - start) / 60
 
 
+def run_exp(exp):
+    """One experiment: E0-E3 with their own model, the others with config.SWEEP_MODEL (module-level, so the spawned
+    processes can run it)."""
+    return experiment.run(exp, "random", None if exp in MAIN_EXPERIMENTS else config.SWEEP_MODEL)
+
+
 def label(exp):
     """'E3 (hgb)' for the main models, else just the experiment id."""
     return f"{exp} ({experiment.MODEL_NAMES[exp]})" if exp in experiment.MODEL_NAMES else exp
@@ -49,7 +55,7 @@ def run_or_reuse(exp, current, reused):
     if outcome is not None:
         reused.append(exp)
         return outcome
-    outcome, minutes = step(label(exp), experiment.run, exp)
+    outcome, minutes = step(label(exp), run_exp, exp)
     return None if outcome is None else save_outcome(exp, current, outcome, minutes)
 
 
@@ -88,7 +94,7 @@ def run_in_processes(todo, current, outcomes, n, threads):
     os.environ.update(server.job_env(threads))  # inherited by the spawned processes only; this one is idle
     try:
         with ProcessPoolExecutor(n, mp_context=multiprocessing.get_context("spawn")) as pool:
-            futures = {pool.submit(step, label(exp), experiment.run, exp): exp for exp in todo}
+            futures = {pool.submit(step, label(exp), run_exp, exp): exp for exp in todo}
             for future in as_completed(futures):
                 exp = futures[future]
                 try:
@@ -153,7 +159,7 @@ def main():
     results = {exp: run_or_reuse(exp, current, reused) for exp in MAIN_EXPERIMENTS}
     if not args.main_only:
         measured = not set(MAIN_EXPERIMENTS) & set(reused)
-        results.update(run_side_by_side(EXTRA_EXPERIMENTS, current, reused, measured))
+        results.update(run_side_by_side(EXTRA_EXPERIMENTS, resume.sweep_stamp(), reused, measured))
     outcomes = {exp: results[exp] for exp in experiments if results[exp] is not None}
     failures = len(experiments) - len(outcomes)
 
