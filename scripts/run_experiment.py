@@ -11,10 +11,11 @@ from src import experiment
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--exp", required=True, choices=["E0", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13"])
+    parser.add_argument("--exp", required=True, choices=["E0", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10", "E11", "E12", "E13", "E14", "E15"])
     parser.add_argument("--split", choices=["random", "temporal"], default="random")
     parser.add_argument("--model", choices=["logreg", "forest", "hgb"],
-                        help="model for E4-E12 (default: best validation catch rate among E1-E3)")
+                        help="model for E4-E15 and E10 (default: best validation catch rate among E1-E3; the "
+                             "research server passes config.SWEEP_MODEL)")
     parser.add_argument("--seed", type=int, help="split seed for E10")
     args = parser.parse_args()
     result = experiment.run(args.exp, args.split, args.model, args.seed)

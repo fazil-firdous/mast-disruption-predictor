@@ -26,6 +26,8 @@ NOT_SCIENCE_SETTINGS = {
     "CARD_EVERY_SEEDS", "NEXT_STEP", "UPDATE_CHECK_MINUTES", "JOB_NICE", "MEMORY_SPARE",
     # stamped on its own by scripts/repeat_runs.py, so adding a comparison never reruns E0-E15
     "COMPARISONS", "COMPARISON_BASELINES", "COMPARISON_SEEDS",
+    # stamped only where it is used (sweep_stamp), so changing it never reruns E0-E3, which do not use it
+    "SWEEP_MODEL",
     # where the data comes from: the data itself is stamped by content, so a moved address retrains nothing
     "SHOT_TABLE_URL", "SHOT_ZARR_URL", "SUMMARY_GROUP", "RELAY_PARTS", "RELAY_WORK_HOURS"}
 SCIENCE_SCRIPTS = ["build_dataset.py"]  # scripts with science logic in them (shot selection, splits)
@@ -81,6 +83,12 @@ def stamp(data_files, extra="", code=None):
     digest.update(file_digest(sorted(data_files)).encode())
     digest.update(extra.encode())
     return digest.hexdigest()[:16]
+
+
+def sweep_stamp(extra=""):
+    """The stamp of results that also depend on config.SWEEP_MODEL: the experiments after E0-E3, the E10 seeds and
+    the comparisons (plus any extra text)."""
+    return stamp(processed_files(), extra=f"sweep model {config.SWEEP_MODEL}\n{extra}")
 
 
 def load(folder, current):
