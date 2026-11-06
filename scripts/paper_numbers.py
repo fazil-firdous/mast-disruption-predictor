@@ -12,7 +12,9 @@ Three tables, each over the repeat runs' test shots, every range corrected for t
    candidates that behave like recorded disruptions under a two-group mixture:
    p = (candidates - reference) / (recorded - reference), with flux-exhausted or smooth endings as the reference.
    The mixture assumes the disruption-like candidates are alarmed like recorded disruptions and the rest like the
-   reference group: a rough reading, not a measurement.
+   reference group: a rough reading, not a measurement. It is left out for runs whose labels call the candidates
+   disruptions (current-only and physics labels), where it means nothing. Also per split: recorded disruptions alarmed
+   in time minus smooth endings alarmed, i.e. skill on the disruptions the operators recorded, whatever the labels.
 
 An analysis next to the experiments, like scripts/label_statistics.py: no experiment uses it, so it is outside every
 stamp, and it writes only into RESULTS_DIR (private).
@@ -26,7 +28,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src import config
+from src import config, experiment
 from src.stats import corrected_interval, corrected_p, holm
 
 METRICS = ["catch_rate", "false_alarm_rate", "pr_auc"]
@@ -119,6 +121,12 @@ def mixture_share(rates, reference):
     return (cand - ref) / (rec - ref)
 
 
+def labels_call_candidates_disruptions(name):
+    """True for runs whose label source counts the candidates as disruptions (current-only or physics labels)."""
+    knob, value = config.COMPARISONS.get(name, (None, None))
+    return knob == "recipe" and experiment.RECIPES.get(value, {}).get("source") in ("signal", "physics")
+
+
 def ending_table(sets):
     """Per run set: pooled share of each ending group alarmed in time, and the mixture share of the candidates
     (pooled over splits, and per split with a corrected range)."""
@@ -126,20 +134,25 @@ def ending_table(sets):
     for name, (runs, _) in sets.items():
         pooled = {g: [0, 0] for g in GROUPS}
         per_split = {ref: [] for ref in MIXTURE_REFERENCES}
+        recorded_skill = []
         for test in runs.values():
             for g, c in test.get("alarms_by_ending", {}).items():
                 if g in pooled:
                     pooled[g][0] += c["alarms"]
                     pooled[g][1] += c["n"]
             rates = ending_rates(test)
+            if rates["recorded"] is not None and rates["smooth_end"] is not None:
+                recorded_skill.append(rates["recorded"] - rates["smooth_end"])
             for ref in MIXTURE_REFERENCES:
                 per_split[ref].append(mixture_share(rates, ref))
         if not any(n for _, n in pooled.values()):
             continue
         pooled_rates = {g: a / n if n else None for g, (a, n) in pooled.items()}
+        mixture = None if labels_call_candidates_disruptions(name) else {
+            ref: {"pooled": mixture_share(pooled_rates, ref), **interval_row(per_split[ref])}
+            for ref in MIXTURE_REFERENCES}
         out[name] = {"pooled": {g: {"alarms": a, "n": n, "rate": pooled_rates[g]} for g, (a, n) in pooled.items()},
-                     "mixture": {ref: {"pooled": mixture_share(pooled_rates, ref), **interval_row(per_split[ref])}
-                                 for ref in MIXTURE_REFERENCES}}
+                     "recorded_skill": interval_row(recorded_skill), "mixture": mixture}
     return out
 
 
@@ -192,13 +205,15 @@ def markdown(skill, comparisons, endings):
             cells += [value, change, p_text(m.get("p_holm"))]
         lines.append(f"| {name} ({r['baseline']}) | {r['n']} | " + " | ".join(cells) + " |")
     lines += ["", "## 3. Alarms in time by how the shot ended (test shots, pooled over splits)", "",
-              "| Runs | " + " | ".join(GROUPS) + " | Candidates like recorded, vs flux-exhausted | vs smooth |",
-              "|---|" + "---|" * (len(GROUPS) + 2)]
+              "| Runs | " + " | ".join(GROUPS) + " | Recorded minus smooth, per split | p | Candidates like recorded, "
+              "vs flux-exhausted | vs smooth |", "|---|" + "---|" * (len(GROUPS) + 4)]
     for name, r in endings.items():
         groups = [f"{pct(r['pooled'][g]['rate'])} ({r['pooled'][g]['alarms']}/{r['pooled'][g]['n']})" for g in GROUPS]
-        mix = [f"{pct(r['mixture'][ref]['pooled'], 0)} (per split {share_range(r['mixture'][ref])})"
-               for ref in MIXTURE_REFERENCES]
-        lines.append(f"| {name} | " + " | ".join(groups + mix) + " |")
+        skill = [points(r["recorded_skill"]), p_text(r["recorded_skill"]["p"])]
+        mix = ["(labels call them disruptions)"] * 2 if r["mixture"] is None else [
+            f"{pct(r['mixture'][ref]['pooled'], 0)} (per split {share_range(r['mixture'][ref])})"
+            for ref in MIXTURE_REFERENCES]
+        lines.append(f"| {name} | " + " | ".join(groups + skill + mix) + " |")
     lines += ["", "The mixture share is a rough reading: it assumes disruption-like candidates are alarmed like "
               "recorded disruptions and the rest like the reference group. Read it from runs that never trained on "
               "the candidates as disruptions (clear_drop_candidates leaves them out)."]

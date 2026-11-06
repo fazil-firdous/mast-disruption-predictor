@@ -57,7 +57,11 @@ def test_tables_from_fake_runs(tmp_path):
     # candidates 20% between recorded 30% and flux-exhausted 10%: half of them alarm like recorded ones
     assert endings["E10"]["mixture"]["flux_exhausted"]["pooled"] == pytest.approx(0.5)
     assert endings["E10"]["mixture"]["smooth_end"]["pooled"] == pytest.approx(0.6)
-    assert endings[name]["mixture"]["flux_exhausted"]["pooled"] is None  # recorded not above the reference
+    assert endings["E10"]["recorded_skill"]["mean"] == pytest.approx(0.25)  # 30% recorded vs 5% smooth
+    if paper_numbers.labels_call_candidates_disruptions(name):
+        assert endings[name]["mixture"] is None
+    else:
+        assert endings[name]["mixture"]["flux_exhausted"]["pooled"] is None  # recorded not above the reference
     text = paper_numbers.markdown(skill, comparisons, endings)
     assert "| E10 | 10 |" in text and name in text
 
@@ -67,3 +71,10 @@ def test_mixture_share_needs_recorded_above_reference():
         pytest.approx(0.5)
     assert paper_numbers.mixture_share({"recorded": 0.1, "candidate": 0.3, "smooth_end": 0.1}, "smooth_end") is None
     assert paper_numbers.mixture_share({"recorded": 0.5, "smooth_end": 0.1}, "smooth_end") is None
+
+
+def test_mixture_left_out_where_labels_call_candidates_disruptions():
+    assert paper_numbers.labels_call_candidates_disruptions("signal_labels")
+    assert paper_numbers.labels_call_candidates_disruptions("clear_physics")
+    assert not paper_numbers.labels_call_candidates_disruptions("clear_drop_candidates")
+    assert not paper_numbers.labels_call_candidates_disruptions("E10")
