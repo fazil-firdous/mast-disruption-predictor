@@ -9,6 +9,7 @@ Optional. Everything also runs from a terminal or the Colab notebook (see the RE
 - idle time goes to repeat runs: first the E10 seed sweep (the same experiment on 50 random splits, for error bars), then the repeat-run comparisons (`scripts/repeat_runs.py`: the same 50 splits without time since start, with the magnetic signals, and without each signal), so the E11, E13 and E5 findings get error bars too;
 - it uses every CPU core: repeat runs go side by side, one per core, each limited to one share of the cores (on small data a single job cannot keep two cores busy; side by side was 2.4 times faster on 2 cores). A second job starts only if free memory covers 1.3 times the biggest job measured so far, so a small server never runs out of memory. In a full run, E4-E13 run side by side the same way;
 - it labels every shot's ending automatically after each new dataset (`scripts/auto_labels.py`);
+- it never loses a result: before a full run with new science code or data it copies the whole results folder to `~/mast-private/results_history/<date>_<old commit>/` (about 140 MB per copy), and it does not start the run if the disk cannot hold the copy with room to spare;
 - jobs run at low CPU priority, so other programs on the server stay responsive;
 - in its terminal it shows a small tokamak and progress bars after every job (`src/banner.py`), so `screen -r mast` always shows them.
 
