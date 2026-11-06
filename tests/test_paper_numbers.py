@@ -117,3 +117,11 @@ def test_candidate_notes_counts_words_by_ending():
     assert not candidate_notes.word_flags(pd.Series(["Good H-mode shot"]))["any loss event"].iloc[0]
     lines = candidate_notes.examples(table, groups, flags)
     assert any("P1 tripped" in line for line in lines)
+
+
+def test_candidate_notes_skips_traps_found_by_reading():
+    from scripts import candidate_notes
+    texts = pd.Series(["Vertical kicks can be seen", "NTM does not terminate the shot", "Good MHD", "Good H-mode",
+                       "VDE at 0.22s", "IRE at 150ms kills the shot.", "Loss of vertical position control"])
+    flags = candidate_notes.word_flags(texts)
+    assert flags["any loss event"].tolist() == [False, False, False, False, True, True, True]
