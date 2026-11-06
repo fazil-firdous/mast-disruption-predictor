@@ -20,14 +20,22 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from scripts.label_statistics import wilson
 from src import config, evaluate
 
 LABELS_CSV = os.path.join(config.RESULTS_DIR, "auto_labels", "per_shot.csv")
+# Each class names one kind of event, so a common word cannot swamp it (a first version's 'plasma' class matched the
+# 'mode' of H-mode, which most shots mention). 'H-mode' is a control: it says what kind of shot it was, not how it ended.
 WORDS = {
-    "hardware": r"trip|fault|fail|interlock|crowbar|abort|\bpsu\b|power supply|tripped",
-    "plasma": r"\bvde\b|vertical|lock|\bmhd\b|tearing|density limit|collapse|crash|\bmode\b|\bmodes\b",
+    "hardware trip": r"trip|interlock|crowbar|\bpsu\b|power supply",
+    "VDE": r"\bvdes?\b|vertical",
+    "locked mode": r"lock(?:ed|ing)? ?modes?|mode ?lock",
+    "MHD/NTM": r"\bmhd\b|\bntms?\b|tearing",
+    "collapse/IRE": r"collapse|crash|\bires?\b",
     "early end": r"terminat|ended early|early end|short shot|stopped early|lost plasma|plasma lost",
+    "H-mode (control)": r"h-?mode",
 }
+EVENTS = ["VDE", "locked mode", "MHD/NTM", "collapse/IRE", "early end"]  # words for how a plasma is lost
 N_EXAMPLES = 8  # comments shown per word class for the candidates, seeded
 
 
@@ -35,6 +43,7 @@ def word_flags(comments):
     """DataFrame of booleans: does each comment match each word class (case-insensitive)? NaN counts as no."""
     text = comments.fillna("").astype(str).str.lower()
     out = pd.DataFrame({name: text.str.contains(pattern, regex=True) for name, pattern in WORDS.items()})
+    out["any loss event"] = out[EVENTS].any(axis=1)
     out["any comment"] = text.str.strip().str.len() > 0
     return out
 
@@ -58,9 +67,11 @@ def examples(table, groups, flags, seed=config.RANDOM_SEED):
     rng = np.random.default_rng(seed)
     is_candidate = np.array([g == "candidate" for g in groups])
     lines = []
-    for column in list(WORDS) + ["none of these"]:
-        hit = flags[list(WORDS)].any(axis=1) if column == "none of these" else flags[column]
-        hit = ~hit & flags["any comment"] if column == "none of these" else hit
+    for column in EVENTS + ["hardware trip", "none of these"]:
+        if column == "none of these":
+            hit = ~flags[EVENTS + ["hardware trip"]].any(axis=1) & flags["any comment"]
+        else:
+            hit = flags[column]
         idx = np.where(is_candidate & hit.to_numpy())[0]
         lines.append(f"\nCandidates, {column} ({len(idx)}):")
         for i in rng.choice(idx, size=min(N_EXAMPLES, len(idx)), replace=False) if len(idx) else []:
@@ -74,12 +85,14 @@ def main():
     table = labels.merge(shot_table, on="shot_id", how="left")
     counts, groups, flags = by_ending(table)
     shares = counts.drop(columns="shots").div(counts["shots"], axis=0)
-    text = ["Post-shot comments by how the shot ended (count, share of the group's shots)", "",
+    text = ["Post-shot comments by how the shot ended (count, share of the group's shots, Wilson 95% range)", "",
             "| Ending | Shots | " + " | ".join(shares.columns) + " |", "|---|---|" + "---|" * len(shares.columns)]
     for group, row in counts.iterrows():
-        cells = [f"{row[c]} ({100 * shares.at[group, c]:.1f}%)" for c in shares.columns]
+        cells = [f"{row[c]} ({100 * shares.at[group, c]:.1f}%, {100 * wilson(row[c], row['shots'])[0]:.1f}-"
+                 f"{100 * wilson(row[c], row['shots'])[1]:.1f})" for c in shares.columns]
         text.append(f"| {group} | {row['shots']} | " + " | ".join(cells) + " |")
-    text += ["", "Word classes: " + "; ".join(f"{k}: {v}" for k, v in WORDS.items())]
+    text += ["", "'any loss event': " + ", ".join(EVENTS) + ". Word classes: " +
+             "; ".join(f"{k}: {v}" for k, v in WORDS.items())]
     text += examples(table, groups, flags)
     out = "\n".join(text)
     with open(os.path.join(os.path.dirname(LABELS_CSV), "notes_by_ending.txt"), "w") as f:
