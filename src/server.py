@@ -1,11 +1,15 @@
 """Decisions and texts for the always-on research server (scripts/research_server.py), kept here so they can be tested."""
 import json
 import os
+import shutil
 import time
 
 from src import config, extras
 
 STATE_PATH = os.path.join(config.LOGS_DIR, "server_state.json")
+# every result set is copied here before new science code can write over it, so nothing is ever lost
+HISTORY_DIR = os.path.join(config.HOME_DIR, "results_history")
+HISTORY_SPARE = 2.0  # copy only if the disk keeps twice the copy's size free afterwards
 HELP = """MAST research server
 /status - the picture: training, what it can do, what is needed
 /report - every experiment in words, the comparisons, all result files
@@ -27,7 +31,7 @@ def new_state():
             "force_pipeline": False, "seeds_done": [], "last_heartbeat": 0.0, "last_update_check": 0.0,
             "network_down_since": None, "relay_manifest": None, "force_fetch": False, "last_probe": None,
             "last_probe_at": 0.0, "last_literature_at": 0.0, "gold_current": None, "seeds_stamp": None,
-            "comparisons_done": [], "comparisons_stamp": None, "job_pids": [], "idle_peak_mb": {},
+            "comparisons_done": [], "comparisons_stamp": None, "job_pids": [], "idle_peak_mb": {}, "results_stamp": None,
             "started_at": time.time()}
 
 
@@ -217,3 +221,26 @@ def status_text(state, head, job, network):
             f"job: {job or 'idle'}\nlast good full run: {state['last_ok_commit'] or 'none yet'}\n"
             f"seed sweep: {len(state['seeds_done'])}/{config.SEED_SWEEP_MAX}\n"
             f"network: {network}\nfree disk: {free_gb:.1f} GB\nworkspace: {os.path.abspath(config.HOME_DIR)}")
+
+
+def folder_size(path):
+    """Bytes in every file under path (0 if it does not exist)."""
+    return sum(os.path.getsize(os.path.join(root, name)) for root, _, names in os.walk(path) for name in names)
+
+
+def snapshot_results(results_dir, history_dir, label, spare=HISTORY_SPARE):
+    """Copy every file in results_dir to history_dir/label (label_2, ... if taken) before new science code can
+    overwrite it, so earlier results stay readable for the paper. Returns (path, None), or (None, why not): nothing
+    to keep, or the disk would keep less than spare x the copy's size free (a full disk would stop every job)."""
+    size = folder_size(results_dir)
+    if size == 0:
+        return None, "no results yet"
+    os.makedirs(history_dir, exist_ok=True)
+    if shutil.disk_usage(history_dir).free - size < spare * size:
+        return None, f"not enough free disk for a {size / 1e6:.0f} MB copy"
+    target, n = os.path.join(history_dir, label), 1
+    while os.path.exists(target):
+        n += 1
+        target = os.path.join(history_dir, f"{label}_{n}")
+    shutil.copytree(results_dir, target)
+    return target, None

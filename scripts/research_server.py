@@ -304,15 +304,37 @@ def run_pipeline(state, scale, mode):
     if mode == "relay" and manifest is None:
         state.update(failed_commit=commit, failed_at=time.time())
         return
+    if not keep_results(state):
+        state.update(failed_commit=commit, failed_at=time.time())
+        return
     args = server.pipeline_args(scale, mode, manifest)
     code = run_job(f"pipeline {commit}", [PY, "scripts/run_all.py", *args], state)
     if code == 0:
         keep_or_restart_seeds(state, commit)
-        state.update(last_ok_commit=commit, failed_commit=None)
+        state.update(last_ok_commit=commit, failed_commit=None, results_stamp=resume.sweep_stamp())
         label_shots(state)
     else:
         state.update(failed_commit=commit, failed_at=time.time())
         notify.send(f"full run of {commit} failed (exit {code}); retrying in {config.PIPELINE_RETRY_HOURS} h. /log for details")
+
+
+def keep_results(state):
+    """Before a full run, copy every result to MAST_HOME/results_history/ unless they were made with the science code
+    and data that run now (then nothing can be overwritten). The first time after this was added there is no stamp,
+    so the current results are copied once. Results are never deleted. False (and no run) if the copy could not be
+    made, so a new run never writes over results that exist nowhere else."""
+    if state["results_stamp"] is not None and state["results_stamp"] == resume.sweep_stamp():
+        return True
+    label = f"{time.strftime('%Y%m%d_%H%M')}_{state['last_ok_commit'] or 'first'}"
+    path, why_not = server.snapshot_results(config.RESULTS_DIR, server.HISTORY_DIR, label)
+    if path:
+        notify.log(f"kept a copy of every result in {path} before the new run")
+        return True
+    if why_not == "no results yet":
+        return True
+    notify.send(f"not running the new code: could not keep a copy of the results first ({why_not}). Free some "
+                f"disk, then /run. Nothing was overwritten.")
+    return False
 
 
 def label_shots(state):

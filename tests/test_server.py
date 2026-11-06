@@ -85,3 +85,37 @@ def test_catalogue_skips_geometry():
     rows = inspect_groups.catalogue(meta)
     assert [r["name"] for r in rows] == ["ip"] and rows[0]["units"] == "A"
     assert len(inspect_groups.catalogue(meta, include_geometry=True)) == 2
+
+
+def test_snapshot_results_copies_everything_and_never_overwrites(tmp_path):
+    results, history = tmp_path / "results", tmp_path / "history"
+    assert server.snapshot_results(str(results), str(history), "a") == (None, "no results yet")
+    (results / "E10" / "seed_1").mkdir(parents=True)
+    (results / "E10" / "seed_1" / "metrics.json").write_text('{"test": {}}')
+    (results / "REPORT.md").write_text("report")
+    first, why = server.snapshot_results(str(results), str(history), "a")
+    assert why is None and os.path.exists(os.path.join(first, "E10", "seed_1", "metrics.json"))
+    second, _ = server.snapshot_results(str(results), str(history), "a")
+    assert second.endswith("a_2") and os.path.exists(os.path.join(first, "REPORT.md"))  # the first copy is kept
+    assert server.snapshot_results(str(results), str(history), "b", spare=1e15)[1].startswith("not enough free disk")
+    assert server.new_state()["results_stamp"] is None
+
+
+def test_keep_results_copies_once_per_science_change_and_blocks_a_run_it_cannot_protect(tmp_path, monkeypatch):
+    from scripts import research_server
+    results = tmp_path / "results"
+    (results / "E0").mkdir(parents=True)
+    (results / "E0" / "metrics.json").write_text("{}")
+    monkeypatch.setattr(config, "RESULTS_DIR", str(results))
+    monkeypatch.setattr(server, "HISTORY_DIR", str(tmp_path / "history"))
+    monkeypatch.setattr(research_server.resume, "sweep_stamp", lambda: "stamp-v2")
+    monkeypatch.setattr(notify, "send", lambda text: None)
+    state = server.new_state()  # no stamp yet: the results present now are copied once
+    assert research_server.keep_results(state)
+    assert len(os.listdir(tmp_path / "history")) == 1
+    state["results_stamp"] = "stamp-v2"  # same science code: nothing can be overwritten, so no copy
+    assert research_server.keep_results(state) and len(os.listdir(tmp_path / "history")) == 1
+    state["results_stamp"] = "stamp-v1"
+    monkeypatch.setattr(server, "HISTORY_SPARE", 1e15)
+    monkeypatch.setattr(server.snapshot_results, "__defaults__", (1e15,))
+    assert research_server.keep_results(state) is False  # no room for a copy: the run must not start
