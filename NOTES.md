@@ -504,3 +504,9 @@ Also done: the status picture marks a comparison 'clear' only after Holm over al
 ## 2026-11-06 - Operator notes, final word lists and a hand check
 
 Server run of the stricter `candidate_notes.py` (public comments): a loss-event word for 10.3% of candidates, 11.2% of recorded disruptions, 3.0% flux-exhausted, 2.0% ramp-down, 1.5% smooth; same gap without H-mode in the comment. A hand check of 30 seeded matches per group (`results/auto_labels/notes_hand_check.md`) found 26 of 30 real losses among candidates and 10 of 30 among flux-exhausted endings. The word lists stay as they are from here on: changing them after seeing the results would bias the counts, so the paper quotes this version with its measured precision. Two misses to mention: negations with three or more words between ('no sign of spontaneous locked mode'), and bare end times ('terminates at 300 ms').
+
+## 2026-11-06 - Comparisons extended to 50 splits; the confirmation is fixed in advance
+
+`COMPARISON_SEEDS` 20 -> 50 (a server setting outside every stamp: the 240 finished runs are kept, 360 new ones run, about two days on two cores). Written before any of splits 21-50 has run, so they are a confirmation and not a second look:
+- Confirmatory tests on splits 21-50 only (`python scripts/paper_numbers.py --seeds 21-50`): (1) E15 'candidates left out' vs 'clear': change in catch rate and in pAUC; (2) E14 'current-only labels': recorded minus smooth, expected to include 0; (3) E10 skill over random (caught minus false alarms). Corrected ranges, Holm over these four.
+- The paper then reports all 50 splits, says which verdicts were confirmed on 21-50, and keeps pAUC described as added after the first 20 splits.

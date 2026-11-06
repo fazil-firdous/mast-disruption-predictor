@@ -125,3 +125,10 @@ def test_candidate_notes_skips_traps_found_by_reading():
                        "VDE at 0.22s", "IRE at 150ms kills the shot.", "Loss of vertical position control"])
     flags = candidate_notes.word_flags(texts)
     assert flags["any loss event"].tolist() == [False, False, False, False, True, True, True]
+
+
+def test_seed_range_reads_only_those_splits(tmp_path, monkeypatch):
+    for seed in range(1, 8):
+        fake_run(str(tmp_path / "E10"), seed, 0.1, 0.05, 0.1, {"recorded": 10, "smooth_end": 5})
+    monkeypatch.setattr(paper_numbers, "SEEDS", (3, 6))
+    assert sorted(paper_numbers.read_runs(str(tmp_path / "E10"))) == [3, 4, 5, 6]

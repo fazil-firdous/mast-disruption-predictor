@@ -190,4 +190,4 @@ COMPARISONS = {
 COMPARISON_BASELINES = {"signal_machine": "signal_labels", "clear_drop_candidates": "clear", "clear_physics": "clear"}
 # splits per comparison: the corrected range barely narrows after 20 (Nadeau-Bengio factor 0.62 at 20, 0.59 at 50,
 # NOTES 2026-10-28), so 20 buys almost the same certainty for 40% of the time
-COMPARISON_SEEDS = 20
+COMPARISON_SEEDS = 50  # raised from 20 on 2026-11-06: splits 21-50 confirm the 20-split verdicts (NOTES 2026-11-06)

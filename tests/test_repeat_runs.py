@@ -23,7 +23,8 @@ def test_idle_queue_runs_paired_e10_seeds_then_the_comparisons_then_the_rest():
     assert server.idle_jobs(state, 2) == [(second, 1), (second, 2)]
     assert server.idle_jobs(state, 1) == [(second, 1)]
     state["comparisons_done"] = [[name, seed] for seed in range(1, paired + 1) for name in config.COMPARISONS]
-    assert server.idle_jobs(state, 2) == [("E10", paired + 1), ("E10", paired + 2)]  # then the rest of E10
+    rest = [("E10", seed) for seed in range(paired + 1, config.SEED_SWEEP_MAX + 1)][:2]
+    assert server.idle_jobs(state, 2) == rest  # then the rest of E10 (none when the comparisons use every split)
     state["seeds_done"] = list(range(1, config.SEED_SWEEP_MAX + 1))
     assert server.idle_jobs(state, 2) == []
 
