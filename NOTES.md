@@ -500,3 +500,7 @@ Also done: the status picture marks a comparison 'clear' only after Holm over al
 - The first 'plasma' word class matched the 'mode' of H-mode and is not usable; the script now counts VDE, locked mode, MHD/NTM, collapse/IRE and early end separately, with H-mode as a control and Wilson ranges.
 
 `requirements-lock.txt`: the server's exact versions (pip freeze, 2026-11-06), for reproducing the paper's numbers; requirements.txt stays loose.
+
+## 2026-11-06 - Operator notes, final word lists and a hand check
+
+Server run of the stricter `candidate_notes.py` (public comments): a loss-event word for 10.3% of candidates, 11.2% of recorded disruptions, 3.0% flux-exhausted, 2.0% ramp-down, 1.5% smooth; same gap without H-mode in the comment. A hand check of 30 seeded matches per group (`results/auto_labels/notes_hand_check.md`) found 26 of 30 real losses among candidates and 10 of 30 among flux-exhausted endings. The word lists stay as they are from here on: changing them after seeing the results would bias the counts, so the paper quotes this version with its measured precision. Two misses to mention: negations with three or more words between ('no sign of spontaneous locked mode'), and bare end times ('terminates at 300 ms').

@@ -75,6 +75,7 @@ A plain-English tour of the repo. Read the files in the order below.
 | `tests/test_resume.py` | done | Stamps follow science code and data (not server code), saved outcomes reused only under the same stamp, dataset rebuilt only when inputs change, leftover-job check, false-alarm breakdown, every message type on real experiment outputs. |
 | `tests/test_server.py` | done | Server decisions, command parsing, Telegram parsing, `.env` loading, diagnosis verdicts, connection retries, catalogue. |
 | `scripts/candidate_notes.py` | done | Post-shot comments by ending group: how many mention a hardware trip, a VDE, a locked mode, MHD/NTM, a collapse or IRE, or an early end (H-mode as a control), with Wilson ranges, with seeded examples for the candidates; are the candidates hardware endings? Writes `auto_labels/notes_by_ending.txt`. Outside every stamp. |
+| `results/auto_labels/notes_hand_check.md` | data | 30 candidate and 30 flux-exhausted loss-event matches read by hand: precision of the word lists (26/30 and 10/30). |
 | `requirements-lock.txt` | data | The research server's exact library versions (pip freeze) behind the paper's numbers. |
 | `results/auto_labels/per_shot.csv` | data | How each of the 11,471 labelled shots ended (columns in the README next to it); CC BY-SA 4.0 like FAIR-MAST. |
 | `tests/test_paper_numbers.py` | done | Corrected p-value against the corrected interval, Holm, pAUC, the paper tables on made-up runs, and the word counts of `candidate_notes.py`. |
