@@ -496,6 +496,7 @@ Also done: the status picture marks a comparison 'clear' only after Holm over al
 - Hardware-trip words are as rare in the candidates (4.5%) as in recorded disruptions (5.5%), flux-exhausted (4.1%) and smooth endings (4.2%): the candidates are not mainly hardware trips.
 - 'Terminated' or 'ended early' is written for 5.7% of candidates against 1.1% of recorded disruptions, 1.4% flux-exhausted and 0.6% smooth ends.
 - Some candidates describe a VDE in words other than 'disrupt' (25665, 15288, 30197), so the note parser could not count them.
+- First event counts (server, 2026-11-06): a loss-event word (VDE, locked mode, MHD/NTM, collapse/IRE, early end) in 17.9% of candidates (16.8-19.2) and 19.1% of recorded disruptions (16.6-21.9), against 9.5% flux-exhausted, 7.6% ramp-down and 7.3% smooth ends; VDE 4.0% vs 5.6% recorded and 1.0% flux-exhausted. Reading the matches found traps ('vertical kick', negated 'does not terminate', 'good MHD'), and candidates mention H-mode more often (18.5% vs 10-13%), so the script now uses stricter classes, skips negated matches, splits by H-mode and prints a sample to read by hand. Numbers for the paper come from that version.
 - The first 'plasma' word class matched the 'mode' of H-mode and is not usable; the script now counts VDE, locked mode, MHD/NTM, collapse/IRE and early end separately, with H-mode as a control and Wilson ranges.
 
 `requirements-lock.txt`: the server's exact versions (pip freeze, 2026-11-06), for reproducing the paper's numbers; requirements.txt stays loose.
