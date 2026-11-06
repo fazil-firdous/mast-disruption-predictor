@@ -25,6 +25,7 @@ TBD, written last. Planned shape: open MAST data are being used for machine-lear
 - Label sets on these shots: 832 disruptions under 'both' (note and quench), 4,794 under 'physics' (quench and note or flat-top drop), 8,947 under current-only labels.
 - Independent signals (`scripts/termination_evidence.py`): at the quench the candidates resemble recorded disruptions (current fall within 10 ms in 91% vs 95% vs 44% of flux-exhausted endings; similar pre-quench current spike); in end-of-shot neutron rate they sit in between. Probably mostly, not all, disruptions.
 - Before the quench (new): the share of each ending group a model alarms on in time, for a model that never saw the candidates as disruptions (`evaluate.alarms_by_ending`, E15 'candidates left out'): TBD.
+- What the operators wrote (`scripts/candidate_notes.py`, post-shot comments, public metadata): hardware-trip words appear in 4-6% of every ending group (candidates 4.5%, recorded disruptions 5.5%, smooth ends 4.2%), so the candidates are not mainly hardware trips. 'Terminated' or 'ended early' appears in 5.7% of candidates against 0.6-1.5% of the other groups. Some candidates describe a VDE without the word 'disrupt' (e.g. 25665 'Discharge terminates at 0.25s due to VDE'). Counts by event class (VDE, locked mode, MHD/NTM, collapse/IRE, early end, with H-mode as a control): TBD from the refined script.
 - Expert check: TBD (none has been done yet).
 
 ## 4. Methods
@@ -53,6 +54,7 @@ TBD, written last. Planned shape: open MAST data are being used for machine-lear
 - Next: a second machine. The TCABR dataset (2,189 discharges, 435 labelled disruptive, 1 us Mirnov coils; Zenodo 2026) allows a cross-machine test of features without units; it has no solenoid current, so the termination classes do not transfer directly.
 
 ## 7. Reproducibility
+- Exact library versions of the run behind every number: `requirements-lock.txt` (the server's `pip freeze`, 2026-11-06).
 - Code: this repository (public). Data: FAIR-MAST (CC BY-SA 4.0). Seeds and settings saved with every result (`config.json`); every result reused only under an identical code and data fingerprint (`src/resume.py`).
 
 ## References

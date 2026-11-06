@@ -109,9 +109,11 @@ def test_candidate_notes_counts_words_by_ending():
                                   "good shot"]})
     counts, groups, flags = candidate_notes.by_ending(table)
     assert groups == ["recorded", "candidate", "candidate", "smooth_end", "flux_exhausted"]
-    assert counts.at["recorded", "hardware"] == 1
-    assert counts.at["candidate", "shots"] == 2 and counts.at["candidate", "hardware"] == 1
-    assert counts.at["candidate", "plasma"] == 1
-    assert counts.at["smooth_end", "any comment"] == 0 and counts.at["flux_exhausted", "hardware"] == 0
+    assert counts.at["recorded", "hardware trip"] == 1
+    assert counts.at["candidate", "shots"] == 2 and counts.at["candidate", "hardware trip"] == 1
+    assert counts.at["candidate", "VDE"] == 1 and counts.at["candidate", "locked mode"] == 1
+    assert counts.at["candidate", "any loss event"] == 1
+    assert counts.at["smooth_end", "any comment"] == 0 and counts.at["flux_exhausted", "hardware trip"] == 0
+    assert not candidate_notes.word_flags(pd.Series(["Good H-mode shot"]))["any loss event"].iloc[0]
     lines = candidate_notes.examples(table, groups, flags)
     assert any("P1 tripped" in line for line in lines)

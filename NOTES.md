@@ -489,3 +489,13 @@ Also done: the status picture marks a comparison 'clear' only after Holm over al
 
 - The repository history was rewritten at the owner's request: every commit now has the owner as author (GitHub no-reply address), the assistant trailers and an old rules file were removed, and the file contents are unchanged except one sentence in `scripts/diagnose_network.py`. Commit hashes quoted in older NOTES entries refer to the history before the rewrite.
 - Before any full run with new science code or data, the server copies the whole results folder to `MAST_HOME/results_history/<date>_<old commit>/` and does not start the run if it cannot (`keep_results`). The first run after this change makes one copy of the v2 results the paper uses.
+
+## 2026-11-06 - What the operators wrote about each ending; exact library versions
+
+`scripts/candidate_notes.py` on the server (public post-shot comments, so public facts):
+- Hardware-trip words are as rare in the candidates (4.5%) as in recorded disruptions (5.5%), flux-exhausted (4.1%) and smooth endings (4.2%): the candidates are not mainly hardware trips.
+- 'Terminated' or 'ended early' is written for 5.7% of candidates against 1.1% of recorded disruptions, 1.4% flux-exhausted and 0.6% smooth ends.
+- Some candidates describe a VDE in words other than 'disrupt' (25665, 15288, 30197), so the note parser could not count them.
+- The first 'plasma' word class matched the 'mode' of H-mode and is not usable; the script now counts VDE, locked mode, MHD/NTM, collapse/IRE and early end separately, with H-mode as a control and Wilson ranges.
+
+`requirements-lock.txt`: the server's exact versions (pip freeze, 2026-11-06), for reproducing the paper's numbers; requirements.txt stays loose.
