@@ -14,7 +14,7 @@ Machine learning that watches a MAST tokamak plasma pulse as it unfolds and trie
 
 ## What it has found so far (real MAST data)
 - **The labels disagree.** A current-quench detector confirms 97.7% of the shots the operators called disruptions, but also fires on 74.2% of the shots they called normal (`results/label_report/report.md`, 400 shots; 98.2% and 76.3% on all 3,804 shots used). Labels taken from the current alone, as in published FAIR-MAST benchmarks, mix normal endings with disruptions.
-- **Automatic termination labels** (`scripts/auto_labels.py`) sort each ending by physics: lost during flat-top with flux left, after the central solenoid ran out of flux, during a programmed ramp-down, or smooth.
+- **Automatic termination labels** (`scripts/auto_labels.py`; the table for all 11,471 labelled shots is `results/auto_labels/per_shot.csv`) sort each ending by physics: lost during flat-top with flux left, after the central solenoid ran out of flux, during a programmed ramp-down, or smooth.
   - On all 3,804 shots used, 623 of the 847 operator-noted disruptions were lost during flat-top with flux left (74%; 77% on the 400-shot sample).
   - So were 1,132 of the 2,957 shots nobody called a disruption (38%): candidates for disruptions that were never recorded.
   - The detector fires on 3,089 shots, and 1,223 of those (40%) ended after the solenoid ran out of flux or during a programmed ramp-down, endings that labels from the current alone count as disruptions.
@@ -64,6 +64,7 @@ python scripts/termination_evidence.py             # the candidates on signals t
 python scripts/repeat_runs.py --comparison machine --seed 1     # one paired repeat run with one change
 python scripts/repeat_runs.py --summary            # every comparison so far, with corrected 95% ranges
 python scripts/paper_numbers.py                    # the paper's model tables from the saved runs (Holm-adjusted, by ending)
+python scripts/candidate_notes.py                  # what the operators wrote about each kind of ending
 python scripts/predict_shot.py --shot 11860        # the best trained model on one shot, as if live
 python scripts/blind_sample.py                     # a coded, label-free sample for an expert check (private key)
 python scripts/tcabr.py tcabr_data.nc              # a second tokamak: TCABR (Zenodo 21843354), same recipe

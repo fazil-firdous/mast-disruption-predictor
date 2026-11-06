@@ -197,6 +197,13 @@ def test_status_card_numbers_and_picture(monkeypatch, tmp_path):
     effects = status_card.comparison_effects(str(effects_csv))
     # no range yet for no_time, and magnetics is no longer a comparison: both left out
     assert set(effects) == {"machine only", "no EFIT"}
+    assert effects["machine only"][3] and effects["no EFIT"][3]  # both survive Holm over the two
+    many = tmp_path / "many.csv"
+    many.write_text("comparison,n_seeds,catch_rate_change,catch_rate_change_low,catch_rate_change_high\n" + "".join(
+        f"{name},20,{0.02 if name == 'machine' else 0.0},{0.001 if name == 'machine' else -0.03},"
+        f"{0.039 if name == 'machine' else 0.03}\n" for name in config.COMPARISONS))
+    # the same just-clear range is only a hint among twelve comparisons
+    assert status_card.comparison_effects(str(many))["machine only"][3] is False
     assert info["effects"] == {}
     for case in (info, {**info, "skill": status_card.skill(str(seeds)), "signals": useful, "all_shots": 11573},
                  {**info, "effects": effects}):

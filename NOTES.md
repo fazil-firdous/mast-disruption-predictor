@@ -470,3 +470,17 @@ From `scripts/paper_numbers.py` on the research server (numbers private, qualita
 - E15: a model that never saw the candidates (left out of training, judged on clear endings) alarms on them almost as often as on recorded disruptions, and about twice as often as on flux-exhausted endings, which it was trained to call normal. Mixture reading: most candidates behave like the disruptions the model learned. Caveats: relative to what the model learned; candidates may include hardware trips (a noted 'FA TRIP' disruption exists), which end the plasma without a plasma instability.
 - After Holm over 24 tests: machine only (both label sets), v1 only, and judging on clear endings hold; 'candidates left out' does not (its PR-AUC gain is borderline). The status picture still marks it 'clear' (uncorrected): to fix with the next server change.
 - The mixture column is now left out for runs whose labels call the candidates disruptions (current-only, physics), where it means nothing.
+
+## 2026-11-06 - What the FAIR-MAST issues and the MIT survival-analysis code add
+
+ukaea/fair-mast issues (read 2026-11-06; facts as the team stated them):
+- Level 1 is to be deprecated; FAIR-MAST will distribute level 2 only (#224). The level-1 plan is dropped (ROADMAP D4).
+- The `level2/defuse/` folder was removed (#230, "Removed"), with no answer on access or licence. DEFUSE is not a public event list (ROADMAP A5).
+- Level-2 centre-column Mirnov data are quantised (~43.7 nT steps in 29980, "likely the native digitizer resolution"); some saddle coils have no record (#211). This may be why leaving out the Mirnov bands changes nothing: in quiet shots the high bands can be quantisation noise. To check per shot before any claim about the bands.
+- About 100 M8/M9 shots have no NBI record at source (#232): missing beam power, not zero.
+- A Thomson/EFIT energy ratio steps by ~2x between shots ~23,000 and 24,000 (#245, open): a diagnostic or reconstruction change between campaigns, the kind of shift that could explain part of E6's drift.
+- #243 proposes CC0 for the metadata; it notes the post-shot descriptions are operator free text that UKAEA must confirm it can waive.
+
+MIT-PSFC/disruption-survival-analysis (Keith et al., C-Mod): survival models (auton-survival Cox, deep Cox, DSM, DCM), a random forest, and a Kaplan-Meier style predictor (Tinguely et al. 2019) that extrapolates the risk with a linear fit over the last 50-200 ms; alarms with hysteresis (upper threshold, lower threshold, hold time); shot-level metrics as areas under curves up to a false-alarm cutoff. Taken now, with no retraining: pAUC up to 10% false alarms in `scripts/paper_numbers.py`. Planned as science changes (one full rerun each): the hysteresis alarm (ROADMAP C3) and a discrete-time hazard model with HGB (C2).
+
+Also done: the status picture marks a comparison 'clear' only after Holm over all comparisons and measures ('hint' otherwise); the full per-shot ending table is public (`results/auto_labels/per_shot.csv`); `scripts/candidate_notes.py` counts hardware and plasma words in the post-shot comments by ending group, to run on the server (the sandbox cannot reach the shot table).
