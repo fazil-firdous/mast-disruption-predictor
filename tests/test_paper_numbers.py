@@ -3,6 +3,7 @@ import json
 import os
 
 import numpy as np
+import pandas as pd
 import pytest
 from scipy import stats as sstats
 
@@ -29,6 +30,11 @@ def test_holm():
 
 def fake_run(folder, seed, catch, false_alarm, pr_auc, endings):
     os.makedirs(os.path.join(folder, f"seed_{seed}"))
+    # a trade-off curve through (false_alarm, catch) on a straight line from (0, 0) to (1, 1)
+    fa = np.linspace(0, 1, 21)
+    curve = pd.DataFrame({"threshold": 1 - fa, "false_alarm_rate": fa,
+                          "catch_rate": np.minimum(1, fa * catch / false_alarm)})
+    curve.to_csv(os.path.join(folder, f"seed_{seed}", "tradeoff_test.csv"), index=False)
     test = {"catch_rate": catch, "false_alarm_rate": false_alarm, "window": {"pr_auc": pr_auc},
             "alarms_by_ending": {g: {"n": 100, "alarms": a} for g, a in endings.items()}}
     with open(os.path.join(folder, f"seed_{seed}", "metrics.json"), "w") as f:
@@ -49,6 +55,7 @@ def test_tables_from_fake_runs(tmp_path):
     skill = paper_numbers.skill_table(sets)
     assert skill["E10"]["n"] == 10
     assert skill["E10"]["skill"]["mean"] == pytest.approx(0.09, abs=0.01) and skill["E10"]["skill"]["low"] > 0
+    assert skill["E10"]["pauc_skill"]["mean"] > 0  # the fake curve lies above the diagonal
     comparisons = paper_numbers.comparison_table(sets)
     change = comparisons[name]["catch_rate"]
     assert change["mean"] == pytest.approx(-0.10) and change["p_holm"] < 0.05
@@ -78,3 +85,33 @@ def test_mixture_left_out_where_labels_call_candidates_disruptions():
     assert paper_numbers.labels_call_candidates_disruptions("clear_physics")
     assert not paper_numbers.labels_call_candidates_disruptions("clear_drop_candidates")
     assert not paper_numbers.labels_call_candidates_disruptions("E10")
+
+
+def test_partial_auc():
+    diagonal = pd.DataFrame({"false_alarm_rate": [0.0, 0.05, 0.1, 0.5], "catch_rate": [0.0, 0.05, 0.1, 0.5]})
+    assert paper_numbers.partial_auc(diagonal) == pytest.approx(0.05)  # random alarms
+    perfect = pd.DataFrame({"false_alarm_rate": [0.0, 0.2], "catch_rate": [1.0, 1.0]})
+    assert paper_numbers.partial_auc(perfect) == pytest.approx(1.0)
+    # two thresholds at the same false-alarm rate: the better catch rate counts; held flat to the cutoff
+    steps = pd.DataFrame({"false_alarm_rate": [0.0, 0.04, 0.04, 0.3], "catch_rate": [0.0, 0.1, 0.2, 0.6]})
+    assert paper_numbers.partial_auc(steps) == pytest.approx((0.04 * 0.2 / 2 + 0.06 * 0.2) / 0.1)
+    assert np.isnan(paper_numbers.partial_auc(None))
+
+
+def test_candidate_notes_counts_words_by_ending():
+    from scripts import candidate_notes
+    table = pd.DataFrame({
+        "shot_id": [1, 2, 3, 4, 5],
+        "note": [True, False, False, False, False],
+        "t_quench": [0.3, 0.3, 0.3, np.nan, 0.3],
+        "termination": ["flat_top_drop", "flat_top_drop", "flat_top_drop", "smooth_end", "flux_exhausted"],
+        "shot_postshot_comment": ["DISRUPTS AT 300MS (FA TRIP)", "P1 tripped at 250ms", "locked mode, VDE", None,
+                                  "good shot"]})
+    counts, groups, flags = candidate_notes.by_ending(table)
+    assert groups == ["recorded", "candidate", "candidate", "smooth_end", "flux_exhausted"]
+    assert counts.at["recorded", "hardware"] == 1
+    assert counts.at["candidate", "shots"] == 2 and counts.at["candidate", "hardware"] == 1
+    assert counts.at["candidate", "plasma"] == 1
+    assert counts.at["smooth_end", "any comment"] == 0 and counts.at["flux_exhausted", "hardware"] == 0
+    lines = candidate_notes.examples(table, groups, flags)
+    assert any("P1 tripped" in line for line in lines)

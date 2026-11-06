@@ -6,8 +6,12 @@
 Three tables, each over the repeat runs' test shots, every range corrected for the splits sharing shots (src/stats.py):
 1. Skill: caught minus false alarms, per split. An alarm that fires at random on a share f of shots catches about f of
    the disruptions, so a range above 0 means skill over random alarms.
-2. Comparisons: the change in caught, false alarms and window PR-AUC against each comparison's own baseline, with
-   p-values Holm-adjusted over the family (caught and false alarms together, as in the summary; PR-AUC on its own).
+2. Comparisons: the change in caught, false alarms, window PR-AUC and pAUC against each comparison's own baseline,
+   with p-values Holm-adjusted over the family (caught and false alarms together, as in the summary; PR-AUC and pAUC
+   each on their own). pAUC is the area under the shot-level curve of caught against false alarms up to 10% false
+   alarms, divided by 0.10 (random alarms score 0.05), from each run's saved tradeoff_test.csv. It needs no
+   threshold, so it is less noisy than the catch rate at one threshold (the idea of the area under the warning-time
+   curve in MIT-PSFC/disruption-survival-analysis).
 3. Alarms by ending: the share of each ending group alarmed in time, pooled over splits, and the share of the
    candidates that behave like recorded disruptions under a two-group mixture:
    p = (candidates - reference) / (recorded - reference), with flux-exhausted or smooth endings as the reference.
@@ -25,15 +29,31 @@ import os
 import sys
 
 import numpy as np
+import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src import config, experiment
 from src.stats import corrected_interval, corrected_p, holm
 
-METRICS = ["catch_rate", "false_alarm_rate", "pr_auc"]
+METRICS = ["catch_rate", "false_alarm_rate", "pr_auc", "pauc"]
+PAUC_MAX_FALSE_ALARM = 0.10  # the shot-level curve up to 10% false alarms: the range a machine could live with
 MIXTURE_REFERENCES = ["flux_exhausted", "smooth_end"]
 GROUPS = ["recorded", "candidate", "flux_exhausted", "programmed_rampdown", "smooth_end", "other"]
+
+
+def partial_auc(curve, cutoff=PAUC_MAX_FALSE_ALARM):
+    """Area under caught (y) against false alarms (x) for x <= cutoff, divided by cutoff, from a trade-off curve (one
+    row per threshold). At each false-alarm rate the best catch rate counts; the curve starts at (0, 0) and is held
+    flat from its last point below the cutoff to the cutoff. Random alarms score cutoff / 2. NaN without a curve."""
+    if curve is None or len(curve) == 0:
+        return np.nan
+    best = curve.groupby("false_alarm_rate")["catch_rate"].max().sort_index()
+    x, y = best.index.to_numpy(dtype=float), np.maximum.accumulate(best.to_numpy(dtype=float))
+    keep = x <= cutoff
+    x = np.concatenate([[0.0], x[keep], [cutoff]])
+    y = np.concatenate([[0.0], y[keep], [y[keep][-1] if keep.any() else 0.0]])
+    return float(np.sum(np.diff(x) * (y[1:] + y[:-1]) / 2) / cutoff)
 
 
 def read_runs(folder):
@@ -51,6 +71,8 @@ def read_runs(folder):
         test = dict(metrics["test"])
         test["pr_auc"] = test.get("window", {}).get("pr_auc", np.nan)
         test["positive_share"] = metrics.get("val", {}).get("positive_share", np.nan)
+        curve_path = os.path.join(folder, entry, "tradeoff_test.csv")
+        test["pauc"] = partial_auc(pd.read_csv(curve_path)) if os.path.exists(curve_path) else np.nan
         runs[int(entry[len("seed_"):])] = test
     return runs
 
@@ -82,7 +104,8 @@ def skill_table(sets):
         rows = list(runs.values())
         out[name] = {"n": len(rows),
                      **{m: float(np.nanmean([r[m] for r in rows])) for m in METRICS + ["positive_share"]},
-                     "skill": interval_row([r["catch_rate"] - r["false_alarm_rate"] for r in rows])}
+                     "skill": interval_row([r["catch_rate"] - r["false_alarm_rate"] for r in rows]),
+                     "pauc_skill": interval_row([r["pauc"] - PAUC_MAX_FALSE_ALARM / 2 for r in rows])}
     return out
 
 
@@ -99,7 +122,7 @@ def comparison_table(sets):
             out[name][metric] = {"value": float(np.nanmean([runs[s][metric] for s in seeds])) if seeds else None,
                                  "baseline": float(np.nanmean([base[s][metric] for s in seeds])) if seeds else None,
                                  **interval_row([runs[s][metric] - base[s][metric] for s in seeds])}
-    for family in (["catch_rate", "false_alarm_rate"], ["pr_auc"]):
+    for family in (["catch_rate", "false_alarm_rate"], ["pr_auc"], ["pauc"]):
         cells = [(name, metric) for name in out for metric in family]
         adjusted = holm([out[name][metric]["p"] for name, metric in cells])
         for (name, metric), p in zip(cells, adjusted):
@@ -187,20 +210,22 @@ def markdown(skill, comparisons, endings):
              "Every range is a 95% range corrected for the splits sharing shots (Nadeau & Bengio 2003); changes are "
              "in percentage points. Holm p-values are adjusted over all comparisons together.", "",
              "## 1. Skill over random alarms (caught minus false alarms, per split)", "",
-             "| Runs | Splits | Caught | False alarms | PR-AUC (random) | Caught - false alarms | p |",
-             "|---|---|---|---|---|---|---|"]
+             "| Runs | Splits | Caught | False alarms | PR-AUC (random) | Caught - false alarms | p | pAUC (random 0.05) "
+             "| pAUC - random | p |", "|---|---|---|---|---|---|---|---|---|---|"]
     for name, r in skill.items():
         lines.append(f"| {name} | {r['n']} | {pct(r['catch_rate'])} | {pct(r['false_alarm_rate'])} | "
-                     f"{r['pr_auc']:.3f} ({r['positive_share']:.3f}) | {points(r['skill'])} | {p_text(r['skill']['p'])} |")
+                     f"{r['pr_auc']:.3f} ({r['positive_share']:.3f}) | {points(r['skill'])} | {p_text(r['skill']['p'])} | "
+                     f"{r['pauc']:.3f} | {points(r['pauc_skill'])} | {p_text(r['pauc_skill']['p'])} |")
     lines += ["", "## 2. Comparisons against their own baselines", "",
               "| Comparison (vs) | Splits | Caught | Change | Holm p | False alarms | Change | Holm p | PR-AUC | Change "
-              "| Holm p |", "|---|---|---|---|---|---|---|---|---|---|---|"]
+              "| Holm p | pAUC | Change | Holm p |", "|---|" + "---|" * 13]
     for name, r in comparisons.items():
         cells = []
         for metric in METRICS:
             m = r[metric]
-            value = f"{m['value']:.3f}" if metric == "pr_auc" and m["value"] is not None else pct(m["value"])
-            change = points(m) if metric != "pr_auc" else (
+            is_area = metric in ("pr_auc", "pauc")
+            value = f"{m['value']:.3f}" if is_area and m["value"] is not None else pct(m["value"])
+            change = points(m) if not is_area else (
                 "-" if m["mean"] is None or m["low"] is None else f"{m['mean']:+.3f} ({m['low']:+.3f} to {m['high']:+.3f})")
             cells += [value, change, p_text(m.get("p_holm"))]
         lines.append(f"| {name} ({r['baseline']}) | {r['n']} | " + " | ".join(cells) + " |")

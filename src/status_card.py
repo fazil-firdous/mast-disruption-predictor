@@ -99,16 +99,28 @@ CARD_WORDS = {"signal_labels": "current-only labels", "signal_machine": "machine
 
 
 def comparison_effects(csv=None):
-    """{short words: (change, low, high)} in the catch rate for every repeat-run comparison that has a corrected
-    range (scripts/repeat_runs.py writes E10/comparisons/summary.csv); {} before any has MIN_SEEDS splits."""
+    """{short words: (change, low, high, holm_clear)} in the catch rate for every repeat-run comparison that has a
+    corrected range (scripts/repeat_runs.py writes E10/comparisons/summary.csv); {} before any has MIN_SEEDS splits.
+    holm_clear: the change survives a Holm correction over every comparison and measure in the file (as in the paper,
+    scripts/paper_numbers.py), so a 'clear' on the picture is not one lucky verdict among many."""
     path = csv or os.path.join(config.RESULTS_DIR, "E10", "comparisons", "summary.csv")
     if not os.path.exists(path):
         return {}
+    table = pd.read_csv(path)
+    table = table[table["comparison"].isin(list(config.COMPARISONS)) & table["catch_rate_change_low"].notna()]
+    metrics = [m for m in ("catch_rate", "false_alarm_rate") if f"{m}_change_low" in table]
+    cells = [(row["comparison"], m) for _, row in table.iterrows() for m in metrics]
+    rows = table.set_index("comparison")
+    p_values = [stats.p_from_interval(rows.at[name, f"{m}_change"], rows.at[name, f"{m}_change_low"],
+                                      rows.at[name, f"{m}_change_high"], int(rows.at[name, "n_seeds"]))
+                for name, m in cells]
+    adjusted = dict(zip(cells, stats.holm(p_values)))
     effects = {}
-    for row in pd.read_csv(path).itertuples():
-        if row.comparison in config.COMPARISONS and pd.notna(row.catch_rate_change_low):
-            effects[CARD_WORDS.get(row.comparison, explain.comparison_words(row.comparison))] = (
-                row.catch_rate_change, row.catch_rate_change_low, row.catch_rate_change_high)
+    for name, row in rows.iterrows():
+        p = adjusted.get((name, "catch_rate"))
+        effects[CARD_WORDS.get(name, explain.comparison_words(name))] = (
+            row["catch_rate_change"], row["catch_rate_change_low"], row["catch_rate_change_high"],
+            p is not None and p < 0.05)
     return effects
 
 
@@ -208,15 +220,18 @@ def draw_signals(fig, signals):
 
 def draw_effects(fig, effects):
     """What each repeat-run comparison does to the disruptions caught, in percentage points: a bar for the average
-    change and a line for its corrected 95% range. Green or amber only where the range is clear of 0."""
+    change and a line for its corrected 95% range. Green or amber, marked 'clear', only where the change survives the
+    Holm correction; a range clear of 0 that does not is marked 'hint'."""
     chart = fig.add_axes([0.45, 0.25, 0.47, 0.14], facecolor=SURFACE)
     names = sorted(effects, key=lambda n: effects[n][0])
     for i, name in enumerate(names):
-        change, low, high = (100 * v for v in effects[name])
-        chart.barh(i, change, height=0.55, color=GOOD if low > 0 else WARNING if high < 0 else BLUE_TRACK)
+        change, low, high = (100 * v for v in effects[name][:3])
+        holm_clear = effects[name][3]
+        colour = (GOOD if change > 0 else WARNING) if holm_clear else BLUE_TRACK
+        chart.barh(i, change, height=0.55, color=colour)
         chart.plot([low, high], [i, i], color=INK_2, lw=1)
-        if low > 0 or high < 0:
-            chart.text(high, i, "  clear", va="center", fontsize=8, color=INK_2)
+        if holm_clear or low > 0 or high < 0:
+            chart.text(high, i, "  clear" if holm_clear else "  hint", va="center", fontsize=8, color=INK_2)
     chart.axvline(0, color="#c3c2b7", lw=1)
     chart.set_yticks(range(len(names)), names)
     chart.tick_params(axis="y", labelsize=8.5, colors=INK_2, length=0)
