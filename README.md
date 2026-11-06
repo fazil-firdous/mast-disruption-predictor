@@ -63,6 +63,7 @@ python scripts/label_statistics.py                 # their shares, intervals, te
 python scripts/termination_evidence.py             # the candidates on signals the rules never use
 python scripts/repeat_runs.py --comparison machine --seed 1     # one paired repeat run with one change
 python scripts/repeat_runs.py --summary            # every comparison so far, with corrected 95% ranges
+python scripts/paper_numbers.py                    # the paper's model tables from the saved runs (Holm-adjusted, by ending)
 python scripts/predict_shot.py --shot 11860        # the best trained model on one shot, as if live
 python scripts/blind_sample.py                     # a coded, label-free sample for an expert check (private key)
 python scripts/tcabr.py tcabr_data.nc              # a second tokamak: TCABR (Zenodo 21843354), same recipe
