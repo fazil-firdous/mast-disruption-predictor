@@ -56,6 +56,9 @@ def partial_auc(curve, cutoff=PAUC_MAX_FALSE_ALARM):
     return float(np.sum(np.diff(x) * (y[1:] + y[:-1]) / 2) / cutoff)
 
 
+SEEDS = None  # (first, last) to read only those splits, e.g. (21, 50) for the confirmation (--seeds 21-50)
+
+
 def read_runs(folder):
     """seed -> the test numbers of every finished run in folder (seed_N/metrics.json), with pr_auc lifted out of
     the window metrics and the validation share of positive windows (PR-AUC of random scores) alongside."""
@@ -63,6 +66,9 @@ def read_runs(folder):
     for entry in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
         path = os.path.join(folder, entry, "metrics.json")
         if not entry.startswith("seed_") or not os.path.exists(path):
+            continue
+        seed = int(entry[len("seed_"):])
+        if SEEDS is not None and not SEEDS[0] <= seed <= SEEDS[1]:
             continue
         with open(path) as f:
             metrics = json.load(f)
@@ -248,10 +254,15 @@ def markdown(skill, comparisons, endings):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--results", default=config.RESULTS_DIR, help="results folder (default RESULTS_DIR)")
+    parser.add_argument("--seeds", help="only these splits, e.g. 21-50 (the confirmation splits)")
     args = parser.parse_args()
+    global SEEDS
+    if args.seeds:
+        first, last = (int(v) for v in args.seeds.split("-"))
+        SEEDS = (first, last)
     sets = run_sets(args.results)
     out = {"skill": skill_table(sets), "comparisons": comparison_table(sets), "endings": ending_table(sets)}
-    folder = os.path.join(args.results, "paper")
+    folder = os.path.join(args.results, "paper" if not args.seeds else f"paper_seeds_{args.seeds}")
     os.makedirs(folder, exist_ok=True)
     text = markdown(out["skill"], out["comparisons"], out["endings"])
     with open(os.path.join(folder, "numbers.md"), "w") as f:
