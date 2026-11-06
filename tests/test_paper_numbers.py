@@ -132,3 +132,18 @@ def test_seed_range_reads_only_those_splits(tmp_path, monkeypatch):
         fake_run(str(tmp_path / "E10"), seed, 0.1, 0.05, 0.1, {"recorded": 10, "smooth_end": 5})
     monkeypatch.setattr(paper_numbers, "SEEDS", (3, 6))
     assert sorted(paper_numbers.read_runs(str(tmp_path / "E10"))) == [3, 4, 5, 6]
+
+
+def test_thornton_compare_on_a_made_up_table():
+    from scripts import thornton_compare
+    ours = pd.DataFrame({"shot_id": [1, 2, 3, 4], "campaign": ["M5"] * 4, "note": [True, False, False, False],
+                         "t_quench": [0.300, 0.300, 0.300, np.nan],
+                         "termination": ["flat_top_drop", "flat_top_drop", "flux_exhausted", "smooth_end"]})
+    th = pd.DataFrame({"shot_id": [1, 2, 3, 4, 99], "disruption": [1, 1, 1, 0, 1], "ip_flattop_yn": [1, 1, 1, 0, 1],
+                       "isol_constant": [1, 1, 0, 0, 1], "ttq": [0.299, 0.301, 0.304, 0.4, 0.3]})
+    r = thornton_compare.compare(ours, th)
+    assert r["shared_shots"] == 4 and r["both"] == 3
+    assert r["solenoid_agreement"] == 1.0 and r["time_within_5ms"] == 1.0
+    assert r["groups"]["candidate"]["full_performance"] == 1.0
+    assert r["groups"]["flux_exhausted"]["full_performance"] == 0.0
+    assert "Shared shots: 4" in thornton_compare.text(r)

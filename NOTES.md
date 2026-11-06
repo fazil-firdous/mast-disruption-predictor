@@ -510,3 +510,15 @@ Server run of the stricter `candidate_notes.py` (public comments): a loss-event 
 `COMPARISON_SEEDS` 20 -> 50 (a server setting outside every stamp: the 240 finished runs are kept, 360 new ones run, about two days on two cores). Written before any of splits 21-50 has run, so they are a confirmation and not a second look:
 - Confirmatory tests on splits 21-50 only (`python scripts/paper_numbers.py --seeds 21-50`): (1) E15 'candidates left out' vs 'clear': change in catch rate and in pAUC; (2) E14 'current-only labels': recorded minus smooth, expected to include 0; (3) E10 skill over random (caught minus false alarms). Corrected ranges, Holm over these four.
 - The paper then reports all 50 splits, says which verdicts were confirmed on 21-50, and keeps pAUC described as added after the first 20 splits.
+
+## 2026-11-06 - Public MAST repositories: Thornton's disruption database, FAIR-MAST ingestion, DisruptionPy
+
+- **Prior art found:** A. J. Thornton's thesis (York, 2011, section 4.2.1) and his IDL code and saved database (github.com/spamela/disruption_detector, Apache-2.0). He selected 'full performance disruptions' by nearly our rule: in the flat-top, beams ceasing after the disruption, solenoid flux not at its limit or reversing. The paper now says so; our contribution is the audit of notes and current-only labels on every shot and what predictors learn.
+- **Comparison** (`scripts/thornton_compare.py`, 6,501 shared shots, M5-M7):
+  - both find a disruption in 4,606 (94% of his, 91% of our quenches);
+  - quench times within 5 ms in 99%, within 2 ms in 89% (ours 1 ms later in the median);
+  - solenoid state agrees in 89.8% of 4,263 shots (kappa 0.80);
+  - his full-performance rule keeps 77% of our candidates, 69% of recorded disruptions, 5% flux-exhausted, 0% smooth.
+- **Resampling** (FAIR-MAST ingestion, commit c692231): level 2 uses a zero-order hold (last sample at or before each grid time) for 31 of 32 groups, Thomson the only linear one. The level-2 resampling is causal; only filtering inside the original MAST analysis codes stays undocumented.
+- **DisruptionPy** (MIT) has a MAST module but private disruption times. Its example disruptive shots: 30014 is a candidate for us, 30113 flux-exhausted, 30421 has no fast quench for our detector: to look at on the server.
+- **Not useful:** Zynerji/JET-Disruption (synthetic data only). GA-FDP/toksearch_mast: General Atomics' data platform now reads FAIR-MAST (a later collaboration lead).
