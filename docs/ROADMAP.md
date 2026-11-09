@@ -16,6 +16,7 @@ Status markers: **done** (code + tests), **built** (code + tests, waiting for a 
   3. Validation against Thornton's full-performance disruptions, a larger hand check, and an expert check in TokTagger if offered.
   4. Public release.
 - **B. Predictor v3 trained on it:** soft labels, a penalty when a machine-only model explains the alarm, hysteresis alarm, time-to-disruption output, cause-specific risks.
+- **Pre-registration:** `docs/preregistration_v3.md` (2026-11-09), written before any v3 run.
 - **C. Evaluation:**
   - shot-level skill and window AUROC on the same runs, plus a current-only 'metric audit' (GenToka, arXiv:2611.08153, reports AUROC 0.87 from the plasma current alone);
   - repeat-shot twins, later campaigns and Thornton's disruptions as test sets;
