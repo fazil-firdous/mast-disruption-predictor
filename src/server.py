@@ -31,7 +31,7 @@ def new_state():
             "force_pipeline": False, "seeds_done": [], "last_heartbeat": 0.0, "last_update_check": 0.0,
             "network_down_since": None, "relay_manifest": None, "force_fetch": False, "last_probe": None,
             "last_probe_at": 0.0, "last_literature_at": 0.0, "gold_current": None, "seeds_stamp": None,
-            "comparisons_done": [], "comparisons_stamp": None, "job_pids": [], "idle_peak_mb": {}, "results_stamp": None,
+            "comparisons_done": [], "comparisons_stamp": None, "v3_stamp": None, "job_pids": [], "idle_peak_mb": {}, "results_stamp": None,
             "started_at": time.time()}
 
 
@@ -78,14 +78,19 @@ def next_job(state, head, now, processed_ready):
     return None
 
 
+# more idle jobs after the comparisons, as (kind, seed); scripts/research_server.py puts the v3 runs here
+EXTRA_JOBS = []
+
+
 def idle_jobs(state, limit):
     """Up to limit idle jobs still to do, as (kind, seed): the E10 seeds the comparisons pair with, then the repeat-run
-    comparisons (config.COMPARISONS, COMPARISON_SEEDS splits each), then the rest of the E10 seeds, so the
-    comparisons' answers come days sooner. All of one kind, so jobs run side by side take about as long."""
+    comparisons (config.COMPARISONS, COMPARISON_SEEDS splits each), then EXTRA_JOBS (v3), then the rest of the E10
+    seeds, so the comparisons' answers come days sooner. All of one kind, so jobs run side by side take about as
+    long. Finished jobs of every kind but E10 are listed in state['comparisons_done']."""
     paired = range(1, min(config.COMPARISON_SEEDS, config.SEED_SWEEP_MAX) + 1)
     rest = range(len(paired) + 1, config.SEED_SWEEP_MAX + 1)
     queue = ([("E10", seed) for seed in paired] + [(name, seed) for seed in paired for name in config.COMPARISONS]
-             + [("E10", seed) for seed in rest])
+             + [tuple(job) for job in EXTRA_JOBS] + [("E10", seed) for seed in rest])
     done = {("E10", seed) for seed in state["seeds_done"]} | {tuple(job) for job in state["comparisons_done"]}
     pending = [job for job in queue if job not in done]
     return [job for job in pending if job[0] == pending[0][0]][:limit]
