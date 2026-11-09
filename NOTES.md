@@ -542,3 +542,15 @@ Server run of the stricter `candidate_notes.py` (public comments): a loss-event 
   - a plasma-current-only model reaches AUROC 0.87-0.88, the pattern our current-only analysis explains.
 - **Teacher-guided MTL on EAST** (arXiv:2610.41134): expert disruption labels restricted to the flat-top by design, shot AUC 0.97; labels not public.
 - **v3 step 1:** `scripts/mast_events.py`, events with times and causes from the comments, and repeat-shot pairs. Its negation rule (same clause, 30 characters) is better than candidate_notes' fixed one, which stays as it was for the paper's counts.
+
+## 2026-11-09 - Label model results, what exists already, and the twin check
+
+- **Label model** (`scripts/mast_label_model.py`, server run, abstentions neutral):
+  - Thornton's full-performance disruptions get clearly higher P (AUC 0.906 over 4,606 shared quench shots), but only weakly inside our flat-top drops (AUC 0.574), where the solenoid vote cannot help.
+  - Candidates' P rests mostly on the solenoid source (mean 0.74 with it, 0.33 without; two-source fits are weakly identified, so indicative only).
+  - Decision: v3 does not train on this P, since the predictor also sees the solenoid and would learn our rule back. Training labels come from the operator note and the comment evidence (loss word at the quench time); P is reported, not trained on.
+- **Literature check for v3** (web search, not systematic):
+  - *Not new:* soft labels for noisy disruption labels (EXL-50, instance-specific label smoothing, Cai et al. 2024; JET per-sample SVM weights, 2012); assertion-time / hysteresis alarms (JET, MIT code); hazard models (Keith et al.).
+  - *Not found:* precursor onset taken from operator-written event times (others infer it by anomaly detection, Ai et al. 2024, or fix it per machine from operator advice); matched repeat-shot pairs; removing the machine-programme shortcut within one machine.
+- **New v3 idea from the data:** cause-specific warning windows. Operator times put MHD/NTM a median 153 ms, IREs 112 ms, hardware trips 34 ms and locked modes 19 ms before the quench, so one fixed 30 ms horizon misses the early precursors.
+- **`scripts/twin_check.py`:** compares the programmed current of each named pair (relative RMS difference under 10% and peaks within 10%) to keep only twins with the same programme.
