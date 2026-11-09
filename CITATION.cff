@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this code or the per-shot labels, please cite the paper."
+title: "MAST Plasma Disruption Predictor"
+authors:
+  - family-names: Firdous
+    given-names: Fazil
+    orcid: "https://orcid.org/0009-0007-1270-5525"
+repository-code: "https://github.com/fazil-firdous/mast-disruption-predictor"
+preferred-citation:
+  type: article
+  title: "What disruption labels reward: how 11,471 MAST plasmas ended, and what predictors learn from each label set"
+  authors:
+    - family-names: Firdous
+      given-names: Fazil
+      orcid: "https://orcid.org/0009-0007-1270-5525"
+  year: 2026
+  doi: "10.5281/zenodo.24081241"
+  publisher:
+    name: Zenodo
