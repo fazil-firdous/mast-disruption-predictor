@@ -67,6 +67,7 @@ python scripts/repeat_runs.py --summary            # every comparison so far, wi
 python scripts/paper_numbers.py                    # the paper's model tables from the saved runs (Holm-adjusted, by ending)
 python scripts/candidate_notes.py                  # what the operators wrote about each kind of ending
 python scripts/thornton_compare.py disruption_efit_0709_full.sav   # against Thornton's 2011 MAST disruption database
+python scripts/mast_events.py                      # v3: events, causes and times from the comments; repeat-shot pairs
 python scripts/predict_shot.py --shot 11860        # the best trained model on one shot, as if live
 python scripts/blind_sample.py                     # a coded, label-free sample for an expert check (private key)
 python scripts/tcabr.py tcabr_data.nc              # a second tokamak: TCABR (Zenodo 21843354), same recipe

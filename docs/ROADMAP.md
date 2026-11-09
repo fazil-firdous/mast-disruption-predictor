@@ -9,6 +9,19 @@ Status markers: **done** (code + tests), **built** (code + tests, waiting for a 
 - Our own Phase 2 report found that a current-quench detector also flags 74% of shots whose operator note calls them fine, because most MAST shots end in a fast quench. Labels from the current alone therefore mix normal terminations with disruptions. **Label quality is our main scientific angle.**
 - Literature check of 2026-10-15 (`docs/literature_review.md`): conformal prediction **has** been applied to disruption prediction (JET, Springer chapter) and survival / time-to-disruption models **exist** (Keith et al. 2024; arXiv:2609.24443). So B1 and C2 are not novel in themselves. Not found so far: PU learning for disruptions nobody recorded, and a measured audit of MAST's operator-note labels. Say "we could not find it", never "nobody has done it".
 
+## v3 plan (started 2026-11-09)
+- **A. MAST-Events, the first public per-shot event catalogue for MAST:**
+  1. `scripts/mast_events.py` (built): events, causes and times from the comments, and repeat-shot pairs.
+  2. Evidence fusion into P(disrupted), cause and time with a confidence (weak supervision).
+  3. Validation against Thornton's full-performance disruptions, a larger hand check, and an expert check in TokTagger if offered.
+  4. Public release.
+- **B. Predictor v3 trained on it:** soft labels, a penalty when a machine-only model explains the alarm, hysteresis alarm, time-to-disruption output, cause-specific risks.
+- **C. Evaluation:**
+  - shot-level skill and window AUROC on the same runs, plus a current-only 'metric audit' (GenToka, arXiv:2611.08153, reports AUROC 0.87 from the plasma current alone);
+  - repeat-shot twins, later campaigns and Thornton's disruptions as test sets;
+  - hypotheses written down before the runs, as for splits 21-50.
+- **D. Later:** a deep model on a GPU; MAST to TCABR.
+
 ## Track A — Labels (core contribution)
 - **A1 Positive-unlabelled (PU) learning — built (E9).** Note-confirmed disruptions are labelled positives; the pre-quench windows of unnoted quenches are unlabelled, not negative. Elkan & Noto (2008) weighting. Also gives an estimate of how many unnoted quenches look like real disruptions, which is a physics result in itself.
 - **A2 Gold-standard subset — built, waiting for an expert (`src/gold.py`, Telegram /gold; could be offered as a TokTagger project, UKAEA's own annotation tool, NOTES 2026-11-06).** Blind labelling needs someone trained to read MAST shots (NOTES 2026-10-25). A MAST physicist labelling ~100 shots would let `/goldreport` measure every automatic label.
