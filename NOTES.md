@@ -522,3 +522,23 @@ Server run of the stricter `candidate_notes.py` (public comments): a loss-event 
 - **Resampling** (FAIR-MAST ingestion, commit c692231): level 2 uses a zero-order hold (last sample at or before each grid time) for 31 of 32 groups, Thomson the only linear one. The level-2 resampling is causal; only filtering inside the original MAST analysis codes stays undocumented.
 - **DisruptionPy** (MIT) has a MAST module but private disruption times. Its example disruptive shots: 30014 is a candidate for us, 30113 flux-exhausted, 30421 has no fast quench for our detector: to look at on the server.
 - **Not useful:** Zynerji/JET-Disruption (synthetic data only). GA-FDP/toksearch_mast: General Atomics' data platform now reads FAIR-MAST (a later collaboration lead).
+
+## 2026-11-06 - Shot 30421, TokTagger and the DEFUSE run on MAST
+
+- **30421** (a 'fast disruption' in DisruptionPy's MAST test shots) has no quench for our detector at the default 50%-of-peak floor. At a 10% floor it finds one at 0.605 s (peak 649 kA). So the fast fall starts below 30% of the peak: a low-current termination late in the shot, which the floor leaves out by design (the last stretch of any ramp-down also falls fast). The paper's limitations now say so.
+- **TokTagger** (github.com/ukaea/toktagger, MIT, S. Jackson, updated 2026-10-27) is UKAEA's open annotation platform for tokamak data, with a FAIR-MAST loader, shot-level and time-point labels and an uncertainty-first queue. It ships ELM labels (types I-III) for about 30 shots from 30400, no disruption labels. The 30-shot blind expert check (ROADMAP A2) could be offered as a TokTagger project: the team's own tool.
+- **DEFUSE on MAST** (github.com/samueljackson92/defuse-data): DEFUSE, a MATLAB event-characterisation code, was run on 15,553 level-1 MAST shots. Its per-shot output (`objDIS`) holds the flat-top and ramp-up windows and soft-X-ray thermal-quench times. That output was the removed `level2/defuse/` folder, and DEFUSE lists 'Termination' as not available for MAST. If the team agrees to share it, it is an independent check of our flat-top windows and quench times.
+
+## 2026-11-09 - The 50-split confirmation; two new papers; v3 started
+
+- **Comparisons finished** (600 of 600). The four tests written down on 2026-11-06 before splits 21-50 ran:
+  - skill over random alarms: confirmed;
+  - 'candidates left out of training' raising the catch rate and pAUC: both confirmed (Holm over the three effects);
+  - current-only labels giving skill on recorded disruptions: no skill, as predicted.
+  - On all 50 splits two earlier verdicts weaken to hints: the machine-only catch-rate loss on current-only labels (its PR-AUC and pAUC losses stay clear), and v1 + magnetics against the full set. Numbers stay private.
+- **GenToka** (arXiv:2611.08153, 5 Nov 2026) adds MAST disruption prediction to TokaMark:
+  - 933 test shots, 'expert-annotated' labels not described or released;
+  - window AUROC and F1 only;
+  - a plasma-current-only model reaches AUROC 0.87-0.88, the pattern our current-only analysis explains.
+- **Teacher-guided MTL on EAST** (arXiv:2610.41134): expert disruption labels restricted to the flat-top by design, shot AUC 0.97; labels not public.
+- **v3 step 1:** `scripts/mast_events.py`, events with times and causes from the comments, and repeat-shot pairs. Its negation rule (same clause, 30 characters) is better than candidate_notes' fixed one, which stays as it was for the paper's counts.

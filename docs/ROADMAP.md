@@ -9,12 +9,25 @@ Status markers: **done** (code + tests), **built** (code + tests, waiting for a 
 - Our own Phase 2 report found that a current-quench detector also flags 74% of shots whose operator note calls them fine, because most MAST shots end in a fast quench. Labels from the current alone therefore mix normal terminations with disruptions. **Label quality is our main scientific angle.**
 - Literature check of 2026-10-15 (`docs/literature_review.md`): conformal prediction **has** been applied to disruption prediction (JET, Springer chapter) and survival / time-to-disruption models **exist** (Keith et al. 2024; arXiv:2609.24443). So B1 and C2 are not novel in themselves. Not found so far: PU learning for disruptions nobody recorded, and a measured audit of MAST's operator-note labels. Say "we could not find it", never "nobody has done it".
 
+## v3 plan (started 2026-11-09)
+- **A. MAST-Events, the first public per-shot event catalogue for MAST:**
+  1. `scripts/mast_events.py` (built): events, causes and times from the comments, and repeat-shot pairs.
+  2. Evidence fusion into P(disrupted), cause and time with a confidence (weak supervision).
+  3. Validation against Thornton's full-performance disruptions, a larger hand check, and an expert check in TokTagger if offered.
+  4. Public release.
+- **B. Predictor v3 trained on it:** soft labels, a penalty when a machine-only model explains the alarm, hysteresis alarm, time-to-disruption output, cause-specific risks.
+- **C. Evaluation:**
+  - shot-level skill and window AUROC on the same runs, plus a current-only 'metric audit' (GenToka, arXiv:2611.08153, reports AUROC 0.87 from the plasma current alone);
+  - repeat-shot twins, later campaigns and Thornton's disruptions as test sets;
+  - hypotheses written down before the runs, as for splits 21-50.
+- **D. Later:** a deep model on a GPU; MAST to TCABR.
+
 ## Track A — Labels (core contribution)
 - **A1 Positive-unlabelled (PU) learning — built (E9).** Note-confirmed disruptions are labelled positives; the pre-quench windows of unnoted quenches are unlabelled, not negative. Elkan & Noto (2008) weighting. Also gives an estimate of how many unnoted quenches look like real disruptions, which is a physics result in itself.
-- **A2 Gold-standard subset — built, waiting for an expert (`src/gold.py`, Telegram /gold).** Blind labelling needs someone trained to read MAST shots (NOTES 2026-10-25). A MAST physicist labelling ~100 shots would let `/goldreport` measure every automatic label.
+- **A2 Gold-standard subset — built, waiting for an expert (`src/gold.py`, Telegram /gold; could be offered as a TokTagger project, UKAEA's own annotation tool, NOTES 2026-11-06).** Blind labelling needs someone trained to read MAST shots (NOTES 2026-10-25). A MAST physicist labelling ~100 shots would let `/goldreport` measure every automatic label.
 - **A3 Current-only labels vs ours — built (E7, E12).** E12 copies the public part of the UKAEA FAIR-MAST protocol (current-only labels, 10/30/60 ms).
 - **A4 Termination physics — built and in training (v2, NOTES 2026-10-30).** `src/termination.py` classes every quench as flat-top drop with flux left, flux exhausted (solenoid stopped), programmed ramp-down, or smooth end; the classes feed the 'physics' label source (E7) and E15 (candidates as normal, left out, or as disruptions, judged on the same clear endings), and every model reports its alarm rate per ending group (precursor evidence for the candidates). Earlier (`results/termination_study/`): unnoted quenches happen during the programmed flat-top like noted disruptions. Next: loop voltage and vertical position at the quench, to split flux exhaustion from MHD-driven endings; an expert check of a blind sample.
-- **A5 DEFUSE labels — dropped.** `s3://mast/level2/defuse/` listed 3,067 per-shot HDF5 files but returned 403; in ukaea/fair-mast #230 the team removed the folder (Oct 2026) without answering the access or licence questions. Not a public event database for now; ask only if an expert contact offers it.
+- **A5 DEFUSE labels — dropped as public data; DEFUSE was run on 15,553 MAST shots (samueljackson92/defuse-data), so its flat-top windows and quench times could be asked for.** `s3://mast/level2/defuse/` listed 3,067 per-shot HDF5 files but returned 403; in ukaea/fair-mast #230 the team removed the folder (Oct 2026) without answering the access or licence questions. Not a public event database for now; ask only if an expert contact offers it.
 
 ## Track B — Guarantees
 - **B1 Conformal false-alarm control — built (E8); not novel in itself (see literature review), our angle is the shot-level guarantee under campaign drift.** Threshold from a held-out set of clean shots so that P(false alarm on a new clean shot) <= alpha, provably, if shots are exchangeable. Then test where the guarantee breaks (temporal split = campaign drift).
