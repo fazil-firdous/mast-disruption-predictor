@@ -63,23 +63,26 @@ def votes(labels, events):
 
 def dawid_skene(answers, n_iter=N_ITER, smoothing=SMOOTHING, init=None):
     """Binary latent-class model. answers: (n, m) int array, each column's values 0..K-1 or ABSTAIN. Returns
-    (P(y=1) per row, prior, tables) where tables[j][y] is the distribution of source j's answers given y (abstain
-    is one more answer, so a source that only speaks sometimes is modelled too). init: starting P(y=1) per row."""
+    (P(y=1) per row, prior, tables) where tables[j][y] is the distribution of source j's answers given y over the rows
+    where it answers. An abstention is missing data, not evidence: it leaves the row's likelihood unchanged (a first
+    version modelled it as an answer and learned 'solenoid state unknown' as a strong sign of disruption).
+    init: starting P(y=1) per row."""
     a = np.asarray(answers)
     n, m = a.shape
-    codes = [np.where(a[:, j] == ABSTAIN, a[:, j].max() + 1, a[:, j]) for j in range(m)]
-    sizes = [int(c.max()) + 1 for c in codes]
+    spoke = [a[:, j] != ABSTAIN for j in range(m)]
+    codes = [np.where(spoke[j], a[:, j], 0) for j in range(m)]
+    sizes = [int(c[s].max()) + 1 if s.any() else 1 for c, s in zip(codes, spoke)]
     q = np.full(n, 0.5) if init is None else np.asarray(init, dtype=float)
     for _ in range(n_iter):
         prior = q.mean()
         tables = []
-        for c, k in zip(codes, sizes):
+        for c, s, k in zip(codes, spoke, sizes):
             t = np.zeros((2, k))
             for y, w in ((1, q), (0, 1 - q)):
-                t[y] = (np.bincount(c, weights=w, minlength=k) + smoothing) / (w.sum() + smoothing * k)
+                t[y] = (np.bincount(c[s], weights=w[s], minlength=k) + smoothing) / (w[s].sum() + smoothing * k)
             tables.append(t)
-        log1 = np.log(prior) + sum(np.log(t[1][c]) for t, c in zip(tables, codes))
-        log0 = np.log(1 - prior) + sum(np.log(t[0][c]) for t, c in zip(tables, codes))
+        log1 = np.log(prior) + sum(np.where(s, np.log(t[1][c]), 0.0) for t, c, s in zip(tables, codes, spoke))
+        log0 = np.log(1 - prior) + sum(np.where(s, np.log(t[0][c]), 0.0) for t, c, s in zip(tables, codes, spoke))
         new = 1 / (1 + np.exp(log0 - log1))
         if np.max(np.abs(new - q)) < 1e-8:
             q = new
@@ -88,11 +91,14 @@ def dawid_skene(answers, n_iter=N_ITER, smoothing=SMOOTHING, init=None):
     return q, float(q.mean()), tables
 
 
-def fit(labels, events):
+SOURCES = ["note_vote", "words_vote", "solenoid_vote"]
+
+
+def fit(labels, events, sources=SOURCES):
     """The catalogue: every labelled shot with its ending group, P(disrupted), cause and event time; plus the
-    model's prior and answer tables."""
+    model's prior and answer tables. sources: the vote columns to use (the robustness check leaves one out)."""
     q = votes(labels, events)
-    answers = q[["note_vote", "words_vote", "solenoid_vote"]].to_numpy()
+    answers = q[list(sources)].to_numpy()
     init = np.where(q["note_vote"] == 1, 0.9, np.where(q["solenoid_vote"] == 1, 0.6, 0.2))
     p, prior, tables = dawid_skene(answers, init=init)
     q["p_disrupted"] = p
@@ -105,7 +111,19 @@ def fit(labels, events):
     return out, prior, tables
 
 
-def text(catalogue, prior, tables, thornton=None):
+def robustness(labels, events):
+    """The fit again without each source in turn: the estimated share disrupted among quench shots and the mean P of
+    the candidates. If one source alone drove the result, leaving it out would change these a lot."""
+    rows = []
+    for left_out in [None] + SOURCES:
+        used = [s for s in SOURCES if s != left_out]
+        catalogue, prior, _ = fit(labels, events, used)
+        candidate = catalogue["group"] == "candidate"
+        rows.append((left_out or "none (all three)", prior, catalogue.loc[candidate, "p_disrupted"].mean()))
+    return rows
+
+
+def text(catalogue, prior, tables, thornton=None, robust=None):
     """The fit in words: what each source says given the truth, mean P per ending group, and the Thornton check."""
     names = {"note": ["no 'disrupt'", "'disrupt'"], "words": ["none", "named", "named, time matches"],
              "solenoid": ["flux exhausted or ramp-down", "flat-top with flux", "unknown"]}
@@ -126,6 +144,17 @@ def text(catalogue, prior, tables, thornton=None):
         lines += ["", f"Check against Thornton (2011), {len(m):,} shared quench shots: AUC of P(disrupted) for his "
                       f"full-performance disruptions {auc(m.loc[full, 'p_disrupted'].to_numpy(), m.loc[~full, 'p_disrupted'].to_numpy()):.3f}; "
                       f"mean P {m.loc[full, 'p_disrupted'].mean():.2f} for them vs {m.loc[~full, 'p_disrupted'].mean():.2f}."]
+        # his flag and our solenoid vote share the physics, so also test inside our flat-top drops, where every shot
+        # has the same solenoid vote and only the note and the words can move P
+        ft = m[m["termination"] == "flat_top_drop"]
+        ft_full = (ft["ip_flattop_yn"] == 1) & (ft["isol_constant"] == 1)
+        if ft_full.any() and (~ft_full).any():
+            lines.append(f"Inside our flat-top drops only ({len(ft):,} shots, same solenoid vote): AUC "
+                         f"{auc(ft.loc[ft_full, 'p_disrupted'].to_numpy(), ft.loc[~ft_full, 'p_disrupted'].to_numpy()):.3f}.")
+    if robust:
+        lines += ["", "Robustness, the fit without one source (left out: share disrupted among quench shots; mean P "
+                      "of candidates):"]
+        lines += [f"- {name}: {prior:.1%}; {cand:.2f}" for name, prior, cand in robust]
     return "\n".join(lines)
 
 
@@ -141,7 +170,7 @@ def main():
         from scripts.thornton_compare import load_thornton
         thornton = load_thornton(args.thornton)
     catalogue.to_csv(os.path.join(EVENTS_DIR, "catalogue.csv"), index=False)
-    out = text(catalogue, prior, tables, thornton)
+    out = text(catalogue, prior, tables, thornton, robustness(labels, events))
     with open(os.path.join(EVENTS_DIR, "label_model.txt"), "w") as f:
         f.write(out + "\n")
     print(out)

@@ -36,3 +36,27 @@ def test_fit_on_a_small_catalogue():
     assert row.at[2, "t_event"] == pytest.approx(0.252)
     assert row.at[3, "solenoid_vote"] == 0
     assert "Mean P(disrupted)" in lm.text(catalogue, prior, tables)
+
+
+def test_an_abstention_is_not_evidence():
+    rng = np.random.default_rng(1)
+    n = 3000
+    y = rng.random(n) < 0.3
+    s0 = np.where(y, rng.random(n) < 0.85, rng.random(n) < 0.1).astype(int)
+    s1 = np.where(y, rng.random(n) < 0.8, rng.random(n) < 0.15).astype(int)
+    s2 = np.where(y, rng.random(n) < 0.75, rng.random(n) < 0.2).astype(int)
+    s2[y & (rng.random(n) < 0.5)] = lm.ABSTAIN  # a source that falls silent mostly on positives
+    p, _, _ = lm.dawid_skene(np.column_stack([s0, s1, s2]), init=np.where(s0 == 1, 0.9, 0.2))
+    silent = s2 == lm.ABSTAIN
+    # silence must not by itself push a row towards 1: rows where s0 and s1 both say 0 stay low
+    assert p[silent & (s0 == 0) & (s1 == 0)].max() < 0.5
+
+
+def test_robustness_rows():
+    labels = pd.DataFrame({"shot_id": [1, 2, 3], "campaign": ["M5"] * 3, "note": [True, False, False],
+                           "termination": ["flat_top_drop", "flat_top_drop", "flux_exhausted"],
+                           "t_quench": [0.30, 0.25, 0.40]})
+    events = pd.DataFrame({"shot_id": [2], "group": ["candidate"], "event": ["VDE"], "time_s": [0.25],
+                           "t_quench": [0.25], "source": ["shot_postshot_comment"], "text": [""]})
+    rows = lm.robustness(labels, events)
+    assert [r[0] for r in rows] == ["none (all three)"] + lm.SOURCES
