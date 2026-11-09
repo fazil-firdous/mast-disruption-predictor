@@ -84,6 +84,9 @@ def bar(done, total, colour=True):
     return paint("█" * filled, "C", colour) + paint("░" * (BAR_WIDTH - filled), "g", colour)
 
 
+V3_RUNS = 150  # scripts/v3_runs.py: 3 recipes x 50 splits (kept here so the banner needs no script import)
+
+
 def progress(info, job, colour=None):
     """The training block: bars from the numbers of status_card.collect(), then the running job and the skill."""
     colour = sys.stdout.isatty() if colour is None else colour
@@ -91,6 +94,7 @@ def progress(info, job, colour=None):
     for label, done, total in [("Shots learned from", info["shots"], info["all_shots"]),
                                ("Experiments", info["experiments"], len(status_card.EXPERIMENTS)),
                                ("Repeat runs", info["seeds"] + info["comparisons"], status_card.repeat_total()),
+                               ("v3 runs", info.get("v3", 0), V3_RUNS),
                                ("Auto labels", info["auto_labelled"], info["auto_total"])]:
         count = f"{done:,} / {total:,}" if total else f"{done:,}"
         rows.append(f"{label:<20}{bar(done, total, colour)}  {count}")
@@ -100,10 +104,11 @@ def progress(info, job, colour=None):
 
 
 def skill_text(skill, colour=True):
-    """'   catches 7% vs 5% by chance  ✓ better than guessing', or '' before there is a result."""
+    """'   main model catches 7% vs 5% by chance  ✓ better than guessing', or '' before there is a result. The
+    headline model's skill over the E10 seeds, not the job that just finished."""
     if skill is None:
         return ""
-    text = f"   catches {100 * skill['catch']:.0f}% vs {100 * skill['false_alarm']:.0f}% by chance  "
+    text = f"   main model catches {100 * skill['catch']:.0f}% vs {100 * skill['false_alarm']:.0f}% by chance  "
     if skill["verdict"] == "better":
         return text + paint("✓ better than guessing", "G", colour)
     if skill["verdict"] == "one":

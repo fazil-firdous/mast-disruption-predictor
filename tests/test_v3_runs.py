@@ -113,3 +113,12 @@ def test_one_baseline_and_one_evidence_run_end_to_end(tiny_project, monkeypatch)
     v3_runs.run("evidence", 3)
     table = v3_runs.runs(load=lambda shot: None)
     assert sorted(table["recipe"]) == ["baseline", "evidence"]
+
+
+def test_banner_counts_v3_runs_apart_from_the_comparisons():
+    from src import banner
+    assert banner.V3_RUNS == len(v3_runs.jobs())
+    info = {"shots": 1, "all_shots": 1, "experiments": 1, "seeds": 50, "comparisons": 600, "v3": 21,
+            "auto_labelled": 1, "auto_total": 1, "skill": None}
+    text = banner.progress(info, None, colour=False)
+    assert "v3 runs" in text and "21 / 150" in text
