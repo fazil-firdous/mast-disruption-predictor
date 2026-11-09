@@ -62,6 +62,23 @@ score in that range. The pair counts 1 if the lost shot scores higher, 0.5 for a
 The shortcut penalty in training, the time-to-disruption output and cause-specific windows. H1 tests the shortcut
 directly; the other two move to later work.
 
+## Implementation details (2026-11-09, `scripts/v3_runs.py`, before any v3 run)
+
+These settle details the text above left open. None was chosen after seeing a v3 number.
+
+- **Machine-only model:** trained like the baseline (same labels, candidates left out, judged on clear endings);
+  only the inputs differ, so H1b compares inputs alone.
+- **Evidence positives** are labelled like recorded disruptions: the HORIZON_MS (30 ms) before the detector's quench
+  time, in training only. Validation and test are unchanged.
+- **Hysteresis grid:** lower threshold = ratio x upper with ratio in {1, 0.8, 0.6}, hold in {1, 2, 3, 4} windows
+  (5 ms apart). The rule fires when the score hold-1 windows earlier was over the upper threshold and every score
+  since is over the lower one. Ratio 1 with hold 2 is the present rule. The rule with the best validation pAUC is
+  chosen per split (ties to the present rule). Upper thresholds are swept like the present threshold.
+- **H1 time range:** the flat-top starts when the lost shot's programmed current first reaches 90% of its peak (the
+  first window if the programme is missing). A twin pair counts only when both shots have windows in the range.
+- **One-sided p-values:** halved two-sided corrected p when the mean change is in the predicted direction.
+- **Disk:** test window scores are saved as float32 parquet per run (about 2 MB, 150 runs).
+
 ## Changes after the first v3 result
 
 (none yet)

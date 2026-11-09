@@ -563,3 +563,13 @@ Server run of the stricter `candidate_notes.py` (public comments): a loss-event 
 - **v3 use:** a matched-pair test. For each twin pair, does the predictor score the lost shot higher than its twin over the same programme time, before the loss? A model that has learned only the programme scores both alike (50%). The test is pre-registered before any v3 model is scored on it.
 - **Caveat:** the "same programme" thresholds (10% RMS, 10% peak) are loose. Report the share of twins with an exact match (difference under 1%) next to the main number.
 - **Literature (full texts read, `literature_labels_and_new_ideas.md` in the paper notes):** every paper read (Zhu 2021, Zheng 2023, Ai 2023, EAST multimodal 2026, both ADITYA papers) takes the list of disrupted shots from a database or a current threshold and never audits it. Ai et al. fix the precursor *time* per shot (anomaly detection, checked by eye on two shots), not *which* shots disrupted. The ADITYA transformer paper labels from current-quench time alone and drops slow quenches as outliers.
+
+## 2026-11-09 - v3 built: `scripts/v3_runs.py`
+
+- The pre-registered tests (`docs/preregistration_v3.md`) are code now: 3 recipes (baseline, machine-only,
+  evidence) x 50 E10 splits = 150 runs, each saving its test window scores. The baseline runs also tune and test the
+  hysteresis alarm. `--summary` computes H1 (matched-pair twins), H2 and H3 for splits 1-20 (development) and 21-50
+  (confirmation, Holm over H2 and H3).
+- Stamped on its own like the comparisons: merging it reruns nothing that exists. The server queues it after the
+  comparisons, sends a Telegram message when the 60 development runs are done and again at 150.
+- Implementation details fixed before any run are listed in the pre-registration.

@@ -19,7 +19,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts import predict_shot, repeat_runs
+from scripts import predict_shot, repeat_runs, v3_runs
 from src import banner, config, experiment, explain, gold, literature, notify, relay, resume, server, sources, status_card
 from src.data import check_connection, check_shot_table, host_reachable
 
@@ -370,6 +370,11 @@ def keep_or_restart_seeds(state, commit):
         archive(repeat_runs.folder(), commit)
         # new code or data can need more memory: measure each kind of job again, alone, before pairing it
         state.update(comparisons_done=[], comparisons_stamp=comparisons, idle_peak_mb={})
+    v3 = v3_runs.stamp()
+    if state.get("v3_stamp") != v3:  # v3 has its own stamp: a v3 change never reruns the comparisons
+        archive(v3_runs.folder(), commit)
+        state["comparisons_done"] = [job for job in state["comparisons_done"] if not is_v3(job[0])]
+        state["v3_stamp"] = v3
 
 
 def archive(folder, commit):
@@ -378,11 +383,18 @@ def archive(folder, commit):
         shutil.move(folder, f"{folder}_before_{commit}")
 
 
+def is_v3(kind):
+    return kind.startswith("v3-")
+
+
 def idle_command(kind, seed):
-    """(label, command) of one idle job: an E10 seed or one repeat-run comparison."""
+    """(label, command) of one idle job: an E10 seed, one repeat-run comparison or one v3 run."""
     if kind == "E10":
         return f"E10 seed {seed}", [PY, "scripts/run_experiment.py", "--exp", "E10", "--seed", str(seed),
                                     "--model", config.SWEEP_MODEL]
+    if is_v3(kind):
+        return f"{kind} seed {seed}", [PY, "scripts/v3_runs.py", "--recipe", v3_runs.recipe_of(kind), "--seed",
+                                       str(seed)]
     return f"{kind} seed {seed}", [PY, "scripts/repeat_runs.py", "--comparison", kind, "--seed", str(seed)]
 
 
@@ -406,7 +418,8 @@ def record_idle(state, kind, seed, code):
         out = os.path.join(config.RESULTS_DIR, "E10", f"seed_{seed}")
         state["seeds_done"].append(seed)
     else:
-        out = os.path.join(repeat_runs.folder(), kind, f"seed_{seed}")
+        out = (v3_runs.out_dir(v3_runs.recipe_of(kind), seed) if is_v3(kind)
+               else os.path.join(repeat_runs.folder(), kind, f"seed_{seed}"))
         state["comparisons_done"].append([kind, seed])
     # judged by the saved result, not the exit code: a job can finish its run and then trip over a neighbour's
     # half-written file while summing up
@@ -419,6 +432,14 @@ def record_idle(state, kind, seed, code):
 
 def report_idle(state, kind, n_new):
     """The running summary to the log; the status picture every CARD_EVERY_SEEDS seeds and at the end."""
+    if is_v3(kind):
+        notify.log(v3_runs.text(v3_runs.summary()))
+        done = sum(is_v3(job[0]) for job in state["comparisons_done"])
+        total = len(v3_runs.jobs())
+        dev = len(v3_runs.RECIPES) * len(v3_runs.DEV_SEEDS)
+        if (done - n_new < dev <= done) or done == total:  # development splits done, and everything done
+            notify.send(f"v3 {done}/{total} runs\n\n" + v3_runs.text(v3_runs.summary()))
+        return
     if kind == "E10":
         notify.log(explain.seed_text(experiment.seed_summary()))
         n, total, every = len(state["seeds_done"]), config.SEED_SWEEP_MAX, config.CARD_EVERY_SEEDS
@@ -528,6 +549,7 @@ def main():
     lock = acquire_lock()  # noqa: F841  (kept open for the life of the process)
     state = server.read_state()
     state["started_at"] = time.time()
+    server.EXTRA_JOBS = v3_runs.jobs()  # after the comparisons (docs/preregistration_v3.md)
     stop_leftover_jobs(state)
     show_progress(state, None)
     notify.send(f"server started (code {head()}). /status for the picture, /help for commands")
