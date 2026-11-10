@@ -75,7 +75,13 @@ def test_tables_and_text_from_saved_runs(monkeypatch, tmp_path):
             with open(path / "metrics.json", "w") as f:
                 json.dump({"seed": seed, "test": {"pauc": 0.3, "catch_rate": 0.4, "false_alarm_rate": 0.05}}, f)
     os.makedirs(tmp_path / "v3" / "machine" / "seed_1")  # unfinished: left out
-    result = v3_explore.summary(v3_explore.collect(load=lambda shot: None))
+    bins = np.round(t.astype(float) / 0.005).astype(int)
+    power = {1: 2.0, 11: 2.0, 2: 2.0, 12: 1.0, 3: np.nan, 13: 2.0}  # pair 11: same; 12: different; 13: unknown
+    beams = {shot: (bins, np.full((len(bins), 1), value)) for shot, value in power.items()}
+    result = v3_explore.summary(v3_explore.collect(load=lambda shot: None, beams=beams))
+    heat = result["by_heating"].set_index(["recipe", "heating"])
+    assert set(result["by_heating"]["heating"]) == {"same", "different"}
+    assert heat.loc[("baseline", "same"), "pairs_per_split"] == 1 and heat.loc[("baseline", "same"), "C"] == 1.0
     ladder = result["ladder"].set_index("recipe")
     assert ladder.loc["baseline", "C"] == pytest.approx(2 / 3) and ladder.loc["programme", "C"] == pytest.approx(1 / 3)
     assert ladder.loc["baseline", "splits"] == 6 and ladder.loc["baseline", "pairs_per_split"] == 3
@@ -88,8 +94,17 @@ def test_tables_and_text_from_saved_runs(monkeypatch, tmp_path):
     assert loose.loc["baseline", "C"] == 0.0 and exact.loc["programme", "C"] == 0.5  # pair 13; ties
     text = v3_explore.text(result)
     assert "exact 1.000" in text and "loose 0.000" in text
+    assert "- same heating: programme 0.500" in text
     assert "programmed current only: C 0.333" in text and "- candidate: baseline 0.500" in text
     assert (tmp_path / "v3_explore" / "twin_pairs.csv").exists()
+
+
+def test_heating_same_when_neither_shot_has_a_beam():
+    bins = np.arange(20, 60)
+    flat = lambda v: (bins, np.full((len(bins), 1), float(v)))
+    beams = {1: flat(0.01), 2: flat(0.0), 3: flat(2.0), 4: flat(1.9), 5: flat(2.0), 6: flat(1.0)}
+    out = v3_explore.heating([(2, 1), (4, 3), (6, 5), (6, 99)], beams, {2: 0.3, 4: 0.3, 6: 0.3}, {2: 0.1})
+    assert out == {(2, 1): "same", (4, 3): "same", (6, 5): "different", (6, 99): "unknown"}
 
 
 def test_one_ladder_run_end_to_end(tiny_project, monkeypatch):

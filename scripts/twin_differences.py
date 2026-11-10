@@ -73,11 +73,11 @@ def kept_twins(labels, load, reach=twin_check.REACH):
     return pd.DataFrame(rows, columns=["shot_id", "k1", "k2", "group"])
 
 
-def by_shot(windows):
+def by_shot(windows, signals=None):
     """{shot: (bins, values)}: each shot's windows on a common time grid (t_end rounded to the window stride, since
     every shot's windows start at its own first sample) and its signals' window means, in time order."""
     out = {}
-    columns = [f"{s}_mean" for s in SIGNALS]
+    columns = [f"{s}_mean" for s in (signals or SIGNALS)]
     for shot, g in windows.groupby("shot_id"):
         bins = np.round(g["t_end"].to_numpy(dtype=float) / STRIDE_S).astype(int)
         order = np.argsort(bins, kind="stable")
