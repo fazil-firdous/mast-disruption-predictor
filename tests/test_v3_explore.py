@@ -56,7 +56,7 @@ def test_tables_and_text_from_saved_runs(monkeypatch, tmp_path):
     monkeypatch.setattr(config, "RESULTS_DIR", str(tmp_path))
     twins = pd.DataFrame({"shot_id": [11, 12, 13], "other": [1, 2, 3], "group": ["recorded", "candidate", "candidate"],
                           "other_group": ["smooth_end", "smooth_end", "flux_exhausted"], "gap": [10, 10, 10],
-                          "rms": 0.0, "peak_ratio": 1.0, "overlap_s": 0.2})
+                          "rms": [0.0, 0.0, 0.05], "peak_ratio": 1.0, "overlap_s": 0.2})
     os.makedirs(tmp_path / "events")
     twins.to_csv(tmp_path / "events" / "programme_twins.csv", index=False)
     monkeypatch.setattr(v3_runs, "TWINS", str(tmp_path / "events" / "programme_twins.csv"))
@@ -83,7 +83,11 @@ def test_tables_and_text_from_saved_runs(monkeypatch, tmp_path):
     assert by_group[("baseline", "recorded")] == 1.0 and by_group[("baseline", "candidate")] == 0.5
     assert by_group[("programme", "recorded")] == 0.5  # same score as its twin: a tie
     assert set(result["by_lead"]["lead_ms"]) == {5, 30, 50, 100, 200}
+    exact, loose = result["exact"].set_index("recipe"), result["loose"].set_index("recipe")
+    assert exact.loc["baseline", "C"] == 1.0 and exact.loc["baseline", "pairs_per_split"] == 2  # pairs 11 and 12
+    assert loose.loc["baseline", "C"] == 0.0 and exact.loc["programme", "C"] == 0.5  # pair 13; ties
     text = v3_explore.text(result)
+    assert "exact 1.000" in text and "loose 0.000" in text
     assert "programmed current only: C 0.333" in text and "- candidate: baseline 0.500" in text
     assert (tmp_path / "v3_explore" / "twin_pairs.csv").exists()
 
