@@ -707,3 +707,9 @@ Pre-registered (`docs/preregistration_v3.md`), 150 runs; verdicts from splits 21
 - **Triplets compared in the twin-difference study:** 2,598 at 10 ms, 2,741 at 30, 2,801 at 50, 2,755 at 100, 1,653
   at 200, 450 at 300.
 - **Paper 2 draft v0.2** has every number filled except the data-release DOI (private, in the paper notes).
+
+## 2026-11-10 - Paper 1 submitted to arXiv
+
+- Submitted to physics.plasm-ph as submit/8351057 (endorsed by U. Maurya, IPR), the same 14-page paper as the Zenodo
+  record doi:10.5281/zenodo.24081241, with a shortened abstract in the form (arXiv's length limit). Licence CC BY 4.0.
+- When it is announced: add the arXiv number to the README, CITATION.cff, ORCID and paper 2's reference to paper 1.
