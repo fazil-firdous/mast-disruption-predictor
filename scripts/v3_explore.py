@@ -7,7 +7,8 @@ that were; every number here is a description for the paper, with ranges but no 
    - solenoid: only the solenoid current and the time since start. Feedback control drives the solenoid, so it
      reacts to the plasma.
 2. Breakdowns from the saved test scores of the v3 runs, without training anything: C by the lost shot's kind
-   (recorded or candidate), by the kept twin's ending, and by how long before the loss the scores stop (lead time).
+   (recorded or candidate), by the kept twin's ending, by how long before the loss the scores stop (lead time), and
+   by whether the two shots also had the same beam heating (twins are matched on the programmed current only).
 
     python scripts/v3_explore.py --train       # the ladder runs not done yet, one after another (skips finished)
     python scripts/v3_explore.py --summary     # the ladder and the breakdowns in words
@@ -25,7 +26,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts import v3_runs
+from scripts import twin_check, twin_differences, v3_runs
 from scripts.paper_numbers import partial_auc
 from src import config, dataset, experiment, features, models, notify, server
 from src.stats import corrected_interval
@@ -34,6 +35,9 @@ LADDER = {"programme": "sol", "solenoid": "ref"}  # recipe -> the machine signal
 SEEDS = v3_runs.SEEDS
 LEADS_MS = (config.MIN_WARNING_MS, 30, 50, 100, 200)  # the first is the pre-registered one
 MODELS = ["programme", "solenoid", "machine", "baseline", "evidence"]  # the order of the ladder in the summary
+HEATING_RMS = twin_check.SAME_RMS  # same beam heating: beam power within 10% of its peak (RMS), like the programme
+NO_BEAM_SHARE = 0.05  # beam power under 5% of the largest seen counts as no beam
+MIN_WINDOWS = 5  # windows both shots must share to compare their beam power
 SEEN = {"programme": "programmed current only", "solenoid": "solenoid current only",
         "machine": "programme + solenoid (pre-registered)", "baseline": "every signal (pre-registered)",
         "evidence": "every signal, evidence labels (pre-registered)"}
@@ -124,9 +128,49 @@ def run_folders():
             **{recipe: os.path.join(folder(), recipe) for recipe in LADDER}}
 
 
-def collect(load=None):
-    """(pairs, skill): pairs has one row per (model, split, twin pair, lead time) with the pair's groups and gap;
-    skill one row per finished run with its test pAUC, catch and false-alarm rates."""
+def beam_power(shot_ids):
+    """{shot: (time bins, beam power window means)} from the window table, or {} if there is none."""
+    path = os.path.join(config.PROCESSED_DIR, "windows.parquet")
+    if not os.path.exists(path):
+        return {}
+    windows = pd.read_parquet(path, columns=["shot_id", "t_end", "pnbi_mean"])
+    return twin_differences.by_shot(windows[windows["shot_id"].isin(shot_ids)], signals=["pnbi"])
+
+
+def heating(pair_ids, beams, t_quench, t_start):
+    """{(lost shot, twin): 'same', 'different' or 'unknown'}: did the two shots have the same beam heating? Twins
+    are matched on the programmed current only. Compared over the windows both have from the lost shot's flat-top
+    start to MIN_WARNING_MS before its loss: 'same' if the RMS difference of the beam power is under HEATING_RMS of
+    the larger peak, or if neither shot has a beam (both under NO_BEAM_SHARE of the largest beam power seen)."""
+    peaks = [np.nanmax(np.abs(v)) for _, v in beams.values() if np.isfinite(v).any()]
+    top = max(peaks) if peaks else 0.0
+    out = {}
+    for lost, twin in pair_ids:
+        out[(lost, twin)] = "unknown"
+        tq = t_quench.get(lost, np.nan)
+        if lost not in beams or twin not in beams or not np.isfinite(tq):
+            continue
+        (ba, va), (bb, vb) = beams[lost], beams[twin]
+        common = np.intersect1d(ba, bb)
+        start = t_start.get(lost)
+        t = common * twin_differences.STRIDE_S
+        common = common[(t >= (-np.inf if start is None else start)) & (t <= tq - config.MIN_WARNING_MS / 1000)]
+        a, b = va[np.searchsorted(ba, common), 0], vb[np.searchsorted(bb, common), 0]
+        ok = np.isfinite(a) & np.isfinite(b)
+        if ok.sum() < MIN_WINDOWS:
+            continue
+        peak = max(np.abs(a[ok]).max(), np.abs(b[ok]).max())
+        if peak <= NO_BEAM_SHARE * top:
+            out[(lost, twin)] = "same"
+        else:
+            rms = float(np.sqrt(np.mean((a[ok] - b[ok]) ** 2)) / peak)
+            out[(lost, twin)] = "same" if rms < HEATING_RMS else "different"
+    return out
+
+
+def collect(load=None, beams=None):
+    """(pairs, skill): pairs has one row per (model, split, twin pair, lead time) with the pair's groups, gap and
+    beam heating; skill one row per finished run with its test pAUC, catch and false-alarm rates."""
     from src import extras
     load = load or (lambda shot: extras.load_extras(int(shot), allow_download=False))
     twins = pd.read_csv(v3_runs.TWINS)
@@ -152,9 +196,16 @@ def collect(load=None):
                     starts[shot] = v3_runs.flat_top_start(load(shot))
             wins = pair_wins(scores, mine, t_quench, starts)
             pairs.append(wins.join(info, on=["shot_id", "other"]).assign(recipe=recipe, seed=m["seed"]))
-    columns = ["shot_id", "other", "lead_ms", "win", "group", "other_group", "gap", "rms", "recipe", "seed"]
-    return (pd.concat(pairs, ignore_index=True) if pairs else pd.DataFrame(columns=columns),
-            pd.DataFrame(skill, columns=["recipe", "seed", "pauc", "catch_rate", "false_alarm_rate"]))
+    columns = ["shot_id", "other", "lead_ms", "win", "group", "other_group", "gap", "rms", "recipe", "seed", "heating"]
+    skill = pd.DataFrame(skill, columns=["recipe", "seed", "pauc", "catch_rate", "false_alarm_rate"])
+    if not pairs:
+        return pd.DataFrame(columns=columns), skill
+    pairs = pd.concat(pairs, ignore_index=True)
+    ids = list(pairs[["shot_id", "other"]].drop_duplicates().itertuples(index=False, name=None))
+    beams = beam_power({shot for pair in ids for shot in pair}) if beams is None else beams
+    same = heating(ids, beams, t_quench, starts)
+    pairs["heating"] = [same[pair] for pair in zip(pairs["shot_id"], pairs["other"])]
+    return pairs, skill
 
 
 def c_table(pairs, by=None):
@@ -177,7 +228,7 @@ def summary(collected=None):
     main = pairs[pairs["lead_ms"] == config.MIN_WARNING_MS]
     exact = main["rms"].astype(float) < v3_runs.EXACT_RMS
     result = {"ladder": c_table(main), "exact": c_table(main[exact]), "loose": c_table(main[~exact]),
-              "by_group": c_table(main, "group"),
+              "by_group": c_table(main, "group"), "by_heating": c_table(main[main["heating"] != "unknown"], "heating"),
               "by_other_group": c_table(main, "other_group"), "by_lead": c_table(pairs, "lead_ms"),
               "skill": skill.groupby("recipe")[["pauc", "catch_rate", "false_alarm_rate"]].mean().reset_index()}
     if len(pairs):
@@ -215,6 +266,13 @@ def text(result):
                  if model in table.index]
         if cells:
             lines.append(f"- {SEEN[model]}: " + "; ".join(cells))
+    heat = result["by_heating"]
+    lines += ["", "C by beam heating of the pair (twins are matched on the programmed current only; same = beam power "
+                  f"within {HEATING_RMS:.0%} of its peak, or no beam in either):"]
+    for value in sorted(heat["heating"].unique()) if len(heat) else []:
+        part = heat[heat["heating"] == value].set_index("recipe")
+        lines.append(f"- {value} heating: " + "; ".join(f"{model} {cell(part.loc[model])}" for model in MODELS
+                                                         if model in part.index))
     for name, by, title in (("by_group", "group", "C by the lost shot's kind"),
                             ("by_other_group", "other_group", "C by the kept twin's ending"),
                             ("by_lead", "lead_ms", "C when the scores stop this long before the loss (ms)")):

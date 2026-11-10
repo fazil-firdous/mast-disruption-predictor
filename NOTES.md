@@ -643,3 +643,27 @@ Pre-registered (`docs/preregistration_v3.md`), 150 runs; verdicts from splits 21
 - **0.534 is not exactly 0.5.** Two likely reasons, to check: twins match within 10%, not exactly (the summary now
   splits exact and loose twins); and time since start depends on when the plasma formed, not on the programme.
 - The solenoid alone tells twins apart, which fits a solenoid driven by feedback on the plasma current.
+
+## 2026-11-10 - Exact twins, the twin-difference study, and a gap in the twin definition (all exploratory)
+
+- **Exact and loose twins** (`scripts/v3_explore.py`): the programme-only model has C 0.518 (0.502 to 0.534) on
+  twins whose programmes match within 1% and 0.596 (0.490 to 0.703) on the rest. So most of its 0.534 came from
+  loose matches. The other models barely change (baseline 0.689 exact, 0.730 loose).
+- **Twin differences** (`scripts/twin_differences.py`, 3,211 triplets L, K1, K2, no model):
+  - The lost shot is only slightly further from its twin than two good repeats are from each other. D is 0.53 to
+    0.57 at 10 ms before the loss for most plasma signals, still above 0.5 at 50 ms for the vertical position (0.55),
+    Greenwald fraction and tearing-band Mirnov (0.54), neutrons, locked mode, density, li (0.53), and at 0.5 from
+    100 ms. The programmed current stays at 0.50 to 0.51 throughout, as it must.
+  - No single signal can time the divergence per shot: a signal stays outside the 95% band of good repeats before
+    the loss about as often in K1 - K2 as in L - K1 (for example beta_N 10% against 7%). The 'first signal' table
+    and its split by operator cause are therefore mostly noise and are not used.
+  - **The lost shot was pushed harder.** 100 to 200 ms before the loss it has more beam power than its twin in
+    61-62% of triplets (53-54% between the two good repeats), more neutrons in 62% (52-55%) and higher beta_N in
+    59-60% (54-56%).
+- **What this means for the twin test:** twins share the programmed current, not the beam heating. Part of what
+  tells twins apart may be a heating difference, which is the operator's choice and not the plasma's response.
+  `scripts/v3_explore.py --summary` now splits the twin test by same and different beam heating (beam power within
+  10% of its peak, or no beam in either shot). If C holds on same-heating twins, H1's reading stands; if it drops,
+  the paper says so.
+- **The reference-shot predictor idea is parked.** Two good repeats differ almost as much as a lost shot differs
+  from its twin (D near 0.55), so subtracting the reference shot would add about as much noise as it removes.
