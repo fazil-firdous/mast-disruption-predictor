@@ -573,3 +573,23 @@ Server run of the stricter `candidate_notes.py` (public comments): a loss-event 
 - Stamped on its own like the comparisons: merging it reruns nothing that exists. The server queues it after the
   comparisons, sends a Telegram message when the 60 development runs are done and again at 150.
 - Implementation details fixed before any run are listed in the pre-registration.
+
+## 2026-11-10 - v3 results: the model reads the plasma; evidence labels and the hysteresis alarm do not help
+
+Pre-registered (`docs/preregistration_v3.md`), 150 runs; verdicts from splits 21-50 only, one-sided corrected tests.
+
+| Test | Change (splits 21-50) | 95% range | p | Verdict |
+|---|---|---|---|---|
+| H1a: baseline tells twins apart (C - 0.5) | +0.201 (C 0.697) | +0.149 to +0.253 | < 0.001 | confirmed |
+| H1b: baseline C minus machine-only C | +0.093 (0.697 vs 0.603) | +0.026 to +0.159 | 0.004 | confirmed |
+| H2: evidence recipe pAUC minus baseline | +0.008 | -0.032 to +0.048 | 0.343 (Holm 0.613) | not confirmed |
+| H3: hysteresis alarm pAUC minus present alarm | +0.006 | -0.018 to +0.031 | 0.307 (Holm 0.613) | not confirmed |
+
+- About 156 twin pairs per split; exact-programme twins give the same picture (baseline 0.689, machine 0.601).
+- Development (splits 1-20) pointed the same way for all four, so nothing changed between stages.
+- **Defaults stay as they are:** candidates left out of training, the present two-window alarm. Evidence labels and
+  the hysteresis grid are reported as no gain.
+- **Open question (exploratory, not pre-registered):** why the machine-only model still separates twins 60% of the
+  time when they share the programme. Likely the solenoid current, which feedback control drives in response to the
+  plasma, so 'machine-only' is not purely machine. Next check: a programme-only model (no solenoid) on the same
+  twins, labelled exploratory in the paper.
