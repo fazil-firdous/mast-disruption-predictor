@@ -687,3 +687,23 @@ Pre-registered (`docs/preregistration_v3.md`), 150 runs; verdicts from splits 21
   the earlier reading (NOTES above) was too generous.
 - For the paper: the registered result stays as registered (current-matched twins); the heating-matched numbers
   are the robustness analysis, and matching on heating as well is the recommendation for anyone reusing the test.
+
+## 2026-11-10 - The remaining numbers for the twin-test paper (`scripts/paper2_numbers.py`)
+
+- **Twins:** 3,902 pairs; programmes within 1% in 81.3%; gap at most 3 shots in 58.1%, at most 10 in 84.6%. Kept
+  twin's ending: flux exhausted 2,689, smooth end 1,037, programmed ramp-down 176. 3,349 pairs are in at least one
+  test set; beam heating same 1,219, different 1,812, unknown 318.
+- **Usual metrics (pAUC, caught, false alarms):** programme-only 0.128, 13.5%, 4.4%; solenoid-only 0.089, 9.3%,
+  4.9%; machine-only 0.179, 19.1%, 5.0%; baseline 0.331, 35.4%, 5.1%; evidence 0.339, 36.4%, 5.1%.
+- **Evidence shots:** 174 of 3,962 candidates; 105 per training set on average (90 to 117).
+- **Alarm rule chosen on validation, 50 splits:** one window over one threshold 31, the present two-window rule
+  16, a longer hold 2, hysteresis 1. Persistence is not what this model lacks.
+- **Same-heating twins (55 pairs per split):** baseline minus programme-only +0.136 (+0.067 to +0.205); minus
+  machine-only +0.112 (+0.001 to +0.222); minus solenoid-only +0.110 (-0.008 to +0.229). So the lead over the
+  machine side is as large as on all twins (+0.095, +0.029 to +0.161) but not settled at this sample size.
+  With programmes within 1% as well (51 pairs): baseline 0.652 (0.584 to 0.721), programme-only 0.510.
+- **Lead time on same-heating twins:** 0.655 at 5 ms, 0.577 (0.502 to 0.652) at 30 ms, 0.549 (0.473 to 0.625) at
+  50 ms, then chance. With the heating matched, the separation is confined to about the last 30 ms.
+- **Triplets compared in the twin-difference study:** 2,598 at 10 ms, 2,741 at 30, 2,801 at 50, 2,755 at 100, 1,653
+  at 200, 450 at 300.
+- **Paper 2 draft v0.2** has every number filled except the data-release DOI (private, in the paper notes).
