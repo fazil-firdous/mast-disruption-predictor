@@ -667,3 +667,23 @@ Pre-registered (`docs/preregistration_v3.md`), 150 runs; verdicts from splits 21
   the paper says so.
 - **The reference-shot predictor idea is parked.** Two good repeats differ almost as much as a lost shot differs
   from its twin (D near 0.55), so subtracting the reference shot would add about as much noise as it removes.
+
+## 2026-11-10 - The twin test with the beam heating matched too (exploratory)
+
+`scripts/v3_explore.py --summary`, 50 splits. Of about 156 twin pairs per split, 55 have the same beam heating
+(beam power within 10% of its peak, or no beam in either shot), 85 a different one, 16 unknown.
+
+| Model sees | C, same heating | C, different heating |
+|---|---|---|
+| programmed current only | 0.519 (0.492 to 0.546) | 0.535 (0.499 to 0.571) |
+| solenoid current only | 0.544 (0.443 to 0.646) | 0.602 (0.534 to 0.671) |
+| programme + solenoid | 0.543 (0.458 to 0.628) | 0.632 (0.557 to 0.707) |
+| every signal | 0.655 (0.584 to 0.725) | 0.718 (0.643 to 0.792) |
+
+- **The headline holds, smaller:** with the current programme and the heating both matched, the full model still
+  tells the lost shot from its twin (0.655, range clear of 0.5). Part of the 0.697 on all twins was heating.
+- **The machine-side models fall to chance** on same-heating twins (ranges include 0.5). So the solenoid's edge on
+  all twins came mostly from heating differences between the two shots, not from feedback on an unstable plasma;
+  the earlier reading (NOTES above) was too generous.
+- For the paper: the registered result stays as registered (current-matched twins); the heating-matched numbers
+  are the robustness analysis, and matching on heating as well is the recommendation for anyone reusing the test.
