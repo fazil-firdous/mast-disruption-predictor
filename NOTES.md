@@ -593,3 +593,14 @@ Pre-registered (`docs/preregistration_v3.md`), 150 runs; verdicts from splits 21
   time when they share the programme. Likely the solenoid current, which feedback control drives in response to the
   plasma, so 'machine-only' is not purely machine. Next check: a programme-only model (no solenoid) on the same
   twins, labelled exploratory in the paper.
+
+## 2026-11-10 - v3 follow-up, exploratory: `scripts/v3_explore.py`
+
+- Why does the machine-only model tell twins apart 60% of the time? Two more models on the same 50 splits, trained
+  like the v3 baseline: programmed current only (twins share it, so C should be 0.5: a check of the twin method
+  itself) and solenoid current only (feedback control makes the solenoid react to the plasma).
+- From the saved v3 scores, no training: C for recorded and for candidate lost shots (the baseline never trained on
+  candidates, so a similar C means they look like disruptions before the loss), C by the kept twin's ending, and C
+  when the scores stop 5, 30, 50, 100 or 200 ms before the loss (how early twins start to differ).
+- Not pre-registered, and labelled so in every output: ranges, no verdicts. Run by hand on the server
+  (`--train`, about 100 short runs), outside the server queue and every stamp.
