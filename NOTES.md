@@ -713,3 +713,13 @@ Pre-registered (`docs/preregistration_v3.md`), 150 runs; verdicts from splits 21
 - Submitted to physics.plasm-ph as submit/8351057 (endorsed by U. Maurya, IPR), the same 14-page paper as the Zenodo
   record doi:10.5281/zenodo.24081241, with a shortened abstract in the form (arXiv's length limit). Licence CC BY 4.0.
 - When it is announced: add the arXiv number to the README, CITATION.cff, ORCID and paper 2's reference to paper 1.
+
+## 2026-11-10 - Data release built (not published) and the literature check for the twin test
+
+- **`scripts/make_release.py`** builds `release/mast-events-twins-v1/` on the server: shots, events (without the
+  operators' comment text, which stays in the FAIR-MAST shot table), named pairs, programme twins with their beam
+  heating, triplets, a README with every column, checksums and a zip. Licence CC BY-SA 4.0, like the source. It is
+  not uploaded anywhere; it goes to Zenodo together with paper 2.
+- **Literature (`docs/literature_review.md` section 6):** eight searches found no matched repeat-shot evaluation of
+  a disruption predictor. The paper will say "we found none", with the search described, not "the first". Three
+  nearest papers still need their full texts read before the paper is public.

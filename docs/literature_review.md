@@ -47,3 +47,34 @@ Started 2026-10-15. Every entry was checked against at least one bibliographic s
 - **Correction 2026-11-06:** Thornton (2011, section 4.2.1) used the solenoid-flux and flat-top criteria to select MAST disruptions. The earlier 'nothing found that uses the central-solenoid flux state' is wrong for the rule itself; what remains new is its use to audit operator notes and current-only labels on every shot.
 - **Targeted search 2026-10-25** (web search, not a systematic review), for missed operator labels, current-quench false positives and solenoid-flux-based separation of endings: nothing found that uses the central-solenoid flux state to classify MAST terminations or audits MAST operator notes against current-quench labels. Closest: DECAF on MAST (automatic detection; ramp-down disruptions count as disruptions), the UKAEA benchmark (current-derived ground truth, 417 shots; its poster notes that ambiguous cases without a sharp current drop remain unresolved), the ITPA database (fast terminations), Ai et al. (label noise in precursor timing). "Not found" is not "does not exist".
 - **Our own real-data findings so far (private runs, 400 shots):** most MAST terminations look like disruptions in the current but are not noted; with the 4 global signals, almost no disruption is caught at <= 5% false alarms; part of what the model learns is time since start (E11). These shape the paper's story: label quality and physics signals first, model complexity second.
+
+## 6. The twin test: has anyone matched disrupted shots with same-programme repeats? (searched 2026-11-10)
+
+Eight web searches (matched or paired discharges; repeat shots with the same pulse schedule; shot-to-shot
+variability of disruption occurrence; shortcut learning or spurious correlation in disruption predictors;
+counterfactual, natural-experiment or case-control evaluation; pairwise or concordance evaluation). Not a systematic
+review, and several publisher sites could not be opened from the working environment, so the entries below rest on
+abstracts and search summaries unless a full text is cited elsewhere in this file.
+
+- **Not found:** an evaluation of a disruption predictor on disrupted shots paired with same-programme shots that
+  were not lost; a study of how often nominally identical discharges disrupt; a model given only the programme as a
+  control for what the usual metrics reward.
+- **Nearest work:**
+  - Counterfactual *explanations* for a resistive-wall-mode stability classifier on NSTX (Piccione, Sabbagh,
+    Andreopoulos; Princeton data record doi:10.11578/1888266): hypothetical changes of inputs that would flip a
+    prediction. Model interpretation, not matched real shots.
+  - Spurious correlations in cross-machine transfer: "Balancing physics priors and data for disruption prediction in
+    future tokamaks" (Nuclear Fusion, doi:10.1088/1741-4326/ae55b7) argues that statistical models can learn
+    unphysical correspondences between machines and adds physics priors. A different shortcut, a different remedy.
+  - Murari et al., "A control oriented strategy of disruption prediction to avoid the configuration collapse of
+    tokamak reactors" (Nature Communications 2024, doi:10.1038/s41467-024-46242-7), and the JET literature around
+    it: anomalies of the kind used as precursors also occur in discharges that end safely. This is the reason a
+    matched comparison is informative; it is not one.
+  - Robustness by augmentation: "Time Series Viewmakers for Robust Disruption Prediction" (arXiv:2410.11065).
+  - Shot-to-shot scatter is studied for runaway-electron beams after disruptions (DIII-D, TEXTOR), not for whether a
+    disruption happens.
+- **What the paper may say:** "we found no earlier matched repeat-shot evaluation" with the search described, not
+  "the first". Reference comparisons with a good repeat shot are routine by hand in the control room; the claim is
+  about a systematic test on thousands of pairs.
+- **To do before the paper is public:** open the full texts of the three nearest papers (authors, year, exact
+  claims) and search the JET, DIII-D and ASDEX Upgrade disruption-database papers for "repeat" and "reference pulse".
