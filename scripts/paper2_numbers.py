@@ -51,8 +51,16 @@ def subsets(main):
             "same heating and exact programme": main[same & exact]}
 
 
-def text(twins, pairs, runs=None, catalogue=None, evidence_counts=None):
+def text(twins, pairs, runs=None, catalogue=None, evidence_counts=None, skill=None, leads=None):
     lines = twins_text(twins)
+    if skill:
+        lines.append("Usual metrics per model, mean over the splits (pAUC, caught, false alarms): " + "; ".join(
+            f"{row['recipe']} {row['pauc']:.3f}, {row['catch_rate']:.1%}, {row['false_alarm_rate']:.1%}" for row in skill)
+            + ".")
+    if leads is not None and len(leads):
+        counts = leads.groupby("lead_ms")["n"].max()
+        lines.append("Triplets compared in scripts/twin_differences.py, by time before the loss (ms): "
+                     + ", ".join(f"{int(lead)}: {int(n):,}" for lead, n in counts.items()) + ".")
     main = pairs[pairs["lead_ms"] == config.MIN_WARNING_MS]
     unique = main.drop_duplicates(["shot_id", "other"])
     lines.append(f"Twin pairs that are in at least one test set: {len(unique):,}; beam heating "
@@ -99,9 +107,16 @@ def main():
         if os.path.exists(path):
             with open(path) as f:
                 counts.append(json.load(f).get("n_evidence_shots", 0))
+    skill = None
+    summary_path = os.path.join(v3_explore.folder(), "summary.json")
+    if os.path.exists(summary_path):
+        with open(summary_path) as f:
+            skill = json.load(f).get("skill")
+    leads_path = os.path.join(config.RESULTS_DIR, "twin_differences", "leads.csv")
     out = text(pd.read_csv(v3_runs.TWINS), pd.read_csv(pairs_path),
                pd.read_csv(runs_path) if os.path.exists(runs_path) else None,
-               pd.read_csv(v3_runs.CATALOGUE) if os.path.exists(v3_runs.CATALOGUE) else None, counts)
+               pd.read_csv(v3_runs.CATALOGUE) if os.path.exists(v3_runs.CATALOGUE) else None, counts, skill,
+               pd.read_csv(leads_path) if os.path.exists(leads_path) else None)
     with open(os.path.join(v3_explore.folder(), "paper2_numbers.txt"), "w") as f:
         f.write(out + "\n")
     print(out)

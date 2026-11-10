@@ -29,7 +29,10 @@ def test_paired_differences_and_counts():
     runs = pd.DataFrame({"recipe": ["baseline"] * 3 + ["machine"], "hyst_ratio": [1.0, 1.0, 0.8, np.nan],
                          "hyst_hold": [2, 2, 3, np.nan]})
     catalogue = pd.DataFrame({"group": ["candidate", "candidate", "recorded"], "words_vote": [2, 0, 2]})
-    text = paper2_numbers.text(twins, pairs, runs, catalogue, [40, 44])
+    skill = [{"recipe": "programme", "pauc": 0.128, "catch_rate": 0.135, "false_alarm_rate": 0.049}]
+    leads = pd.DataFrame({"signal": ["ne", "li", "ne"], "lead_ms": [100, 100, 200], "n": [2500, 2400, 1300]})
+    text = paper2_numbers.text(twins, pairs, runs, catalogue, [40, 44], skill, leads)
+    assert "programme 0.128, 13.5%, 4.9%" in text and "100: 2,500, 200: 1,300" in text
     assert "Twin pairs: 4" in text and "Programmes within 1%: 75.0% of pairs" in text
     assert "at most 3 in 75.0%" in text and "{'same': 2, 'different': 1, 'unknown': 1}" in text
     assert "Evidence shots (candidates whose comment names a loss within 20 ms of the quench): 1 of 2" in text
