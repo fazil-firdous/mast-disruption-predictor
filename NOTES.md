@@ -604,3 +604,23 @@ Pre-registered (`docs/preregistration_v3.md`), 150 runs; verdicts from splits 21
   when the scores stop 5, 30, 50, 100 or 200 ms before the loss (how early twins start to differ).
 - Not pre-registered, and labelled so in every output: ranges, no verdicts. Run by hand on the server
   (`--train`, about 100 short runs), outside the server queue and every stamp.
+
+## 2026-11-10 - v3 breakdowns (exploratory) and the twin-difference study
+
+- **`scripts/v3_explore.py --summary` on the saved v3 scores (50 splits, no verdicts):**
+  - Candidates: the baseline, which never trained on them, tells a candidate from its same-programme twin with
+    C 0.684 (0.630 to 0.738); recorded disruptions 0.762 (0.649 to 0.875, only 26 pairs per split). So the un-noted
+    flat-top losses carry precursor information too.
+  - Lead time: baseline C 0.697 with scores up to 5 ms before the loss, 0.630 at 30 ms, 0.597 at 50 ms, 0.554 at
+    100 ms (0.503 to 0.605), 0.541 at 200 ms (range includes 0.5). Most of the separation is in the last 50 ms; the
+    model is trained on a 30 ms horizon, so this is partly by construction.
+  - Machine-only: 0.603, 0.587, 0.566, then chance from 100 ms. Its edge is also late, which fits a solenoid
+    reacting to the plasma; the ladder runs (programme only, solenoid only) test that.
+  - 69% of the kept twins ended by flux exhaustion: the same programme, run to its end.
+- **`scripts/twin_differences.py` (new, exploratory, no model):** triplets L, K1, K2 (a lost shot and its two nearest
+  same-programme kept shots). L - K1 against K1 - K2, per signal and lead time, gives a programme-free, label-free
+  measure of what the lost shot did differently and when; the trailing time outside the band of good repeats gives
+  a divergence time per signal, checked against the operators' named causes.
+- **Idea for a pre-registered v4 test, not started:** a predictor whose inputs are the live shot minus the last good
+  same-programme shot (known before the shot runs). Web search found no such predictor or matched-pair study; a
+  proper literature check comes before any claim.
