@@ -624,3 +624,22 @@ Pre-registered (`docs/preregistration_v3.md`), 150 runs; verdicts from splits 21
 - **Idea for a pre-registered v4 test, not started:** a predictor whose inputs are the live shot minus the last good
   same-programme shot (known before the shot runs). Web search found no such predictor or matched-pair study; a
   proper literature check comes before any claim.
+
+## 2026-11-10 - The ladder: the twin test barely rewards the programme (exploratory)
+
+`scripts/v3_explore.py`, 50 splits, corrected 95% ranges, no verdicts.
+
+| Model sees | Twin C | Caught at 5% false alarms | pAUC (random 0.05) |
+|---|---|---|---|
+| programmed current only | 0.534 (0.512 to 0.556) | 13.5% | 0.128 |
+| solenoid current only | 0.580 (0.524 to 0.635) | 9.3% | 0.089 |
+| programme + solenoid (pre-registered) | 0.603 (0.550 to 0.656) | 19.1% | 0.179 |
+| every signal (pre-registered) | 0.697 (0.651 to 0.744) | 35.4% | 0.331 |
+
+- **The usual metric and the twin test disagree about the programme.** The programme-only model catches 13.5% of
+  disruptions at 5% false alarms (pAUC 2.5 times random), from knowing only what the machine was asked to do. On
+  twins it is at 0.534. The solenoid-only model is the other way round: less usual skill, more twin skill (0.580).
+  So the twin test measures something the usual metric does not: reading the shot, not the plan.
+- **0.534 is not exactly 0.5.** Two likely reasons, to check: twins match within 10%, not exactly (the summary now
+  splits exact and loose twins); and time since start depends on when the plasma formed, not on the programme.
+- The solenoid alone tells twins apart, which fits a solenoid driven by feedback on the plasma current.

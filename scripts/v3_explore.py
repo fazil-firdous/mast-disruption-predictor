@@ -175,7 +175,9 @@ def summary(collected=None):
     """The ladder and the breakdowns as tables; also writes v3_explore/twin_pairs.csv and summary.json."""
     pairs, skill = collected or collect()
     main = pairs[pairs["lead_ms"] == config.MIN_WARNING_MS]
-    result = {"ladder": c_table(main), "by_group": c_table(main, "group"),
+    exact = main["rms"].astype(float) < v3_runs.EXACT_RMS
+    result = {"ladder": c_table(main), "exact": c_table(main[exact]), "loose": c_table(main[~exact]),
+              "by_group": c_table(main, "group"),
               "by_other_group": c_table(main, "other_group"), "by_lead": c_table(pairs, "lead_ms"),
               "skill": skill.groupby("recipe")[["pauc", "catch_rate", "false_alarm_rate"]].mean().reset_index()}
     if len(pairs):
@@ -204,6 +206,15 @@ def text(result):
             row = ladder.loc[model]
             lines.append(f"- {SEEN[model]}: C {cell(row)}, {int(row['splits'])} splits; pAUC {skill.loc[model, 'pauc']:.3f}, "
                          f"caught {skill.loc[model, 'catch_rate']:.1%}")
+    lines += ["", f"The ladder on twins whose programmes differ by under {v3_runs.EXACT_RMS:.0%} (exact) and on the "
+                  "rest (loose, up to 10%):"]
+    exact, loose = (result[name].set_index("recipe") if len(result[name]) else result[name]
+                    for name in ("exact", "loose"))
+    for model in MODELS:
+        cells = [f"{label} {cell(table.loc[model])}" for label, table in (("exact", exact), ("loose", loose))
+                 if model in table.index]
+        if cells:
+            lines.append(f"- {SEEN[model]}: " + "; ".join(cells))
     for name, by, title in (("by_group", "group", "C by the lost shot's kind"),
                             ("by_other_group", "other_group", "C by the kept twin's ending"),
                             ("by_lead", "lead_ms", "C when the scores stop this long before the loss (ms)")):
