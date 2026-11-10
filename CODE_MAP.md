@@ -85,6 +85,8 @@ A plain-English tour of the repo. Read the files in the order below.
 | `results/auto_labels/per_shot.csv` | data | How each of the 11,471 labelled shots ended (columns in the README next to it); CC BY-SA 4.0 like FAIR-MAST. |
 | `tests/test_paper_numbers.py` | done | Corrected p-value against the corrected interval, Holm, pAUC, the paper tables on made-up runs, and the word counts of `candidate_notes.py`. |
 | `tests/test_mast_events.py` | done | Event times in real comment styles, negation traps, non-times (kV, kA), pairs and twins on made-up shots. |
+| `scripts/v3_explore.py` | v3 | Exploratory, not pre-registered: two more models on the v3 splits (programmed current only, solenoid only) and twin-test breakdowns from the saved v3 scores (lost shot's kind, kept twin's ending, lead time). `--train` runs what is missing, `--summary` prints the tables. Outside every stamp; writes `v3_explore/`. |
+| `tests/test_v3_explore.py` | done | Ladder inputs, pair-by-pair wins equal the pre-registered concordance, lead times, tables from saved runs, one ladder run end to end. |
 | `tests/test_v3_runs.py` | done | The hysteresis alarm reduces to the v2 rule, evidence relabelling touches only training windows, twin concordance, the H1-H3 statistics, the queue order, one baseline and one evidence run end to end. |
 | `tests/test_mast_label_model.py`, `tests/test_twin_check.py` | done | The latent-class model recovers known source accuracies; silence is not evidence; twins with the same and a different programme. |
 | `tests/test_label_statistics.py` | done | Wilson interval, AUC with ties, label shares and ratio test on a made-up table, sampling weight, evidence measures on a synthetic quench vs ramp-down, the group comparison. |
