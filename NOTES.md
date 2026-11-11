@@ -780,3 +780,21 @@ Pre-registered (`docs/preregistration_v3.md`), 150 runs; verdicts from splits 21
   paper say it this way now.
 - **Example pair for the paper:** 25187 (lost at 0.259 s) and 25186: same programme, same beam power, heights within
   2 cm, the lost shot's density lower from about 0.12 s. 25191 and 25190 are from the same session.
+
+## 2026-11-11 - An outside review of the paper 2 draft, and what it changed
+
+A review of draft v0.4 (from another AI model, pasted by Fazil) made six points. Five are right; one is not.
+
+1. *"The twin test measures the second alone" is too strong.* Right: gas, shape, field and wall are not matched and
+   the twin is always earlier. Reworded: the test removes most of the programme's contribution.
+2. *Correct the statistic for unequal time directly.* Right. `pair_wins` now also gives `win_common`: both shots cut
+   to the time they share. The summary reports it for every model (review check 1).
+3. *Allow for twins shared by several lost shots.* Right. The summary adds C pooled over pairs with a range from
+   resampling groups of pairs that share a twin (review check 2).
+4. *Random splits leave other repeats of a session in training.* Right, and the temporal split was already listed
+   in the pre-registration as 'reported, not tested'. `--temporal` trains programme-only, machine-only and baseline
+   on M5-M7 and runs the twin test on M8-M9 (review check 3).
+5. *"Little for it to find earlier" overreaches.* Right: the model is trained on a 30 ms horizon. Reworded.
+6. *Two inconsistencies.* The interval +0.001 to +0.222 does not 'reach zero': fixed to 'only just excludes zero'.
+   The other claim, that the lead-time figure has 5 ms on the left, is wrong: 5 ms is the right-most point, as the
+   caption says.

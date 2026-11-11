@@ -10,8 +10,14 @@ that were; every number here is a description for the paper, with ranges but no 
    (recorded or candidate), by the kept twin's ending, by how long before the loss the scores stop (lead time), and
    by whether the two shots also had the same beam heating (twins are matched on the programmed current only).
 
+3. Three checks a review asked for: C with both shots scored over the same time (the registered statistic gives a
+   shot more windows if its twin ended first), a range that resamples groups of pairs sharing a twin, and the test
+   on a chronological split (train on campaigns M5-M7, test on M8-M9), where no repeat of a test shot's session is in
+   the training set.
+
     python scripts/v3_explore.py --train       # the ladder runs not done yet, one after another (skips finished)
     python scripts/v3_explore.py --summary     # the ladder and the breakdowns in words
+    python scripts/v3_explore.py --temporal    # the chronological split: three runs if missing, then its twin test
 
 Writes into RESULTS_DIR/v3_explore/. Outside every stamp: it never changes or reruns a v3 result.
 """
@@ -35,6 +41,8 @@ LADDER = {"programme": "sol", "solenoid": "ref"}  # recipe -> the machine signal
 SEEDS = v3_runs.SEEDS
 LEADS_MS = (config.MIN_WARNING_MS, 30, 50, 100, 200)  # the first is the pre-registered one
 MODELS = ["programme", "solenoid", "machine", "baseline", "evidence"]  # the order of the ladder in the summary
+TEMPORAL = ["programme", "machine", "baseline"]  # the models run on the chronological split
+N_BOOT = 2000
 HEATING_RMS = twin_check.SAME_RMS  # same beam heating: beam power within 10% of its peak (RMS), like the programme
 NO_BEAM_SHARE = 0.05  # beam power under 5% of the largest seen counts as no beam
 MIN_WINDOWS = 5  # windows both shots must share to compare their beam power or height
@@ -62,21 +70,23 @@ def ladder_columns(recipe):
     return [c for c in features.model_features("machine") if not (c.startswith(f"{drop}_") or c == f"has_{drop}")]
 
 
-def run(recipe, seed, tables=None):
-    """One ladder run: the v3 baseline recipe (candidates left out of training, judged on clear endings) on the E10
-    split of this seed, with only this recipe's inputs. Saves the test window scores like scripts/v3_runs.py."""
-    windows, shots = tables or experiment.load_tables()
-    split = dataset.random_split(shots, seed=seed)
-    win = dataset.labelled_windows(windows.assign(split=windows["shot_id"].map(split)), shots)
-    train, val_all, test_all = experiment.split_frames(win, "split")
+def recipe_columns(recipe):
+    """The inputs of a model: every signal (baseline), the machine side, or one of the ladder's two."""
+    if recipe in LADDER:
+        return ladder_columns(recipe)
+    return features.model_features("machine" if recipe == "machine" else None)
+
+
+def fit(win, split_column, recipe, path, info):
+    """Train like the v3 baseline (candidates left out of training, tuned and judged on clear endings) with this
+    recipe's inputs, test once, and save the test window scores like scripts/v3_runs.py. Returns the metrics."""
+    train, val_all, test_all = experiment.split_frames(win, split_column)
     train = train[~train["candidate"]].reset_index(drop=True)
     val, test = experiment.judged(val_all, "clear"), experiment.judged(test_all, "clear")
-    columns = experiment.usable(ladder_columns(recipe), train)
+    columns = experiment.usable(recipe_columns(recipe), train)
     best = experiment.tune(config.SWEEP_MODEL, train, val, columns)
-    path = out_dir(recipe, seed)
     os.makedirs(path, exist_ok=True)
-    metrics = {"recipe": recipe, "seed": seed, "params": best["params"], "threshold": best["threshold"],
-               "columns": columns}
+    metrics = {"recipe": recipe, **info, "params": best["params"], "threshold": best["threshold"], "columns": columns}
     metrics["test"] = experiment.test_once(best, test, columns, path)
     metrics["test"]["pauc"] = partial_auc(pd.read_csv(os.path.join(path, "tradeoff_test.csv")))
     pd.DataFrame({"shot_id": test_all["shot_id"].astype("int32"), "t_end": test_all["t_end"].astype("float32"),
@@ -84,6 +94,25 @@ def run(recipe, seed, tables=None):
         os.path.join(path, "test_scores.parquet"), index=False)
     experiment.write_json(metrics, os.path.join(path, "metrics.json"))  # last: marks the run as finished
     return metrics
+
+
+def run(recipe, seed, tables=None):
+    """One ladder run on the E10 split of this seed."""
+    windows, shots = tables or experiment.load_tables()
+    split = dataset.random_split(shots, seed=seed)
+    win = dataset.labelled_windows(windows.assign(split=windows["shot_id"].map(split)), shots)
+    return fit(win, "split", recipe, out_dir(recipe, seed), {"seed": seed})
+
+
+def temporal_dir(recipe):
+    return os.path.join(folder(), "temporal", recipe)
+
+
+def run_temporal(recipe, tables=None):
+    """One run on the chronological split of the dataset (train and validation from campaigns M5-M7, test M8-M9)."""
+    windows, shots = tables or experiment.load_tables()
+    return fit(dataset.labelled_windows(windows, shots), "split_temporal", recipe, temporal_dir(recipe),
+               {"split": "temporal"})
 
 
 def train_all():
@@ -102,12 +131,21 @@ def train_all():
     notify.send("v3 explore: the ladder runs are done\n\n" + out)
 
 
+def highest(a, b):
+    """1 if a's highest value is above b's, 0.5 for a tie, 0 otherwise."""
+    return 1.0 if a.max() > b.max() else 0.5 if a.max() == b.max() else 0.0
+
+
 def pair_wins(scores, twins, t_quench, t_start, leads_ms=LEADS_MS):
     """One row per (twin pair with both shots in scores, lead time): win is 1 if the lost shot's highest window
     score is above its twin's, 0.5 for a tie, 0 otherwise. The scores of both shots are taken from the flat-top
     start of the lost shot to lead_ms before its quench. At lead MIN_WARNING_MS this is v3_runs.concordance, pair
-    by pair (same comparisons on the same saved values)."""
+    by pair (same comparisons on the same saved values).
+
+    win_common is the same comparison with both shots cut to the time they share (to within half a window stride),
+    so that a shot whose twin ended first does not get more windows to take its highest score from."""
     by_shot = {shot: (g["t_end"].to_numpy(), g["score"].to_numpy()) for shot, g in scores.groupby("shot_id")}
+    slack = config.STRIDE_MS / 2000
     rows = []
     for row in twins.itertuples():
         lost, kept = by_shot.get(row.shot_id), by_shot.get(row.other)
@@ -118,13 +156,16 @@ def pair_wins(scores, twins, t_quench, t_start, leads_ms=LEADS_MS):
         t_from = -np.inf if start is None else float(start)
         for lead in leads_ms:
             t_to = float(tq) - lead / 1000
-            a = lost[1][(lost[0] >= t_from) & (lost[0] <= t_to)]
-            b = kept[1][(kept[0] >= t_from) & (kept[0] <= t_to)]
+            in_a, in_b = (lost[0] >= t_from) & (lost[0] <= t_to), (kept[0] >= t_from) & (kept[0] <= t_to)
+            a, b = lost[1][in_a], kept[1][in_b]
             if len(a) == 0 or len(b) == 0:
                 continue
-            win = 1.0 if a.max() > b.max() else 0.5 if a.max() == b.max() else 0.0
-            rows.append({"shot_id": row.shot_id, "other": row.other, "lead_ms": lead, "win": win})
-    return pd.DataFrame(rows, columns=["shot_id", "other", "lead_ms", "win"])
+            ta, tb = lost[0][in_a].astype(float), kept[0][in_b].astype(float)
+            first, last = max(ta.min(), tb.min()) - slack, min(ta.max(), tb.max()) + slack
+            a2, b2 = a[(ta >= first) & (ta <= last)], b[(tb >= first) & (tb <= last)]
+            rows.append({"shot_id": row.shot_id, "other": row.other, "lead_ms": lead, "win": highest(a, b),
+                         "win_common": highest(a2, b2) if len(a2) and len(b2) else np.nan})
+    return pd.DataFrame(rows, columns=["shot_id", "other", "lead_ms", "win", "win_common"])
 
 
 def run_folders():
@@ -247,8 +288,8 @@ def collect(load=None, beams=None, heights=None):
                     starts[shot] = v3_runs.flat_top_start(load(shot))
             wins = pair_wins(scores, mine, t_quench, starts)
             pairs.append(wins.join(info, on=["shot_id", "other"]).assign(recipe=recipe, seed=m["seed"]))
-    columns = ["shot_id", "other", "lead_ms", "win", "group", "other_group", "gap", "rms", "recipe", "seed", "heating",
-               "height", "margin"]
+    columns = ["shot_id", "other", "lead_ms", "win", "win_common", "group", "other_group", "gap", "rms", "recipe", "seed",
+               "heating", "height", "margin"]
     skill = pd.DataFrame(skill, columns=["recipe", "seed", "pauc", "catch_rate", "false_alarm_rate"])
     if not pairs:
         return pd.DataFrame(columns=columns), skill
@@ -263,11 +304,13 @@ def collect(load=None, beams=None, heights=None):
     return pairs, skill
 
 
-def c_table(pairs, by=None):
+def c_table(pairs, by=None, value="win"):
     """C (mean over the splits of each split's share of twin pairs won) with its corrected 95% range, per model and,
-    if given, per value of the column `by`. Columns: recipe, [by], C, low, high, splits, pairs_per_split."""
+    if given, per value of the column `by`. Columns: recipe, [by], C, low, high, splits, pairs_per_split. value:
+    'win' (the registered statistic) or 'win_common' (both shots over the same time)."""
     keys = ["recipe"] + ([by] if by else [])
-    per_split = pairs.groupby(keys + ["seed"])["win"].agg(["mean", "size"]).reset_index()
+    pairs = pairs[pairs[value].notna()]
+    per_split = pairs.groupby(keys + ["seed"])[value].agg(["mean", "size"]).reset_index()
     rows = []
     for key, part in per_split.groupby(keys, sort=False):
         key = key if isinstance(key, tuple) else (key,)
@@ -277,12 +320,29 @@ def c_table(pairs, by=None):
     return pd.DataFrame(rows, columns=keys + ["C", "low", "high", "splits", "pairs_per_split"])
 
 
+def pooled_table(pairs, value="win", seed=config.RANDOM_SEED):
+    """C pooled over the twin pairs (each pair's mean over the splits it is tested in), with a 95% range from
+    resampling whole groups of pairs that share their twin. This range allows for one kept shot being the twin of
+    several lost shots, which the range over splits does not; it does not allow for the model changing with the
+    training set. Columns: recipe, C, low, high, pairs."""
+    rows = []
+    for recipe, part in pairs[pairs[value].notna()].groupby("recipe", sort=False):
+        per_pair = part.groupby(["shot_id", "other"])[value].mean().reset_index()
+        c, low, high, n = twin_differences.cluster_range(per_pair[value].to_numpy(dtype=float),
+                                                         per_pair["other"].to_numpy(), np.random.default_rng(seed), N_BOOT)
+        rows.append({"recipe": recipe, "C": c, "low": low, "high": high, "pairs": n})
+    return pd.DataFrame(rows, columns=["recipe", "C", "low", "high", "pairs"])
+
+
 def summary(collected=None):
     """The ladder and the breakdowns as tables; also writes v3_explore/twin_pairs.csv and summary.json."""
     pairs, skill = collected or collect()
     main = pairs[pairs["lead_ms"] == config.MIN_WARNING_MS]
     exact = main["rms"].astype(float) < v3_runs.EXACT_RMS
+    same = main["heating"] == "same"
     result = {"ladder": c_table(main), "exact": c_table(main[exact]), "loose": c_table(main[~exact]),
+              "common": c_table(main, value="win_common"), "common_same": c_table(main[same], value="win_common"),
+              "pooled": pooled_table(main), "pooled_common": pooled_table(main, "win_common"),
               "by_group": c_table(main, "group"), "by_heating": c_table(main[main["heating"] != "unknown"], "heating"),
               "by_height": c_table(main[main["height"] != "unknown"], "height"),
               "by_matched": c_table(main[(main["heating"] == "same") & (main["height"] == "same")]),
@@ -315,6 +375,23 @@ def text(result):
             row = ladder.loc[model]
             lines.append(f"- {SEEN[model]}: C {cell(row)}, {int(row['splits'])} splits; pAUC {skill.loc[model, 'pauc']:.3f}, "
                          f"caught {skill.loc[model, 'catch_rate']:.1%}")
+    lines += ["", "Review check 1, both shots scored over the same time (the registered statistic gives a shot more "
+              "windows if its twin ended first): C on all twins; on same-heating twins"]
+    common, common_same = (result[name].set_index("recipe") if len(result[name]) else result[name]
+                           for name in ("common", "common_same"))
+    for model in MODELS:
+        if model in common.index:
+            lines.append(f"- {SEEN[model]}: {cell(common.loc[model])}"
+                         + (f"; {cell(common_same.loc[model])}" if model in common_same.index else ""))
+    lines += ["", "Review check 2, C pooled over the pairs with a 95% range that resamples groups of pairs sharing a "
+              "twin (registered statistic; same-time statistic):"]
+    pooled, pooled_common = (result[name].set_index("recipe") if len(result[name]) else result[name]
+                             for name in ("pooled", "pooled_common"))
+    for model in MODELS:
+        if model in pooled.index:
+            cells = [f"{t.loc[model, 'C']:.3f} ({t.loc[model, 'low']:.3f} to {t.loc[model, 'high']:.3f})"
+                     for t in (pooled, pooled_common) if model in t.index]
+            lines.append(f"- {SEEN[model]}: " + "; ".join(cells) + f", {int(pooled.loc[model, 'pairs']):,} pairs")
     lines += ["", f"The ladder on twins whose programmes differ by under {v3_runs.EXACT_RMS:.0%} (exact) and on the "
                   "rest (loose, up to 10%):"]
     exact, loose = (result[name].set_index("recipe") if len(result[name]) else result[name]
@@ -359,13 +436,75 @@ def text(result):
     return "\n".join(lines)
 
 
+def temporal_text(load=None, beams=None):
+    """Review check 3 in words: the twin test on the chronological split, for the runs that exist. One split, so
+    the ranges come from resampling groups of pairs that share their twin."""
+    from src import extras
+    load = load or (lambda shot: extras.load_extras(int(shot), allow_download=False))
+    twins = pd.read_csv(v3_runs.TWINS)
+    labels = pd.read_csv(os.path.join(config.RESULTS_DIR, "auto_labels", "per_shot.csv"))
+    t_quench = labels.set_index("shot_id")["t_quench"].to_dict()
+    lines = ["Review check 3, the chronological split (trained on campaigns M5-M7, tested on M8-M9; one split, ranges "
+             "from resampling groups of pairs that share their twin). Exploratory.",
+             "Per model: usual metrics; C on all test twins (registered statistic; same-time statistic); C on "
+             "same-heating twins (same-time statistic)."]
+    starts, same = {}, None
+    for recipe in TEMPORAL:
+        base = temporal_dir(recipe)
+        if not server.result_saved(os.path.join(base, "metrics.json")):
+            continue
+        with open(os.path.join(base, "metrics.json")) as f:
+            test = json.load(f)["test"]
+        scores = pd.read_parquet(os.path.join(base, "test_scores.parquet"))
+        ids = set(scores["shot_id"])
+        mine = twins[twins["shot_id"].isin(ids) & twins["other"].isin(ids)]
+        for shot in mine["shot_id"]:
+            if shot not in starts:
+                starts[shot] = v3_runs.flat_top_start(load(shot))
+        wins = pair_wins(scores, mine, t_quench, starts, leads_ms=(config.MIN_WARNING_MS,))
+        if same is None:
+            pair_ids = list(mine[["shot_id", "other"]].itertuples(index=False, name=None))
+            shots_in = {shot for pair in pair_ids for shot in pair}
+            same = heating(pair_ids, beam_power(shots_in) if beams is None else beams, t_quench, starts)
+        wins["heating"] = [same.get(pair, "unknown") for pair in zip(wins["shot_id"], wins["other"])]
+
+        def c(part, value):
+            ok = part[part[value].notna()]
+            m, low, high, n = twin_differences.cluster_range(ok[value].to_numpy(dtype=float), ok["other"].to_numpy(),
+                                                             np.random.default_rng(config.RANDOM_SEED), N_BOOT)
+            return f"{m:.3f} ({low:.3f} to {high:.3f}), {n:,} pairs" if n else "no pairs"
+
+        lines.append(f"- {SEEN[recipe]}: pAUC {test['pauc']:.3f}, caught {test['catch_rate']:.1%}, false alarms "
+                     f"{test['false_alarm_rate']:.1%}; C {c(wins, 'win')}; {c(wins, 'win_common')}; same heating "
+                     f"{c(wins[wins['heating'] == 'same'], 'win_common')}")
+    return "\n".join(lines)
+
+
+def temporal():
+    """Run the chronological-split runs that are missing, then print (and save) their twin test."""
+    todo = [recipe for recipe in TEMPORAL if not server.result_saved(os.path.join(temporal_dir(recipe), "metrics.json"))]
+    tables = experiment.load_tables() if todo else None
+    for recipe in todo:
+        start = time.time()
+        m = run_temporal(recipe, tables)
+        print(f"{recipe} on the chronological split: pAUC {m['test']['pauc']:.3f}, {(time.time() - start) / 60:.1f} min",
+              flush=True)
+    out = temporal_text()
+    with open(os.path.join(folder(), "temporal.txt"), "w") as f:
+        f.write(out + "\n")
+    print(out)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--train", action="store_true", help="run the ladder runs that are not done yet")
+    parser.add_argument("--temporal", action="store_true", help="the chronological split and its twin test")
     parser.add_argument("--summary", action="store_true", help="the ladder and the breakdowns in words")
     args = parser.parse_args()
     if args.train:
         train_all()
+    elif args.temporal:
+        temporal()
     elif args.summary:
         out = text(summary())
         os.makedirs(folder(), exist_ok=True)
@@ -373,7 +512,7 @@ def main():
             f.write(out + "\n")
         print(out)
     else:
-        parser.error("give --train or --summary")
+        parser.error("give --train, --summary or --temporal")
 
 
 if __name__ == "__main__":
