@@ -29,6 +29,8 @@ PANELS = [
     # YOUR TURN: add two panels here, one line each, in the same form as the two lines above.
     # 1. the line-average density: its column is "ne_line_avg", stored in m^-3; show it in units of 10^19 m^-3
     # 2. the height of the plasma (vertical position): its column is "efit_zmag", stored in m; show it in cm
+    ("ne_line_avg", "density (10^19 m^-3)", 1e-19),
+    ("efit_zmag", "height (cm)", 100),
 ]
 
 
