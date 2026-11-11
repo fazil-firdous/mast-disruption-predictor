@@ -37,7 +37,12 @@ LEADS_MS = (config.MIN_WARNING_MS, 30, 50, 100, 200)  # the first is the pre-reg
 MODELS = ["programme", "solenoid", "machine", "baseline", "evidence"]  # the order of the ladder in the summary
 HEATING_RMS = twin_check.SAME_RMS  # same beam heating: beam power within 10% of its peak (RMS), like the programme
 NO_BEAM_SHARE = 0.05  # beam power under 5% of the largest seen counts as no beam
-MIN_WINDOWS = 5  # windows both shots must share to compare their beam power
+MIN_WINDOWS = 5  # windows both shots must share to compare their beam power or height
+HEIGHT_M = 0.02  # same early height: the magnetic axes within 2 cm (RMS) ...
+EARLY_MS = 100  # ... up to 100 ms before the loss
+MARGIN_MS = 50
+MARGINS = ["twin ended before the loss", f"twin ended within {MARGIN_MS} ms after the loss",
+           f"twin went on {MARGIN_MS} ms or more", "twin had no quench"]
 SEEN = {"programme": "programmed current only", "solenoid": "solenoid current only",
         "machine": "programme + solenoid (pre-registered)", "baseline": "every signal (pre-registered)",
         "evidence": "every signal, evidence labels (pre-registered)"}
@@ -128,13 +133,40 @@ def run_folders():
             **{recipe: os.path.join(folder(), recipe) for recipe in LADDER}}
 
 
-def beam_power(shot_ids):
-    """{shot: (time bins, beam power window means)} from the window table, or {} if there is none."""
+def window_means(shot_ids, signal):
+    """{shot: (time bins, window means of one signal)} from the window table, or {} if there is none."""
     path = os.path.join(config.PROCESSED_DIR, "windows.parquet")
     if not os.path.exists(path):
         return {}
-    windows = pd.read_parquet(path, columns=["shot_id", "t_end", "pnbi_mean"])
-    return twin_differences.by_shot(windows[windows["shot_id"].isin(shot_ids)], signals=["pnbi"])
+    windows = pd.read_parquet(path, columns=["shot_id", "t_end", f"{signal}_mean"])
+    return twin_differences.by_shot(windows[windows["shot_id"].isin(shot_ids)], signals=[signal])
+
+
+def beam_power(shot_ids):
+    return window_means(shot_ids, "pnbi")
+
+
+def shared(series, lost, twin, t_from, t_to):
+    """The two shots' values of one signal on the windows both have between t_from and t_to, where both are
+    finite; None if a shot is missing or they share fewer than MIN_WINDOWS."""
+    if lost not in series or twin not in series:
+        return None
+    (ba, va), (bb, vb) = series[lost], series[twin]
+    common = np.intersect1d(ba, bb)
+    t = common * twin_differences.STRIDE_S
+    common = common[(t >= t_from) & (t <= t_to)]
+    a, b = va[np.searchsorted(ba, common), 0], vb[np.searchsorted(bb, common), 0]
+    ok = np.isfinite(a) & np.isfinite(b)
+    return (a[ok], b[ok]) if ok.sum() >= MIN_WINDOWS else None
+
+
+def time_range(lost, t_quench, t_start, lead_ms):
+    """(from, to) of a lost shot's compared time: its flat-top start to lead_ms before its loss; None without a loss."""
+    tq = t_quench.get(lost, np.nan)
+    if not np.isfinite(tq):
+        return None
+    start = t_start.get(lost)
+    return (-np.inf if start is None else start), tq - lead_ms / 1000
 
 
 def heating(pair_ids, beams, t_quench, t_start):
@@ -147,30 +179,49 @@ def heating(pair_ids, beams, t_quench, t_start):
     out = {}
     for lost, twin in pair_ids:
         out[(lost, twin)] = "unknown"
-        tq = t_quench.get(lost, np.nan)
-        if lost not in beams or twin not in beams or not np.isfinite(tq):
+        span = time_range(lost, t_quench, t_start, config.MIN_WARNING_MS)
+        both = shared(beams, lost, twin, *span) if span else None
+        if both is None:
             continue
-        (ba, va), (bb, vb) = beams[lost], beams[twin]
-        common = np.intersect1d(ba, bb)
-        start = t_start.get(lost)
-        t = common * twin_differences.STRIDE_S
-        common = common[(t >= (-np.inf if start is None else start)) & (t <= tq - config.MIN_WARNING_MS / 1000)]
-        a, b = va[np.searchsorted(ba, common), 0], vb[np.searchsorted(bb, common), 0]
-        ok = np.isfinite(a) & np.isfinite(b)
-        if ok.sum() < MIN_WINDOWS:
-            continue
-        peak = max(np.abs(a[ok]).max(), np.abs(b[ok]).max())
+        a, b = both
+        peak = max(np.abs(a).max(), np.abs(b).max())
         if peak <= NO_BEAM_SHARE * top:
             out[(lost, twin)] = "same"
         else:
-            rms = float(np.sqrt(np.mean((a[ok] - b[ok]) ** 2)) / peak)
-            out[(lost, twin)] = "same" if rms < HEATING_RMS else "different"
+            out[(lost, twin)] = "same" if float(np.sqrt(np.mean((a - b) ** 2)) / peak) < HEATING_RMS else "different"
     return out
 
 
-def collect(load=None, beams=None):
-    """(pairs, skill): pairs has one row per (model, split, twin pair, lead time) with the pair's groups, gap and
-    beam heating; skill one row per finished run with its test pAUC, catch and false-alarm rates."""
+def early_height(pair_ids, heights, t_quench, t_start):
+    """{(lost shot, twin): 'same', 'different' or 'unknown'}: were the two plasmas at the same height early on? The
+    programmed shape is not in the data, so this compares the measured height of the magnetic axis from the lost
+    shot's flat-top start to EARLY_MS before its loss: 'same' if the RMS difference is under HEIGHT_M. The last
+    EARLY_MS are left out so that a vertical excursion leading to the loss does not count as a different plan."""
+    out = {}
+    for lost, twin in pair_ids:
+        out[(lost, twin)] = "unknown"
+        span = time_range(lost, t_quench, t_start, EARLY_MS)
+        both = shared(heights, lost, twin, *span) if span else None
+        if both is not None:
+            out[(lost, twin)] = "same" if float(np.sqrt(np.mean((both[0] - both[1]) ** 2))) < HEIGHT_M else "different"
+    return out
+
+
+def margin(pair_ids, t_quench):
+    """{(lost shot, twin): how long the twin went on after the lost shot's loss}. If the twin ended first, the lost
+    shot has more windows in the compared time, which can favour it whatever the plasma did."""
+    out = {}
+    for lost, twin in pair_ids:
+        ms = 1000 * (t_quench.get(twin, np.nan) - t_quench.get(lost, np.nan))
+        out[(lost, twin)] = (MARGINS[3] if not np.isfinite(ms) else MARGINS[0] if ms < 0 else MARGINS[1]
+                             if ms < MARGIN_MS else MARGINS[2])
+    return out
+
+
+def collect(load=None, beams=None, heights=None):
+    """(pairs, skill): pairs has one row per (model, split, twin pair, lead time) with the pair's groups, gap, beam
+    heating, early height and how long the twin went on; skill one row per finished run with its test pAUC, catch
+    and false-alarm rates."""
     from src import extras
     load = load or (lambda shot: extras.load_extras(int(shot), allow_download=False))
     twins = pd.read_csv(v3_runs.TWINS)
@@ -196,15 +247,19 @@ def collect(load=None, beams=None):
                     starts[shot] = v3_runs.flat_top_start(load(shot))
             wins = pair_wins(scores, mine, t_quench, starts)
             pairs.append(wins.join(info, on=["shot_id", "other"]).assign(recipe=recipe, seed=m["seed"]))
-    columns = ["shot_id", "other", "lead_ms", "win", "group", "other_group", "gap", "rms", "recipe", "seed", "heating"]
+    columns = ["shot_id", "other", "lead_ms", "win", "group", "other_group", "gap", "rms", "recipe", "seed", "heating",
+               "height", "margin"]
     skill = pd.DataFrame(skill, columns=["recipe", "seed", "pauc", "catch_rate", "false_alarm_rate"])
     if not pairs:
         return pd.DataFrame(columns=columns), skill
     pairs = pd.concat(pairs, ignore_index=True)
     ids = list(pairs[["shot_id", "other"]].drop_duplicates().itertuples(index=False, name=None))
     beams = beam_power({shot for pair in ids for shot in pair}) if beams is None else beams
-    same = heating(ids, beams, t_quench, starts)
-    pairs["heating"] = [same[pair] for pair in zip(pairs["shot_id"], pairs["other"])]
+    heights = window_means({shot for pair in ids for shot in pair}, "zmag") if heights is None else heights
+    keys = list(zip(pairs["shot_id"], pairs["other"]))
+    for column, labels in (("heating", heating(ids, beams, t_quench, starts)),
+                           ("height", early_height(ids, heights, t_quench, starts)), ("margin", margin(ids, t_quench))):
+        pairs[column] = [labels[key] for key in keys]
     return pairs, skill
 
 
@@ -229,6 +284,9 @@ def summary(collected=None):
     exact = main["rms"].astype(float) < v3_runs.EXACT_RMS
     result = {"ladder": c_table(main), "exact": c_table(main[exact]), "loose": c_table(main[~exact]),
               "by_group": c_table(main, "group"), "by_heating": c_table(main[main["heating"] != "unknown"], "heating"),
+              "by_height": c_table(main[main["height"] != "unknown"], "height"),
+              "by_matched": c_table(main[(main["heating"] == "same") & (main["height"] == "same")]),
+              "by_margin": c_table(main, "margin"),
               "by_other_group": c_table(main, "other_group"), "by_lead": c_table(pairs, "lead_ms"),
               "skill": skill.groupby("recipe")[["pauc", "catch_rate", "false_alarm_rate"]].mean().reset_index()}
     if len(pairs):
@@ -273,6 +331,22 @@ def text(result):
         part = heat[heat["heating"] == value].set_index("recipe")
         lines.append(f"- {value} heating: " + "; ".join(f"{model} {cell(part.loc[model])}" for model in MODELS
                                                          if model in part.index))
+    for name, by, title in (
+            ("by_height", "height", f"C by the two plasmas' early height (same = magnetic axes within "
+                                    f"{100 * HEIGHT_M:.0f} cm up to {EARLY_MS} ms before the loss; the programmed shape "
+                                    "is not in the data)"),
+            ("by_margin", "margin", "C by how long the twin went on after the lost shot's loss (if it ended first, "
+                                    "the lost shot has more windows in the compared time)")):
+        table = result[name]
+        lines += ["", title + ":"]
+        for value in sorted(table[by].unique()) if len(table) else []:
+            part = table[table[by] == value].set_index("recipe")
+            lines.append(f"- {value}: " + "; ".join(f"{model} {cell(part.loc[model])}" for model in MODELS
+                                                    if model in part.index))
+    matched = result["by_matched"].set_index("recipe") if len(result["by_matched"]) else result["by_matched"]
+    lines += ["", "C on pairs with the same beam heating and the same early height: "
+              + ("; ".join(f"{model} {cell(matched.loc[model])}" for model in MODELS if model in matched.index)
+                 or "no such pairs")]
     for name, by, title in (("by_group", "group", "C by the lost shot's kind"),
                             ("by_other_group", "other_group", "C by the kept twin's ending"),
                             ("by_lead", "lead_ms", "C when the scores stop this long before the loss (ms)")):

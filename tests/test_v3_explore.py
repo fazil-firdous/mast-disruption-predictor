@@ -78,7 +78,13 @@ def test_tables_and_text_from_saved_runs(monkeypatch, tmp_path):
     bins = np.round(t.astype(float) / 0.005).astype(int)
     power = {1: 2.0, 11: 2.0, 2: 2.0, 12: 1.0, 3: np.nan, 13: 2.0}  # pair 11: same; 12: different; 13: unknown
     beams = {shot: (bins, np.full((len(bins), 1), value)) for shot, value in power.items()}
-    result = v3_explore.summary(v3_explore.collect(load=lambda shot: None, beams=beams))
+    high = {1: 0.0, 11: 0.0, 2: 0.0, 12: 0.10, 3: 0.0, 13: np.nan}  # pair 11: same height; 12: 10 cm apart; 13: unknown
+    heights = {shot: (bins, np.full((len(bins), 1), value)) for shot, value in high.items()}
+    result = v3_explore.summary(v3_explore.collect(load=lambda shot: None, beams=beams, heights=heights))
+    by_height = result["by_height"].set_index(["recipe", "height"])["pairs_per_split"]
+    assert by_height[("baseline", "same")] == 1 and by_height[("baseline", "different")] == 1
+    assert result["by_matched"].set_index("recipe").loc["baseline", "pairs_per_split"] == 1  # pair 11 only
+    assert set(result["by_margin"]["margin"]) == {"twin had no quench"}  # no twin of this made-up project has a quench
     heat = result["by_heating"].set_index(["recipe", "heating"])
     assert set(result["by_heating"]["heating"]) == {"same", "different"}
     assert heat.loc[("baseline", "same"), "pairs_per_split"] == 1 and heat.loc[("baseline", "same"), "C"] == 1.0
@@ -97,6 +103,12 @@ def test_tables_and_text_from_saved_runs(monkeypatch, tmp_path):
     assert "- same heating: programme 0.500" in text
     assert "programmed current only: C 0.333" in text and "- candidate: baseline 0.500" in text
     assert (tmp_path / "v3_explore" / "twin_pairs.csv").exists()
+
+
+def test_margin_says_how_long_the_twin_went_on():
+    out = v3_explore.margin([(11, 1), (12, 2), (13, 3), (14, 4)], {11: 0.3, 12: 0.3, 13: 0.3, 14: 0.3, 1: 0.25, 2: 0.32,
+                                                                   3: 0.40})
+    assert list(out.values()) == v3_explore.MARGINS  # before, within 50 ms after, 50 ms or more, no quench
 
 
 def test_heating_same_when_neither_shot_has_a_beam():

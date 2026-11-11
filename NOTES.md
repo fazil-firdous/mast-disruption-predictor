@@ -733,3 +733,21 @@ Pre-registered (`docs/preregistration_v3.md`), 150 runs; verdicts from splits 21
   the scorer itself. The server's release folder must be rebuilt (`scripts/make_release.py`) before publishing.
 - **Why:** a result in a paper is read by few; a test that takes one command can be reported by the groups that
   build MAST benchmarks. After paper 2 is public, propose it to them as an extra metric.
+
+## 2026-11-11 - First pictures of twin pairs, and two checks they prompted
+
+- **`scripts/plot_twin_pair.py`** (Fazil added the density and height panels) draws a lost shot and its twin and
+  sends the picture to Telegram. Three pairs looked at:
+  - 11823 / 11822: no beam in either; the lost shot sat about 13 cm lower from 0.15 s until its loss at 0.334 s, most
+    likely a different programmed shape; and the twin itself ended about 15 ms after the lost shot.
+  - 11880 / 11876 and 11860 / 11859: clean losses in the middle of the flat-top with the current spike before the
+    quench, twin carrying on. These early shots have no density, and the lost shots no EFIT.
+- **Two checks added to `scripts/v3_explore.py --summary` (exploratory):**
+  - *How long the twin went on.* If the twin ended before the lost shot's loss, the lost shot has more windows in
+    the compared time, which can favour it whatever the plasma did (a possible reason for the programme-only
+    model's 0.518 on exact twins). C is now split by: twin ended before the loss, within 50 ms after, 50 ms or
+    more after, no quench.
+  - *Early height.* The programmed shape is not in the data, so pairs are split by whether the two magnetic axes
+    were within 2 cm (RMS) up to 100 ms before the loss; C is also given for pairs with the same heating and the
+    same early height.
+- Commits carry the repository owner's name only from here on.
