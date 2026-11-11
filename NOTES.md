@@ -798,3 +798,29 @@ A review of draft v0.4 (from another AI model, pasted by Fazil) made six points.
 6. *Two inconsistencies.* The interval +0.001 to +0.222 does not 'reach zero': fixed to 'only just excludes zero'.
    The other claim, that the lead-time figure has 5 ms on the left, is wrong: 5 ms is the right-most point, as the
    caption says.
+
+## 2026-11-11 - Review checks 1 and 2: the result holds with a fair time window and with shared twins allowed for
+
+`scripts/v3_explore.py --summary`. Exploratory.
+
+| Model | Registered C, over splits | Same-time C, over splits | Same-time C, same heating | Same-time C, pooled, range over twin groups |
+|---|---|---|---|---|
+| programme-only | 0.534 (0.512 to 0.556) | 0.520 (0.498 to 0.543) | 0.509 (0.487 to 0.531) | 0.520 (0.510 to 0.531) |
+| solenoid-only | 0.580 (0.524 to 0.635) | 0.570 (0.514 to 0.625) | 0.540 (0.438 to 0.642) | 0.572 (0.552 to 0.592) |
+| machine-side | 0.603 (0.550 to 0.656) | 0.590 (0.538 to 0.642) | 0.535 (0.449 to 0.622) | 0.591 (0.572 to 0.610) |
+| baseline | 0.697 (0.651 to 0.744) | 0.679 (0.630 to 0.728) | 0.642 (0.572 to 0.712) | 0.683 (0.661 to 0.702) |
+
+- **Unequal time was worth about 0.015 to every model** (baseline 0.697 to 0.679, programme-only 0.534 to 0.520).
+  The order of the models and the baseline's clear distance from 0.5 are unchanged.
+- **Shared twins do not widen the picture:** pooled over the 3,349 tested pairs with groups of pairs resampled
+  together, the ranges are narrower than over splits, because they condition on the fitted models. The two ranges
+  answer different questions (see the pre-registration's amendment); both are reported.
+- The programme-only model keeps a small excess, 0.520 (0.510 to 0.531 over twin groups). Not explained yet: loose
+  programme matches and the time since plasma start are candidates.
+- **A second review** (same outside reviewer) asked for a narrower claim, the full and machine-side models with
+  their paired difference in one table, counts of how often a twin is reused, the candidate and recorded groups
+  side by side, and care that the chronological test is read as fixed beforehand. Done or in progress:
+  `scripts/paper2_numbers.py` prints the core table, twin reuse, triplet gaps and lost shots with and without a
+  twin; the chronological test's reading was committed (bd592f7) before any of its output was seen.
+- Not done, on purpose: an early-only beam comparison, a fixed cohort for the lead-time curve and wall-clock gaps
+  (not in the data). They would add slices without changing the core inference; the paper lists them as limits.

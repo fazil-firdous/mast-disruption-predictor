@@ -334,6 +334,21 @@ def pooled_table(pairs, value="win", seed=config.RANDOM_SEED):
     return pd.DataFrame(rows, columns=["recipe", "C", "low", "high", "pairs"])
 
 
+def pooled_delta(pairs, a, b, value="win", seed=config.RANDOM_SEED):
+    """(mean, low, high, pairs) of model a's win minus model b's on the very same pairs (each pair's mean over the
+    splits it is tested in), with a 95% range from resampling groups of pairs that share their twin. The two models
+    stay paired inside every resample. None if a model has no pairs."""
+    per = pairs[pairs["recipe"].isin([a, b]) & pairs[value].notna()].groupby(
+        ["shot_id", "other", "recipe"])[value].mean().unstack("recipe")
+    if a not in per or b not in per:
+        return None
+    per = per.dropna(subset=[a, b]).reset_index()
+    if len(per) == 0:
+        return None
+    return twin_differences.cluster_range((per[a] - per[b]).to_numpy(dtype=float), per["other"].to_numpy(),
+                                          np.random.default_rng(seed), N_BOOT)
+
+
 def summary(collected=None):
     """The ladder and the breakdowns as tables; also writes v3_explore/twin_pairs.csv and summary.json."""
     pairs, skill = collected or collect()
@@ -437,18 +452,27 @@ def text(result):
 
 
 def temporal_text(load=None, beams=None):
-    """Review check 3 in words: the twin test on the chronological split, for the runs that exist. One split, so
-    the ranges come from resampling groups of pairs that share their twin."""
+    """Review check 3 in words: the twin test on the chronological split, for the runs that exist, as fixed in
+    docs/preregistration_v3.md before any output was seen. One split, so the ranges come from resampling groups of
+    pairs that share their twin."""
     from src import extras
     load = load or (lambda shot: extras.load_extras(int(shot), allow_download=False))
     twins = pd.read_csv(v3_runs.TWINS)
     labels = pd.read_csv(os.path.join(config.RESULTS_DIR, "auto_labels", "per_shot.csv"))
     t_quench = labels.set_index("shot_id")["t_quench"].to_dict()
-    lines = ["Review check 3, the chronological split (trained on campaigns M5-M7, tested on M8-M9; one split, ranges "
-             "from resampling groups of pairs that share their twin). Exploratory.",
+    group = twins.set_index(["shot_id", "other"])["group"] if "group" in twins else None
+    lines = ["Review check 3, the chronological split (trained and tuned on campaigns M5-M7, tested on M8-M9; one "
+             "split, ranges from resampling groups of pairs that share their twin). Exploratory.",
              "Per model: usual metrics; C on all test twins (registered statistic; same-time statistic); C on "
-             "same-heating twins (same-time statistic)."]
-    starts, same = {}, None
+             "same-heating twins and for recorded and candidate lost shots (same-time statistic)."]
+
+    def c(part, value="win_common"):
+        ok = part[part[value].notna()]
+        m, low, high, n = twin_differences.cluster_range(ok[value].to_numpy(dtype=float), ok["other"].to_numpy(),
+                                                         np.random.default_rng(config.RANDOM_SEED), N_BOOT)
+        return f"{m:.3f} ({low:.3f} to {high:.3f}), {n:,} pairs" if n else "no pairs"
+
+    starts, same, frames = {}, None, []
     for recipe in TEMPORAL:
         base = temporal_dir(recipe)
         if not server.result_saved(os.path.join(base, "metrics.json")):
@@ -466,17 +490,21 @@ def temporal_text(load=None, beams=None):
             pair_ids = list(mine[["shot_id", "other"]].itertuples(index=False, name=None))
             shots_in = {shot for pair in pair_ids for shot in pair}
             same = heating(pair_ids, beam_power(shots_in) if beams is None else beams, t_quench, starts)
-        wins["heating"] = [same.get(pair, "unknown") for pair in zip(wins["shot_id"], wins["other"])]
-
-        def c(part, value):
-            ok = part[part[value].notna()]
-            m, low, high, n = twin_differences.cluster_range(ok[value].to_numpy(dtype=float), ok["other"].to_numpy(),
-                                                             np.random.default_rng(config.RANDOM_SEED), N_BOOT)
-            return f"{m:.3f} ({low:.3f} to {high:.3f}), {n:,} pairs" if n else "no pairs"
-
+        keys = list(zip(wins["shot_id"], wins["other"]))
+        wins["heating"] = [same.get(key, "unknown") for key in keys]
+        wins["group"] = [group.get(key, "") for key in keys] if group is not None else ""
+        frames.append(wins.assign(recipe=recipe, seed=0))
         lines.append(f"- {SEEN[recipe]}: pAUC {test['pauc']:.3f}, caught {test['catch_rate']:.1%}, false alarms "
-                     f"{test['false_alarm_rate']:.1%}; C {c(wins, 'win')}; {c(wins, 'win_common')}; same heating "
-                     f"{c(wins[wins['heating'] == 'same'], 'win_common')}")
+                     f"{test['false_alarm_rate']:.1%}; C {c(wins, 'win')}; {c(wins)}; same heating "
+                     f"{c(wins[wins['heating'] == 'same'])}; recorded {c(wins[wins['group'] == 'recorded'])}; "
+                     f"candidate {c(wins[wins['group'] == 'candidate'])}")
+    if frames:
+        everything = pd.concat(frames, ignore_index=True)
+        for name, part in (("all test twins", everything), ("same-heating twins", everything[everything["heating"] == "same"])):
+            d = pooled_delta(part, "baseline", "machine", "win_common")
+            if d:
+                lines.append(f"- baseline minus machine-side on identical pairs, {name} (same-time statistic): "
+                             f"{d[0]:+.3f} ({d[1]:+.3f} to {d[2]:+.3f}), {d[3]:,} pairs")
     return "\n".join(lines)
 
 
