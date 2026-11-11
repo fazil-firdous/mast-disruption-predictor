@@ -95,11 +95,16 @@ def test_tables_and_text_from_saved_runs(monkeypatch, tmp_path):
     assert by_group[("baseline", "recorded")] == 1.0 and by_group[("baseline", "candidate")] == 0.5
     assert by_group[("programme", "recorded")] == 0.5  # same score as its twin: a tie
     assert set(result["by_lead"]["lead_ms"]) == {5, 30, 50, 100, 200}
+    common, pooled = result["common"].set_index("recipe"), result["pooled"].set_index("recipe")
+    assert common.loc["baseline", "C"] == ladder.loc["baseline", "C"]  # every made-up shot covers the same time
+    assert pooled.loc["baseline", "pairs"] == 3 and pooled.loc["baseline", "C"] == pytest.approx(2 / 3)
+    assert pooled.loc["baseline", "low"] <= pooled.loc["baseline", "C"] <= pooled.loc["baseline", "high"]
     exact, loose = result["exact"].set_index("recipe"), result["loose"].set_index("recipe")
     assert exact.loc["baseline", "C"] == 1.0 and exact.loc["baseline", "pairs_per_split"] == 2  # pairs 11 and 12
     assert loose.loc["baseline", "C"] == 0.0 and exact.loc["programme", "C"] == 0.5  # pair 13; ties
     text = v3_explore.text(result)
     assert "exact 1.000" in text and "loose 0.000" in text
+    assert "Review check 1" in text and "Review check 2" in text and "3 pairs" in text
     assert "- same heating: programme 0.500" in text
     assert "programmed current only: C 0.333" in text and "- candidate: baseline 0.500" in text
     assert (tmp_path / "v3_explore" / "twin_pairs.csv").exists()
@@ -126,3 +131,35 @@ def test_one_ladder_run_end_to_end(tiny_project, monkeypatch):
     assert (out / "metrics.json").exists() and len(pd.read_parquet(out / "test_scores.parquet")) > 0
     assert "t_since_start" in metrics["columns"] and not any(c.startswith("sol_") for c in metrics["columns"])
     assert not (tiny_project / "results" / "v3").exists()  # never writes into the pre-registered results
+
+
+def test_same_time_statistic_ignores_what_the_lost_shot_did_after_its_twin_ended():
+    t = np.round(np.arange(0.05, 0.40, 0.005), 3).astype("float32")
+    lost = pd.DataFrame({"shot_id": 2, "t_end": t, "score": np.where(t > 0.25, 0.9, 0.2).astype("float32")})
+    twin = pd.DataFrame({"shot_id": 1, "t_end": t[t <= 0.2], "score": np.float32(0.2)})  # the twin ended at 0.2 s
+    wins = v3_explore.pair_wins(pd.concat([lost, twin]), pd.DataFrame({"shot_id": [2], "other": [1]}), {2: 0.30},
+                                {2: 0.1}, leads_ms=(5,)).iloc[0]
+    assert wins["win"] == 1.0  # registered: the lost shot's late rise counts, though the twin has no windows there
+    assert wins["win_common"] == 0.5  # over the time both have, the two score alike
+
+
+def test_temporal_run_and_its_twin_test(tiny_project, monkeypatch, tmp_path):
+    monkeypatch.setattr(config, "SWEEP_MODEL", "logreg")  # fast here
+    metrics = v3_explore.run_temporal("programme")
+    assert metrics["split"] == "temporal" and (tiny_project / "results" / "v3_explore" / "temporal" / "programme"
+                                               / "test_scores.parquet").exists()
+    assert v3_explore.recipe_columns("baseline") != v3_explore.recipe_columns("machine")
+    # the twin test of that run on two made-up pairs of its own test shots
+    scores = pd.read_parquet(tiny_project / "results" / "v3_explore" / "temporal" / "programme" / "test_scores.parquet")
+    a, b, c, d = sorted(scores["shot_id"].unique())[:4]
+    twins = pd.DataFrame({"shot_id": [b, d], "other": [a, c], "rms": 0.0})
+    twins.to_csv(tmp_path / "twins.csv", index=False)
+    monkeypatch.setattr(v3_runs, "TWINS", str(tmp_path / "twins.csv"))
+    labels_dir = tiny_project / "results" / "auto_labels"
+    os.makedirs(labels_dir, exist_ok=True)
+    last = scores.groupby("shot_id")["t_end"].max()
+    pd.DataFrame({"shot_id": [a, b, c, d], "t_quench": [np.nan, last[b] + 0.006, np.nan, last[d] + 0.006]}).to_csv(
+        labels_dir / "per_shot.csv", index=False)
+    text = v3_explore.temporal_text(load=lambda shot: None, beams={})
+    assert "chronological split" in text and "programmed current only: pAUC" in text and "2 pairs" in text
+    assert "every signal" not in text  # only the runs that exist
