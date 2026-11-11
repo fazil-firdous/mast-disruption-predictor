@@ -81,4 +81,36 @@ These settle details the text above left open. None was chosen after seeing a v3
 
 ## Changes after the first v3 result
 
-(none yet)
+Nothing in the registered tests above was changed. The analyses below were added after the registered results were
+known; they are exploratory, and the paper labels them so.
+
+### 2026-11-10 and 11: exploratory analyses (results known when this was written)
+
+The ladder of inputs (programme-only and solenoid-only models), C on exact and loose programme matches, by beam
+heating, by early height, by how long the twin went on, by lost-shot group and by lead time; the model-free twin
+differences; the same-time statistic (both shots cut to the time they share) and C pooled over pairs with a range
+from resampling groups of pairs that share a twin. Code: `scripts/v3_explore.py`, `scripts/twin_differences.py`.
+
+### 2026-11-11: the chronological split (written before any of its output was seen)
+
+Code as committed at 36cd1a6, started on the server before this note; no output had been read when this was written.
+
+- **Runs:** programme-only, machine-side (registered name: machine-only) and baseline, trained like the v3
+  baseline. Training and every tuned setting (model parameters, alarm threshold) use campaigns M5-M7 only, with a
+  validation slice from those campaigns; campaigns M8-M9 are the test set and are used once.
+- **Pairs:** the programme twins fixed before v3 (commit 61737cb) whose two shots are both in the test set.
+- **Reported, whatever the result:** for each model the usual metrics (pAUC, caught, false alarms) and C with the
+  registered statistic and with the same-time statistic, on all test pairs and on same-heating pairs; C for
+  recorded and for candidate lost shots; and the paired difference baseline minus machine-side on identical pairs.
+- **Ranges:** one split, so ranges come from resampling groups of pairs that share a twin. They condition on the
+  fitted models and do not cover what a different training set would give.
+- **Reading:** this is one test, not a replication. C above 0.5 with a range clear of it supports the within-pair
+  result on campaigns the model never trained on. A range that includes 0.5 is uncertainty, not evidence of no
+  skill. Either way the result is reported next to the random-split result, and no setting is changed after it.
+
+### What each range covers
+
+- *Over splits* (corrected resampled t-test): the model changing with the training set and the test shots drawn;
+  not one kept shot serving as the twin of several lost shots within a split.
+- *Over groups of pairs sharing a twin* (cluster bootstrap on saved scores): shared twins; conditions on the fitted
+  models.
