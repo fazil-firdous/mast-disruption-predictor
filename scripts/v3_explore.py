@@ -10,7 +10,7 @@ that were; every number here is a description for the paper, with ranges but no 
    (recorded or candidate), by the kept twin's ending, by how long before the loss the scores stop (lead time), and
    by whether the two shots also had the same beam heating (twins are matched on the programmed current only).
 
-3. Three checks a review asked for: C with both shots scored over the same time (the registered statistic gives a
+3. Three checks of the test itself: C with both shots scored over the same time (the registered statistic gives a
    shot more windows if its twin ended first), a range that resamples groups of pairs sharing a twin, and the test
    on a chronological split (train on campaigns M5-M7, test on M8-M9), where no repeat of a test shot's session is in
    the training set.
@@ -390,7 +390,7 @@ def text(result):
             row = ladder.loc[model]
             lines.append(f"- {SEEN[model]}: C {cell(row)}, {int(row['splits'])} splits; pAUC {skill.loc[model, 'pauc']:.3f}, "
                          f"caught {skill.loc[model, 'catch_rate']:.1%}")
-    lines += ["", "Review check 1, both shots scored over the same time (the registered statistic gives a shot more "
+    lines += ["", "Check 1, both shots scored over the same time (the registered statistic gives a shot more "
               "windows if its twin ended first): C on all twins; on same-heating twins"]
     common, common_same = (result[name].set_index("recipe") if len(result[name]) else result[name]
                            for name in ("common", "common_same"))
@@ -398,7 +398,7 @@ def text(result):
         if model in common.index:
             lines.append(f"- {SEEN[model]}: {cell(common.loc[model])}"
                          + (f"; {cell(common_same.loc[model])}" if model in common_same.index else ""))
-    lines += ["", "Review check 2, C pooled over the pairs with a 95% range that resamples groups of pairs sharing a "
+    lines += ["", "Check 2, C pooled over the pairs with a 95% range that resamples groups of pairs sharing a "
               "twin (registered statistic; same-time statistic):"]
     pooled, pooled_common = (result[name].set_index("recipe") if len(result[name]) else result[name]
                              for name in ("pooled", "pooled_common"))
@@ -452,7 +452,7 @@ def text(result):
 
 
 def temporal_text(load=None, beams=None):
-    """Review check 3 in words: the twin test on the chronological split, for the runs that exist, as fixed in
+    """Check 3 in words: the twin test on the chronological split, for the runs that exist, as fixed in
     docs/preregistration_v3.md before any output was seen. One split, so the ranges come from resampling groups of
     pairs that share their twin."""
     from src import extras
@@ -461,7 +461,7 @@ def temporal_text(load=None, beams=None):
     labels = pd.read_csv(os.path.join(config.RESULTS_DIR, "auto_labels", "per_shot.csv"))
     t_quench = labels.set_index("shot_id")["t_quench"].to_dict()
     group = twins.set_index(["shot_id", "other"])["group"] if "group" in twins else None
-    lines = ["Review check 3, the chronological split (trained and tuned on campaigns M5-M7, tested on M8-M9; one "
+    lines = ["Check 3, the chronological split (trained and tuned on campaigns M5-M7, tested on M8-M9; one "
              "split, ranges from resampling groups of pairs that share their twin). Exploratory.",
              "Per model: usual metrics; C on all test twins (registered statistic; same-time statistic); C on "
              "same-heating twins and for recorded and candidate lost shots (same-time statistic)."]

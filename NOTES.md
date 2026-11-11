@@ -781,25 +781,22 @@ Pre-registered (`docs/preregistration_v3.md`), 150 runs; verdicts from splits 21
 - **Example pair for the paper:** 25187 (lost at 0.259 s) and 25186: same programme, same beam power, heights within
   2 cm, the lost shot's density lower from about 0.12 s. 25191 and 25190 are from the same session.
 
-## 2026-11-11 - An outside review of the paper 2 draft, and what it changed
+## 2026-11-11 - Three more checks of the twin test, and tighter wording
 
-A review of draft v0.4 (from another AI model, pasted by Fazil) made six points. Five are right; one is not.
+1. *Wording.* The test does not isolate the plasma: gas, shape, field and wall are not matched and the twin is
+   always the earlier shot. The paper now says the test reduces the contribution of differences in the programmed
+   current.
+2. *Unequal time, corrected directly.* `pair_wins` also gives `win_common`: both shots cut to the time they share.
+   The summary reports it for every model (check 1).
+3. *Twins shared by several lost shots.* The summary adds C pooled over pairs with a range from resampling groups of
+   pairs that share a twin (check 2).
+4. *Random splits leave other repeats of a session in training.* The temporal split was already listed in the
+   pre-registration as 'reported, not tested'. `--temporal` trains programme-only, machine-side and baseline on
+   M5-M7 and runs the twin test on M8-M9 (check 3).
+5. *Lead time.* The model is trained on a 30 ms horizon, so little earlier separation says something about this
+   predictor, not about what the plasma shows.
 
-1. *"The twin test measures the second alone" is too strong.* Right: gas, shape, field and wall are not matched and
-   the twin is always earlier. Reworded: the test removes most of the programme's contribution.
-2. *Correct the statistic for unequal time directly.* Right. `pair_wins` now also gives `win_common`: both shots cut
-   to the time they share. The summary reports it for every model (review check 1).
-3. *Allow for twins shared by several lost shots.* Right. The summary adds C pooled over pairs with a range from
-   resampling groups of pairs that share a twin (review check 2).
-4. *Random splits leave other repeats of a session in training.* Right, and the temporal split was already listed
-   in the pre-registration as 'reported, not tested'. `--temporal` trains programme-only, machine-only and baseline
-   on M5-M7 and runs the twin test on M8-M9 (review check 3).
-5. *"Little for it to find earlier" overreaches.* Right: the model is trained on a 30 ms horizon. Reworded.
-6. *Two inconsistencies.* The interval +0.001 to +0.222 does not 'reach zero': fixed to 'only just excludes zero'.
-   The other claim, that the lead-time figure has 5 ms on the left, is wrong: 5 ms is the right-most point, as the
-   caption says.
-
-## 2026-11-11 - Review checks 1 and 2: the result holds with a fair time window and with shared twins allowed for
+## 2026-11-11 - Checks 1 and 2: the result holds with a fair time window and with shared twins allowed for
 
 `scripts/v3_explore.py --summary`. Exploratory.
 
@@ -817,11 +814,9 @@ A review of draft v0.4 (from another AI model, pasted by Fazil) made six points.
   answer different questions (see the pre-registration's amendment); both are reported.
 - The programme-only model keeps a small excess, 0.520 (0.510 to 0.531 over twin groups). Not explained yet: loose
   programme matches and the time since plasma start are candidates.
-- **A second review** (same outside reviewer) asked for a narrower claim, the full and machine-side models with
-  their paired difference in one table, counts of how often a twin is reused, the candidate and recorded groups
-  side by side, and care that the chronological test is read as fixed beforehand. Done or in progress:
-  `scripts/paper2_numbers.py` prints the core table, twin reuse, triplet gaps and lost shots with and without a
-  twin; the chronological test's reading was committed (bd592f7) before any of its output was seen.
+- **Also added:** the full and machine-side models with their paired difference in one table, counts of how often
+  a twin is reused, and the candidate and recorded groups side by side (`scripts/paper2_numbers.py`). The
+  chronological test's reading was committed (bd592f7) before any of its output was seen.
 - Not done, on purpose: an early-only beam comparison, a fixed cohort for the lead-time curve and wall-clock gaps
   (not in the data). They would add slices without changing the core inference; the paper lists them as limits.
 

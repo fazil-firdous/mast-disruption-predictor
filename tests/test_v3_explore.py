@@ -104,7 +104,7 @@ def test_tables_and_text_from_saved_runs(monkeypatch, tmp_path):
     assert loose.loc["baseline", "C"] == 0.0 and exact.loc["programme", "C"] == 0.5  # pair 13; ties
     text = v3_explore.text(result)
     assert "exact 1.000" in text and "loose 0.000" in text
-    assert "Review check 1" in text and "Review check 2" in text and "3 pairs" in text
+    assert "Check 1" in text and "Check 2" in text and "3 pairs" in text
     assert "- same heating: programme 0.500" in text
     assert "programmed current only: C 0.333" in text and "- candidate: baseline 0.500" in text
     assert (tmp_path / "v3_explore" / "twin_pairs.csv").exists()
