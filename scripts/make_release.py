@@ -128,7 +128,8 @@ def readme(tabs, version):
     if "programme_twins.csv" in tabs:
         twins = tabs["programme_twins.csv"]
         lines += [f"### programme_twins.csv ({len(twins):,} rows, one per lost shot that has a twin)", "",
-                  "For each shot lost in the flat-top (recorded or candidate): the nearest earlier shot, within 30 shots "
+                  "For each lost shot (a recorded disruption, or a candidate: a flat-top loss without a note): the "
+                  "nearest earlier shot, within 30 shots "
                   "and in the same campaign, with the same programmed current, that was not lost.", "",
                   "| Column | Meaning |", "|---|---|",
                   "| shot_id | the lost shot |", "| other | its twin |",

@@ -25,7 +25,7 @@ def test_picture_of_a_pair(tmp_path):
     with pytest.raises(SystemExit):
         plot_twin_pair.find_twin(twins, 99)
     path = plot_twin_pair.plot(shot(drop_at=0.3), shot(), pair, str(tmp_path / "pairs" / "20.png"))
-    assert os.path.getsize(path) > 5000
+    assert os.path.getsize(path) > 5000 and os.path.exists(str(tmp_path / "pairs" / "20.pdf"))
     four = plot_twin_pair.PANELS[:2] + [("ne_line_avg", "density (10^19 m^-3)", 1e-19), ("efit_zmag", "height (cm)", 100)]
     assert os.path.getsize(plot_twin_pair.plot(shot(0.3), shot(), pair, str(tmp_path / "four.png"), four)) > 5000
     assert plot_twin_pair.listing(twins).splitlines()[1].split()[0] == "30"  # recorded disruptions first

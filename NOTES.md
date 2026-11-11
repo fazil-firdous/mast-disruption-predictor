@@ -751,3 +751,32 @@ Pre-registered (`docs/preregistration_v3.md`), 150 runs; verdicts from splits 21
     were within 2 cm (RMS) up to 100 ms before the loss; C is also given for pairs with the same heating and the
     same early height.
 - Commits carry the repository owner's name only from here on.
+
+## 2026-11-11 - The twin test holds when the height is matched and when the twin outlives the loss (exploratory)
+
+`scripts/v3_explore.py --summary`, 50 splits, corrected 95% ranges, pairs per split in brackets.
+
+| Pairs | programme-only | machine-only | baseline |
+|---|---|---|---|
+| same early height (112) | 0.522 (0.499 to 0.545) | 0.600 (0.533 to 0.666) | 0.691 (0.633 to 0.749) |
+| different early height (19) | 0.566 | 0.580 | 0.624 (0.474 to 0.774) |
+| same heating and same early height (41) | 0.515 (0.487 to 0.544) | 0.529 (0.426 to 0.632) | 0.628 (0.550 to 0.706) |
+| twin ended before the loss (19) | 0.619 (0.531 to 0.707) | 0.642 | 0.583 (0.454 to 0.712) |
+| twin ended within 50 ms after (29) | 0.499 | 0.554 | 0.628 (0.514 to 0.741) |
+| twin went on 50 ms or more (66) | 0.515 (0.481 to 0.549) | 0.601 (0.530 to 0.673) | 0.739 (0.671 to 0.807) |
+| twin had no quench (42) | 0.548 | 0.617 | 0.727 (0.636 to 0.817) |
+
+- **Height:** most pairs with known height (112 of 131) were at the same height early on, and the baseline is
+  unchanged there. With current programme, beam heating and early height all matched, the baseline is still clear
+  of chance (0.628) and the machine-side models are not.
+- **A bias in the statistic, and it does not carry the result:** where the twin ended before the lost shot's loss,
+  the programme-only model reaches 0.619, because the lost shot has more windows in the compared time. That is part
+  of why it sat above 0.5. The baseline is lowest in those pairs and highest (0.739) where the twin went on 50 ms or
+  more, so the registered 0.697 is not inflated by this. A better statistic would cut both shots at the earlier
+  end; say so in the paper.
+- These are many slices of the same pairs; all are reported, none was chosen for its result.
+- **Wording:** 'lost' means a recorded disruption (operator note and quench, any phase: 73% are flat-top drops) or a
+  candidate (un-noted flat-top loss). Not every lost shot was lost in the flat-top; the release README and the
+  paper say it this way now.
+- **Example pair for the paper:** 25187 (lost at 0.259 s) and 25186: same programme, same beam power, heights within
+  2 cm, the lost shot's density lower from about 0.12 s. 25191 and 25190 are from the same session.
