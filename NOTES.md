@@ -858,3 +858,29 @@ pairs of M8-M9; same-time statistic; ranges over groups of pairs sharing a twin.
   (892): 19.3% recorded against 16.9% with a twin.
 - Paper 2 draft v0.7 carries all of this (private). Open: the data-release DOI, a physicist's read, the full
   texts of the three nearest papers.
+
+## 2026-11-11 - Four final checks of the twin test (defined in the pre-registration before they ran; exploratory)
+
+`scripts/v3_explore.py --summary`; same-time statistic; over splits | pooled.
+
+- **Placebo, two good repeats (K1 against K2 as if K1 were lost; 1,279 pairs, 133 per split):** not at 0.5 for the
+  models that see more than the programme. Baseline 0.567 (0.468 to 0.665) | 0.542 (0.521 to 0.563); machine-side
+  0.541 (0.438 to 0.643) | 0.535 (0.514 to 0.556); solenoid-only 0.516 | 0.508 (0.487 to 0.529); programme-only
+  0.518 | 0.509 (0.500 to 0.518).
+  - The later of two good repeats tends to score higher. So part of each model's distance from 0.5 in the main test
+    (baseline 0.679) may come from conditions drifting from shot to shot before a loss, not from the lost shot
+    alone. As fixed beforehand, it is reported next to the main result and not subtracted.
+  - The excess is about the same for the baseline and the machine-side model (0.542 and 0.535), so it does not
+    obviously account for the difference between them (+0.09 in the main test).
+- **Early beam heating** (compared only up to 100 ms before the loss): same early heating, 54 pairs per split,
+  baseline 0.633 (0.577 to 0.689), machine-side 0.552 (0.460 to 0.643), programme-only 0.507. Almost the same as
+  with the whole-time heating match (0.642): a beam changing close to the loss does not decide that result.
+- **Score at the last shared window:** baseline 0.757 (0.712 to 0.801) | 0.756 (0.737 to 0.773); machine-side 0.635
+  | 0.630; solenoid-only 0.614; programme-only 0.510. Higher than the highest-score summary (0.679): at one fixed
+  time just before the loss the lost shot is ranked above its twin more often than when the twin's highest score
+  anywhere counts. All three summaries are reported; the registered one stays the registered result.
+- **Recorded minus candidate, twin groups resampled jointly:** baseline +0.090 (+0.049 to +0.130); machine-side
+  +0.022 (-0.017 to +0.062). The baseline separates recorded disruptions from their twins more often than
+  candidates; conditional on the fitted models.
+- **Analysis on this study stops here.** What is left is writing, the data release, a physicist's read and the
+  nearest papers' full texts.
