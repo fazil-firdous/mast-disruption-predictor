@@ -884,3 +884,11 @@ pairs of M8-M9; same-time statistic; ranges over groups of pairs sharing a twin.
   candidates; conditional on the fitted models.
 - **Analysis on this study stops here.** What is left is writing, the data release, a physicist's read and the
   nearest papers' full texts.
+
+## 2026-11-11 - The nearest papers, read in full
+
+Three of the four nearest papers were read in full (`docs/literature_review.md`, section 6): none compares a lost
+shot with a matched or repeated shot. Counterfactuals in Piccione et al. (2022) are hypothetical inputs to a
+classifier; the spurious correlations of Xue et al. (2026) are between machines; Chayapathy et al. (2024) is data
+augmentation judged on the usual metrics. The fourth (Murari et al. 2024) could not be opened and is not cited for
+any claim. Paper 2 says "we found none" and describes the search.
