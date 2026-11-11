@@ -1,6 +1,7 @@
 """A lost shot and its same-programme twin, signal by signal: a picture of one pair for the twin-test paper.
 
     python scripts/plot_twin_pair.py --list           # some lost shots that have a twin with the same beam heating
+    python scripts/plot_twin_pair.py --list --after 24000   # later shots, which more often have density and EFIT data
     python scripts/plot_twin_pair.py 12345            # saves RESULTS_DIR/twin_pairs/12345.png and sends it to Telegram
     python scripts/plot_twin_pair.py 12345 --columns  # the names of the signals a shot has
 
@@ -21,14 +22,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src import config, data, extras, notify
 
 LOST_COLOUR, TWIN_COLOUR = "#eb6834", "#8a8984"
+NO_BEAM_MW = 0.05  # beam power below this in both shots is drawn on a fixed scale, so noise does not fill the panel
 # One panel per entry: (column of the shot table, label of the y axis, factor that turns the stored unit into the
 # label's unit). The plasma current panel also shows the programmed current as a dashed line.
 PANELS = [
     ("ip", "plasma current (kA)", 1e-3),
     ("power_nbi", "beam power (MW)", 1e-6),
-    # YOUR TURN: add two panels here, one line each, in the same form as the two lines above.
-    # 1. the line-average density: its column is "ne_line_avg", stored in m^-3; show it in units of 10^19 m^-3
-    # 2. the height of the plasma (vertical position): its column is "efit_zmag", stored in m; show it in cm
+    ("ne_line_avg", "density (10^19 m^-3)", 1e-19),
+    ("efit_zmag", "height (cm)", 100),
 ]
 
 
@@ -55,10 +56,22 @@ def plot(lost, twin, pair, path, panels=None):
     t_loss = float(pair["t_loss"])
     fig, axes = plt.subplots(len(panels), 1, figsize=(7, 1.9 * len(panels) + 0.6), sharex=True, squeeze=False)
     for ax, (column, label, factor) in zip(axes[:, 0], panels):
+        missing, largest = [], 0.0
         for shot, colour, name in ((twin, TWIN_COLOUR, f"twin {int(pair['other'])} (not lost)"),
                                    (lost, LOST_COLOUR, f"shot {int(pair['shot_id'])} (lost)")):
-            values = shot[column].abs() if column == "ip" else shot[column]
-            ax.plot(shot["time"], values * factor, color=colour, lw=1.1, label=name)
+            values = (shot[column].abs() if column == "ip" else shot[column]) * factor
+            ax.plot(shot["time"], values, color=colour, lw=1.1, label=name)
+            if values.notna().any():
+                largest = max(largest, float(values.abs().max()))
+            else:
+                missing.append(name.split(" (")[0])
+        if missing:  # say so, or an empty panel looks like a signal at zero
+            ax.text(0.02, 0.88, "no data for " + " and ".join(missing), transform=ax.transAxes, ha="left",
+                    va="center", fontsize=8, color=TWIN_COLOUR)
+        elif column == "power_nbi" and largest < NO_BEAM_MW:
+            ax.set_ylim(-0.1, 1.0)
+            ax.text(0.02, 0.88, "no beam in either shot", transform=ax.transAxes, ha="left", va="center",
+                    fontsize=8, color=TWIN_COLOUR)
         if column == "ip" and lost["ip_ref"].notna().any():
             ax.plot(lost["time"], lost["ip_ref"] * factor, color="black", lw=0.8, ls="--", label="programmed")
         ax.axvline(t_loss, color="black", lw=0.8, ls=":")
@@ -76,9 +89,10 @@ def plot(lost, twin, pair, path, panels=None):
     return path
 
 
-def listing(twins, n=10):
-    """Some pairs worth looking at: recorded disruptions first, same beam heating, programmes within 1%."""
-    good = twins[(twins["heating"] == "same") & (twins["rms"] < 0.01)]
+def listing(twins, n=10, after=0):
+    """Some pairs worth looking at: recorded disruptions first, same beam heating, programmes within 1%, shot
+    numbers above `after`."""
+    good = twins[(twins["heating"] == "same") & (twins["rms"] < 0.01) & (twins["shot_id"] > after)]
     good = good.sort_values("group", ascending=False)  # 'recorded' before 'candidate'
     return good[["shot_id", "other", "group", "gap", "t_loss"]].head(n).to_string(index=False)
 
@@ -88,12 +102,13 @@ def main():
     parser.add_argument("shot", nargs="?", type=int, help="a lost shot that has a twin")
     parser.add_argument("--list", action="store_true", help="show some lost shots to try")
     parser.add_argument("--columns", action="store_true", help="print the names of the shot's signals")
+    parser.add_argument("--after", type=int, default=0, help="with --list: only shots numbered above this")
     args = parser.parse_args()
     twins = pd.read_csv(twins_path())
     if "t_loss" not in twins:
         raise SystemExit("this release is an old one: run scripts/make_release.py first")
     if args.list or args.shot is None:
-        print(listing(twins))
+        print(listing(twins, after=args.after))
         return
     pair = find_twin(twins, args.shot)
     lost, twin = load(pair["shot_id"]), load(pair["other"])
