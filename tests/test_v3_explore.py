@@ -75,6 +75,9 @@ def test_tables_and_text_from_saved_runs(monkeypatch, tmp_path):
             with open(path / "metrics.json", "w") as f:
                 json.dump({"seed": seed, "test": {"pauc": 0.3, "catch_rate": 0.4, "false_alarm_rate": 0.05}}, f)
     os.makedirs(tmp_path / "v3" / "machine" / "seed_1")  # unfinished: left out
+    os.makedirs(tmp_path / "twin_differences")
+    pd.DataFrame({"shot_id": [11], "k1": [2], "k2": [1], "group": ["recorded"]}).to_csv(
+        tmp_path / "twin_differences" / "triplets.csv", index=False)  # placebo: kept shot 2 against kept shot 1
     bins = np.round(t.astype(float) / 0.005).astype(int)
     power = {1: 2.0, 11: 2.0, 2: 2.0, 12: 1.0, 3: np.nan, 13: 2.0}  # pair 11: same; 12: different; 13: unknown
     beams = {shot: (bins, np.full((len(bins), 1), value)) for shot, value in power.items()}
@@ -105,6 +108,11 @@ def test_tables_and_text_from_saved_runs(monkeypatch, tmp_path):
     text = v3_explore.text(result)
     assert "exact 1.000" in text and "loose 0.000" in text
     assert "Check 1" in text and "Check 2" in text and "3 pairs" in text
+    assert result["placebo"].set_index("recipe").loc["baseline", "C"] == 0.5  # two kept shots with the same scores
+    assert result["placebo_pooled"].set_index("recipe").loc["baseline", "pairs"] == 1
+    assert "Final checks" in text and "Placebo, two good repeats" in text and "last shared window" in text
+    assert "- same early heating: " in text and "Recorded minus candidate" in text
+    assert (tmp_path / "v3_explore" / "placebo_pairs.csv").exists()
     assert "- same heating: programme 0.500" in text
     assert "programmed current only: C 0.333" in text and "- candidate: baseline 0.500" in text
     assert (tmp_path / "v3_explore" / "twin_pairs.csv").exists()
@@ -194,3 +202,42 @@ def test_pooled_delta_keeps_the_models_paired():
     mean, low, high, n = v3_explore.pooled_delta(pd.DataFrame(rows), "baseline", "machine")
     assert mean == pytest.approx(1 / 3) and n == 3 and low <= mean <= high
     assert v3_explore.pooled_delta(pd.DataFrame(rows), "baseline", "solenoid") is None
+
+
+def test_endpoint_summary_and_placebo_times():
+    t = np.round(np.arange(0.05, 0.30, 0.005), 3).astype("float32")
+    up = pd.DataFrame({"shot_id": 2, "t_end": t, "score": np.linspace(0.1, 0.9, len(t)).astype("float32")})
+    spike = pd.DataFrame({"shot_id": 1, "t_end": t, "score": np.where(np.isclose(t, 0.10), 0.95, 0.2).astype("float32")})
+    scores = pd.concat([up, spike])
+    row = v3_explore.pair_wins(scores, pd.DataFrame({"shot_id": [2], "other": [1]}), {2: 0.30}, {}, leads_ms=(5,)).iloc[0]
+    assert row["win_common"] == 0.0  # the twin's one early spike is the highest score of all
+    assert row["win_end"] == 1.0  # at the last shared window the lost shot is the higher one
+    # placebo pairs carry their own times, taken from a third shot
+    fake = pd.DataFrame({"shot_id": [2], "other": [1], "ref": [9], "t_loss": [0.075], "t_start": [np.nan]})
+    early = v3_explore.pair_wins(scores, fake, {}, {}, leads_ms=(5,)).iloc[0]
+    assert early["ref"] == 9 and early["win_common"] == 0.0  # cut at 0.07 s: the rising shot is still under 0.2
+    late = v3_explore.pair_wins(scores, fake.assign(t_loss=0.095), {}, {}, leads_ms=(5,)).iloc[0]
+    assert late["win_common"] == 1.0  # cut at 0.09 s, before the spike: by then it is above 0.2
+    triplets = pd.DataFrame({"shot_id": [9, 8], "k1": [2, 3], "k2": [1, 2], "group": "candidate"})
+    made = v3_explore.placebo_pairs(triplets, {9: 0.3}, {9: 0.1}, load=lambda shot: None)
+    assert made.values.tolist() == [[2, 1, 9, 0.3, 0.1]]  # shot 8 has no loss time: left out
+
+
+def test_shot_groups_follow_shared_shots_and_group_difference_resamples_jointly():
+    groups = v3_explore.shot_groups([2, 3, 7], [1, 2, 6])  # 2-1 and 3-2 share shot 2; 7-6 stands alone
+    assert groups[0] == groups[1] != groups[2]
+    rows = [{"shot_id": lost, "other": twin, "group": kind, "recipe": "baseline", "seed": 1, "win_common": win}
+            for lost, twin, kind, win in ((11, 1, "recorded", 1.0), (12, 1, "candidate", 0.0), (13, 3, "recorded", 1.0),
+                                          (14, 4, "candidate", 1.0))]
+    d = v3_explore.pooled_group_difference(pd.DataFrame(rows), "baseline")
+    assert d[0] == pytest.approx(0.5) and d[3:] == (2, 2) and d[1] <= d[0] <= d[2]
+    assert v3_explore.pooled_group_difference(pd.DataFrame(rows[:1]), "baseline") is None
+
+
+def test_early_heating_ignores_a_beam_change_close_to_the_loss():
+    bins = np.arange(20, 60)  # 0.100 s to 0.295 s
+    steady = (bins, np.full((len(bins), 1), 2.0))
+    tripped = (bins, np.where(bins[:, None] > 50, 0.0, 2.0))  # the beam goes off 45 ms before the loss
+    beams, pairs = {1: steady, 2: tripped}, [(2, 1)]
+    assert v3_explore.heating(pairs, beams, {2: 0.3}, {})[(2, 1)] == "different"
+    assert v3_explore.heating(pairs, beams, {2: 0.3}, {}, v3_explore.EARLY_MS)[(2, 1)] == "same"
