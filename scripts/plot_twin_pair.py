@@ -85,6 +85,7 @@ def plot(lost, twin, pair, path, panels=None):
     fig.tight_layout()
     os.makedirs(os.path.dirname(path), exist_ok=True)
     fig.savefig(path, dpi=110)
+    fig.savefig(os.path.splitext(path)[0] + ".pdf")  # the same picture as a sharp PDF, for the paper
     plt.close(fig)
     return path
 
@@ -103,6 +104,7 @@ def main():
     parser.add_argument("--list", action="store_true", help="show some lost shots to try")
     parser.add_argument("--columns", action="store_true", help="print the names of the shot's signals")
     parser.add_argument("--after", type=int, default=0, help="with --list: only shots numbered above this")
+    parser.add_argument("--pdf", action="store_true", help="also send the PDF version to Telegram")
     args = parser.parse_args()
     twins = pd.read_csv(twins_path())
     if "t_loss" not in twins:
@@ -118,6 +120,8 @@ def main():
     path = plot(lost, twin, pair, os.path.join(config.RESULTS_DIR, "twin_pairs", f"{args.shot}.png"))
     print(f"saved {path}")
     notify.send_file(path, f"Shot {args.shot} and its twin {int(pair['other'])}")
+    if args.pdf:
+        notify.send_file(os.path.splitext(path)[0] + ".pdf", f"Shot {args.shot} and its twin, as a PDF")
 
 
 if __name__ == "__main__":
