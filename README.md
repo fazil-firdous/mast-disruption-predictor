@@ -82,6 +82,8 @@ Outputs (data, models, results, logs) go to the folder named by `MAST_HOME`, or 
 ## Where to start reading
 `docs/GUIDE.md` tells the story in simple words; `CODE_MAP.md` describes every file and function; `NOTES.md` is the log of data facts and decisions; `CONTRIBUTING.md` has the rules for changing the code.
 
+To carry the project on, alone or with an assistant that has never seen it: `docs/HANDOVER.md`.
+
 ## Limitations
 Labels are algorithmic and not yet checked by a MAST expert. EFIT values are assumed to be slice-by-slice reconstructions (each is used only one slice after its time); there are no profiles. MAST (2000–2013), not MAST-U. Offline evaluation, not real-time control.
 

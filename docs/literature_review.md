@@ -59,22 +59,28 @@ abstracts and search summaries unless a full text is cited elsewhere in this fil
 - **Not found:** an evaluation of a disruption predictor on disrupted shots paired with same-programme shots that
   were not lost; a study of how often nominally identical discharges disrupt; a model given only the programme as a
   control for what the usual metrics reward.
-- **Nearest work:**
-  - Counterfactual *explanations* for a resistive-wall-mode stability classifier on NSTX (Piccione, Sabbagh,
-    Andreopoulos; Princeton data record doi:10.11578/1888266): hypothetical changes of inputs that would flip a
-    prediction. Model interpretation, not matched real shots.
-  - Spurious correlations in cross-machine transfer: "Balancing physics priors and data for disruption prediction in
-    future tokamaks" (Nuclear Fusion, doi:10.1088/1741-4326/ae55b7) argues that statistical models can learn
-    unphysical correspondences between machines and adds physics priors. A different shortcut, a different remedy.
-  - Murari et al., "A control oriented strategy of disruption prediction to avoid the configuration collapse of
-    tokamak reactors" (Nature Communications 2024, doi:10.1038/s41467-024-46242-7), and the JET literature around
-    it: anomalies of the kind used as precursors also occur in discharges that end safely. This is the reason a
-    matched comparison is informative; it is not one.
-  - Robustness by augmentation: "Time Series Viewmakers for Robust Disruption Prediction" (arXiv:2410.11065).
+- **Nearest work (full texts read 2026-11-11 unless noted):**
+  - A. Piccione, J. W. Berkery, S. A. Sabbagh and Y. Andreopoulos, "Predicting resistive wall mode stability in NSTX
+    through balanced random forests and counterfactual explanations", Nuclear Fusion 62, 036002 (2022),
+    doi:10.1088/1741-4326/ac44af. The counterfactuals are hypothetical combinations of a classifier's inputs that
+    would change its output (generated with DiCE): an explanation of a model, not a comparison of real shots. No
+    matched or repeated discharges.
+  - F. Xue, W. Zheng, C. Shen et al. and the J-TEXT Team, "Balancing physics priors and data for disruption prediction
+    in future tokamaks", Nuclear Fusion 66, 056038 (2026), doi:10.1088/1741-4326/ae55b7. Warns that without physics
+    priors a model "risks overfitting scarce target data or aligning spurious correlations across tokamaks", and
+    adds operational limits as constraints. A different shortcut (between machines) and a different remedy. Labels:
+    every sample of a non-disruptive discharge is 0, samples within a fixed time before the labelled disruption are
+    1 (30 ms on J-TEXT, 150 ms on EAST). No matched pairs.
+  - D. Chayapathy, T. Siebert, L. Spangher, A. K. Moharir, O. M. Patil and C. Rea, "Time Series Viewmakers for Robust
+    Disruption Prediction", arXiv:2410.11065 (2024). Learned data augmentation, judged by AUC and F2 on
+    DisruptionBench (C-Mod, DIII-D, EAST). No matched pairs. Two of its authors were high-school students.
+  - Not opened (publisher site not reachable from the working environment): Murari et al., "A control oriented
+    strategy of disruption prediction to avoid the configuration collapse of tokamak reactors", Nature
+    Communications (2024), doi:10.1038/s41467-024-46242-7. Not cited for any specific claim until it is read.
   - Shot-to-shot scatter is studied for runaway-electron beams after disruptions (DIII-D, TEXTOR), not for whether a
-    disruption happens.
+    disruption happens (search summaries only).
 - **What the paper may say:** "we found no earlier matched repeat-shot evaluation" with the search described, not
   "the first". Reference comparisons with a good repeat shot are routine by hand in the control room; the claim is
   about a systematic test on thousands of pairs.
-- **To do before the paper is public:** open the full texts of the three nearest papers (authors, year, exact
-  claims) and search the JET, DIII-D and ASDEX Upgrade disruption-database papers for "repeat" and "reference pulse".
+- **Still to do before the paper is public:** search the JET, DIII-D and ASDEX Upgrade disruption-database papers for
+  "repeat" and "reference pulse", and ask a MAST physicist whether such a comparison has been done informally.
