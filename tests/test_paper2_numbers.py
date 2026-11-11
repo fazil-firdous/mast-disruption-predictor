@@ -16,7 +16,8 @@ def made_up():
             for (shot, other, rms), win in zip(twins[["shot_id", "other", "rms"]].itertuples(index=False), wins):
                 for lead in (5, 30):
                     rows.append({"shot_id": shot, "other": other, "lead_ms": lead, "win": win if lead == 5 else 0.5,
-                                 "rms": rms, "recipe": recipe, "seed": seed, "heating": heating[shot]})
+                                 "win_common": win if lead == 5 else 0.5, "rms": rms, "recipe": recipe, "seed": seed,
+                                 "heating": heating[shot], "height": "same", "group": "candidate"})
     return twins, pd.DataFrame(rows)
 
 
@@ -31,7 +32,13 @@ def test_paired_differences_and_counts():
     catalogue = pd.DataFrame({"group": ["candidate", "candidate", "recorded"], "words_vote": [2, 0, 2]})
     skill = [{"recipe": "programme", "pauc": 0.128, "catch_rate": 0.135, "false_alarm_rate": 0.049}]
     leads = pd.DataFrame({"signal": ["ne", "li", "ne"], "lead_ms": [100, 100, 200], "n": [2500, 2400, 1300]})
-    text = paper2_numbers.text(twins, pairs, runs, catalogue, [40, 44], skill, leads)
+    triplets = pd.DataFrame({"shot_id": [11, 12], "k1": [9, 11], "k2": [4, 10]})
+    text = paper2_numbers.text(twins, pairs, runs, catalogue, [40, 44], skill, leads, triplets)
+    assert "Twins used: 4 different kept shots for 4 lost shots" in text and "(most: 1)" in text
+    assert "gap L to K1 median 2 shots" in text and "gap K1 to K2 median 3" in text
+    assert "all twins: 4 pairs, 4 different twins" in text and "same beam heating: 2 pairs" in text
+    assert "- same-time statistic: baseline 0.750" in text and "difference: splits +0.250" in text
+    assert "left out of the same-time statistic): 0 of" in text
     assert "programme 0.128, 13.5%, 4.9%" in text and "100: 2,500, 200: 1,300" in text
     assert "Twin pairs: 4" in text and "Programmes within 1%: 75.0% of pairs" in text
     assert "at most 3 in 75.0%" in text and "{'same': 2, 'different': 1, 'unknown': 1}" in text

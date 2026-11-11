@@ -163,3 +163,34 @@ def test_temporal_run_and_its_twin_test(tiny_project, monkeypatch, tmp_path):
     text = v3_explore.temporal_text(load=lambda shot: None, beams={})
     assert "chronological split" in text and "programmed current only: pAUC" in text and "2 pairs" in text
     assert "every signal" not in text  # only the runs that exist
+
+
+def test_toy_checks_of_the_pair_statistics():
+    t = np.round(np.arange(0.05, 0.30, 0.005), 3).astype("float32")
+    rng = np.random.default_rng(5)
+    a = pd.DataFrame({"shot_id": 2, "t_end": t, "score": rng.random(len(t)).astype("float32")})
+    b = pd.DataFrame({"shot_id": 1, "t_end": t, "score": rng.random(len(t)).astype("float32")})
+    twins, loss = pd.DataFrame({"shot_id": [2], "other": [1]}), {2: 0.30, 1: 0.30}
+
+    def wins(lost, kept, pairs=twins):
+        return v3_explore.pair_wins(pd.concat([lost, kept]), pairs, loss, {}, leads_ms=(5,)).iloc[0]
+
+    same = wins(a, a.assign(shot_id=1))
+    assert same["win"] == 0.5 and same["win_common"] == 0.5  # identical scores: a tie
+    swapped = wins(b.assign(shot_id=2), a.assign(shot_id=1))
+    first = wins(a, b)
+    assert first["win"] + swapped["win"] == 1.0 and first["win_common"] + swapped["win_common"] == 1.0
+    # windows that only the lost shot has, after its twin ended, never change the same-time statistic
+    short = b[b["t_end"] <= 0.2]
+    spiked = a.assign(score=np.where(a["t_end"] > 0.2, np.float32(5.0), a["score"]))
+    assert wins(a, short)["win_common"] == wins(spiked, short)["win_common"]
+    assert wins(spiked, short)["win"] == 1.0  # the registered statistic does change
+
+
+def test_pooled_delta_keeps_the_models_paired():
+    rows = [{"shot_id": lost, "other": twin, "recipe": recipe, "seed": 1, "win": win}
+            for lost, twin, base, mach in ((11, 1, 1.0, 0.0), (12, 1, 1.0, 1.0), (13, 3, 0.0, 0.0))
+            for recipe, win in (("baseline", base), ("machine", mach))]
+    mean, low, high, n = v3_explore.pooled_delta(pd.DataFrame(rows), "baseline", "machine")
+    assert mean == pytest.approx(1 / 3) and n == 3 and low <= mean <= high
+    assert v3_explore.pooled_delta(pd.DataFrame(rows), "baseline", "solenoid") is None
