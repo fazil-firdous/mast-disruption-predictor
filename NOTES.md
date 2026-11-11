@@ -723,3 +723,13 @@ Pre-registered (`docs/preregistration_v3.md`), 150 runs; verdicts from splits 21
 - **Literature (`docs/literature_review.md` section 6):** eight searches found no matched repeat-shot evaluation of
   a disruption predictor. The paper will say "we found none", with the search described, not "the first". Three
   nearest papers still need their full texts read before the paper is public.
+
+## 2026-11-11 - The twin test as something others can run
+
+- **`scripts/twin_score.py`:** standalone scorer. Anyone with a MAST predictor writes its scores to a CSV
+  (shot_id, t_end, score) and gets C with a 95% range from the release's `programme_twins.csv`, with no access to
+  MAST data and none of this repository's code. Tested to give the pre-registered concordance pair by pair.
+- **The release now carries what the test needs:** `t_loss` and `t_start` per pair in `programme_twins.csv`, and
+  the scorer itself. The server's release folder must be rebuilt (`scripts/make_release.py`) before publishing.
+- **Why:** a result in a paper is read by few; a test that takes one command can be reported by the groups that
+  build MAST benchmarks. After paper 2 is public, propose it to them as an extra metric.

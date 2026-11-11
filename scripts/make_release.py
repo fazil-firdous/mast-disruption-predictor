@@ -11,6 +11,7 @@ anywhere: the folder stays on the server until its owner publishes it. Outside e
 """
 import hashlib
 import os
+import shutil
 import subprocess
 import sys
 import zipfile
@@ -44,15 +45,17 @@ def code_version():
 
 
 def with_heating(twins, catalogue, load=None, beams=None):
-    """The programme twins with a heating column ('same', 'different', 'unknown'), as scripts/v3_explore.py defines
-    it, for every pair."""
+    """The programme twins with what the twin test needs for every pair: t_loss (the lost shot's quench), t_start
+    (its flat-top start, empty if unknown) and heating ('same', 'different', 'unknown', as scripts/v3_explore.py
+    defines it)."""
     load = load or (lambda shot: extras.load_extras(int(shot), allow_download=False))
     ids = list(twins[["shot_id", "other"]].itertuples(index=False, name=None))
     beams = v3_explore.beam_power({shot for pair in ids for shot in pair}) if beams is None else beams
     t_quench = catalogue.set_index("shot_id")["t_quench"].to_dict()
     starts = {shot: v3_runs.flat_top_start(load(shot)) for shot in twins["shot_id"]}
     same = v3_explore.heating(ids, beams, t_quench, starts)
-    return twins.assign(heating=[same[pair] for pair in ids])
+    return twins.assign(t_loss=[t_quench.get(lost) for lost, _ in ids], t_start=[starts[lost] for lost, _ in ids],
+                        heating=[same[pair] for pair in ids])
 
 
 def tables(load=None, beams=None):
@@ -132,12 +135,24 @@ def readme(tabs, version):
                   "| group, other_group | the two shots' groups |", "| gap | shot_id minus other |",
                   "| rms, peak_ratio, overlap_s | the comparison of the two programmed currents: RMS difference over "
                   "the larger peak, smaller peak over larger, and the seconds compared |",
+                  "| t_loss | the lost shot's quench time (s) |",
+                  "| t_start | the start of the lost shot's flat-top (s): the programmed current first reaching 90% of "
+                  "its peak; empty if unknown |",
                   "| heating | same if the two shots' beam power, from the lost shot's flat-top start to 5 ms before "
                   "its loss, differs by under 10% of its peak (RMS) or neither has a beam; different; or unknown |", "",
                   f"Lost shots: {counts(twins, 'group')}. Beam heating: {counts(twins, 'heating')}. Programmes within "
                   f"1%: {(twins['rms'] < v3_runs.EXACT_RMS).mean():.1%}.", "",
                   "Twins share the programmed plasma current. Gas, shape and field are not matched, and the twin is "
                   "always the earlier shot.", ""]
+    if "programme_twins.csv" in tabs:
+        lines += ["### twin_score.py: the twin test for your own predictor", "",
+                  "    python twin_score.py scores.csv programme_twins.csv", "",
+                  "scores.csv has one row per score: shot_id, t_end (s, the end of the data the score used) and score "
+                  "(higher = more likely to be lost). Score only shots the model was not trained or tuned on; a pair "
+                  "counts when both of its shots are in the file. The script prints C, the share of pairs in which the "
+                  "lost shot scores higher than its twin before the loss (0.5 = chance), with a 95% range, on all "
+                  "pairs, on pairs with the same beam heating and on pairs whose programmes match within 1%. It needs "
+                  "only numpy and pandas.", ""]
     if "triplets.csv" in tabs:
         lines += [f"### triplets.csv ({len(tabs['triplets.csv']):,} rows)", "",
                   "For each lost shot with two such twins: shot_id, k1 (the nearest), k2 (the next), group.", ""]
@@ -167,6 +182,9 @@ def build(load=None, beams=None):
     with open(os.path.join(folder, "README.md"), "w") as f:
         f.write(readme(tabs, code_version()))
     names = sorted(list(tabs) + ["README.md"])
+    if "programme_twins.csv" in tabs:  # the scorer travels with the twins, so the test can be run from the release alone
+        shutil.copyfile(os.path.join(config.REPO_DIR, "scripts", "twin_score.py"), os.path.join(folder, "twin_score.py"))
+        names = sorted(names + ["twin_score.py"])
     with open(os.path.join(folder, "SHA256SUMS"), "w") as f:
         f.writelines(f"{sha256(os.path.join(folder, name))}  {name}\n" for name in names)
     with zipfile.ZipFile(folder + ".zip", "w", zipfile.ZIP_DEFLATED) as z:

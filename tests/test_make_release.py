@@ -33,11 +33,13 @@ def test_release_has_the_tables_without_comment_text(monkeypatch, tmp_path):
     beams = {s: (bins, np.full((len(bins), 1), v)) for s, v in {1: 2.0, 11: 2.0, 2: 2.0, 12: 1.0}.items()}
     folder = make_release.build(load=lambda shot: None, beams=beams)
     names = sorted(os.listdir(folder))
-    assert names == ["README.md", "SHA256SUMS", "events.csv", "programme_twins.csv", "shots.csv"]  # no optional inputs
+    assert names == ["README.md", "SHA256SUMS", "events.csv", "programme_twins.csv", "shots.csv", "twin_score.py"]
     events = pd.read_csv(os.path.join(folder, "events.csv"))
     assert "text" not in events and list(events.columns) == make_release.EVENT_COLUMNS
     assert "Person" not in open(os.path.join(folder, "events.csv")).read()
-    assert pd.read_csv(os.path.join(folder, "programme_twins.csv"))["heating"].tolist() == ["same", "different"]
+    twins = pd.read_csv(os.path.join(folder, "programme_twins.csv"))
+    assert twins["heating"].tolist() == ["same", "different"] and twins["t_loss"].tolist() == [0.3, 0.3]
+    assert twins["t_start"].isna().all()  # no programme in this made-up project
     readme = open(os.path.join(folder, "README.md")).read()
     assert "shots.csv (5 rows" in readme and "CC BY-SA 4.0" in readme and "Beam heating: " in readme
     assert "named_pairs.csv" not in readme and "triplets.csv" not in readme  # only files that are in the release
