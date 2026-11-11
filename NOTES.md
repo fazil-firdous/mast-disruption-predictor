@@ -892,3 +892,29 @@ shot with a matched or repeated shot. Counterfactuals in Piccione et al. (2022) 
 classifier; the spurious correlations of Xue et al. (2026) are between machines; Chayapathy et al. (2024) is data
 augmentation judged on the usual metrics. The fourth (Murari et al. 2024) could not be opened and is not cited for
 any claim. Paper 2 says "we found none" and describes the search.
+
+## 2026-11-11 - What comes after the twin paper, and a feasibility count
+
+- **Decided:** the broad study of which operating conditions go with a loss is dropped as a paper (at most a
+  descriptive appendix): it would give associations only a MAST physicist could read, on pairs already looked at
+  twice. Next study: **how early?** The twin test at fixed times before the loss (the score at one moment, the same
+  pairs for every model, twins that have ended left out), programme-only and machine-side baselines, one primary
+  lead and comparison written down first; training horizon changed only afterwards, one factor at a time.
+  No campaign in this data is untouched any more, so nothing in it can be called fresh confirmation.
+- **For a collaboration, not alone:** disturbances that the plasma survives against disturbances that end in a
+  loss. `scripts/event_outcomes.py` counts operator-timed events by what the shot did afterwards (planning only;
+  comments are written knowing the outcome):
+
+| Event | Timed | Shot not lost | Lost under 30 ms | 30 to 100 ms | 100 ms or more | Written after the quench time |
+|---|---|---|---|---|---|---|
+| IRE | 363 | 173 | 40 | 45 | 92 | 13 |
+| locked mode | 159 | 47 | 50 | 16 | 19 | 27 |
+| hardware trip | 143 | 57 | 26 | 18 | 28 | 14 |
+| VDE | 117 | 35 | 35 | 5 | 4 | 38 |
+| MHD/NTM | 76 | 36 | 5 | 11 | 22 | 2 |
+
+  - Internal reconnection events are the one class with both outcomes in numbers: 173 in shots that were not lost
+    and 92 more where the shot went on for at least 100 ms, against 85 lost within 100 ms. Locked modes and VDEs are
+    mostly the ending itself.
+  - A real study needs events found from the signals alone, a rule for 'recovered', and an expert's check of
+    examples.
