@@ -143,17 +143,22 @@ def pair_wins(scores, twins, t_quench, t_start, leads_ms=LEADS_MS):
     by pair (same comparisons on the same saved values).
 
     win_common is the same comparison with both shots cut to the time they share (to within half a window stride),
-    so that a shot whose twin ended first does not get more windows to take its highest score from."""
+    so that a shot whose twin ended first does not get more windows to take its highest score from. win_end
+    compares the two scores at each shot's last shared window: one fixed time before the loss.
+
+    If twins has its own t_loss and t_start columns they are used row by row (the placebo pairs, whose times come
+    from a third shot named in the column ref); otherwise the times come from the two dicts."""
     by_shot = {shot: (g["t_end"].to_numpy(), g["score"].to_numpy()) for shot, g in scores.groupby("shot_id")}
     slack = config.STRIDE_MS / 2000
+    own_times = "t_loss" in twins.columns
     rows = []
     for row in twins.itertuples():
         lost, kept = by_shot.get(row.shot_id), by_shot.get(row.other)
-        tq = t_quench.get(row.shot_id, np.nan)
+        tq = row.t_loss if own_times else t_quench.get(row.shot_id, np.nan)
         if lost is None or kept is None or not np.isfinite(tq):
             continue
-        start = t_start.get(row.shot_id)
-        t_from = -np.inf if start is None else float(start)
+        start = row.t_start if own_times else t_start.get(row.shot_id)
+        t_from = -np.inf if start is None or not np.isfinite(start) else float(start)
         for lead in leads_ms:
             t_to = float(tq) - lead / 1000
             in_a, in_b = (lost[0] >= t_from) & (lost[0] <= t_to), (kept[0] >= t_from) & (kept[0] <= t_to)
@@ -162,10 +167,47 @@ def pair_wins(scores, twins, t_quench, t_start, leads_ms=LEADS_MS):
                 continue
             ta, tb = lost[0][in_a].astype(float), kept[0][in_b].astype(float)
             first, last = max(ta.min(), tb.min()) - slack, min(ta.max(), tb.max()) + slack
-            a2, b2 = a[(ta >= first) & (ta <= last)], b[(tb >= first) & (tb <= last)]
-            rows.append({"shot_id": row.shot_id, "other": row.other, "lead_ms": lead, "win": highest(a, b),
-                         "win_common": highest(a2, b2) if len(a2) and len(b2) else np.nan})
-    return pd.DataFrame(rows, columns=["shot_id", "other", "lead_ms", "win", "win_common"])
+            keep_a, keep_b = (ta >= first) & (ta <= last), (tb >= first) & (tb <= last)
+            a2, b2 = a[keep_a], b[keep_b]
+            shared = len(a2) > 0 and len(b2) > 0
+            end_a, end_b = (a2[np.argmax(ta[keep_a])], b2[np.argmax(tb[keep_b])]) if shared else (np.nan, np.nan)
+            rows.append({"shot_id": row.shot_id, "other": row.other, "ref": getattr(row, "ref", row.shot_id),
+                         "lead_ms": lead, "win": highest(a, b), "win_common": highest(a2, b2) if shared else np.nan,
+                         "win_end": (1.0 if end_a > end_b else 0.5 if end_a == end_b else 0.0) if shared else np.nan})
+    return pd.DataFrame(rows, columns=["shot_id", "other", "ref", "lead_ms", "win", "win_common", "win_end"])
+
+
+def placebo_pairs(triplets, t_quench, starts, load):
+    """The placebo of docs/preregistration_v3.md: for each lost shot with two kept same-programme shots, K1 against
+    K2 as if K1 were the lost shot, with the lost shot's own times. Columns as pair_wins wants them."""
+    rows = []
+    for row in triplets.itertuples():
+        tq = t_quench.get(row.shot_id, np.nan)
+        if not np.isfinite(tq):
+            continue
+        if row.shot_id not in starts:
+            starts[row.shot_id] = v3_runs.flat_top_start(load(row.shot_id))
+        start = starts[row.shot_id]
+        rows.append({"shot_id": row.k1, "other": row.k2, "ref": row.shot_id, "t_loss": float(tq),
+                     "t_start": np.nan if start is None else float(start)})
+    return pd.DataFrame(rows, columns=["shot_id", "other", "ref", "t_loss", "t_start"])
+
+
+def shot_groups(first, second):
+    """A group number per pair: pairs linked through any shared shot, directly or through other pairs, get the same
+    number (a shot can be the later one of one placebo pair and the earlier one of another)."""
+    parent = {}
+
+    def find(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for a, b in zip(first, second):
+        parent[find(a)] = find(b)
+    return np.array([find(a) for a in first])
 
 
 def run_folders():
@@ -210,7 +252,7 @@ def time_range(lost, t_quench, t_start, lead_ms):
     return (-np.inf if start is None else start), tq - lead_ms / 1000
 
 
-def heating(pair_ids, beams, t_quench, t_start):
+def heating(pair_ids, beams, t_quench, t_start, lead_ms=config.MIN_WARNING_MS):
     """{(lost shot, twin): 'same', 'different' or 'unknown'}: did the two shots have the same beam heating? Twins
     are matched on the programmed current only. Compared over the windows both have from the lost shot's flat-top
     start to MIN_WARNING_MS before its loss: 'same' if the RMS difference of the beam power is under HEATING_RMS of
@@ -220,7 +262,7 @@ def heating(pair_ids, beams, t_quench, t_start):
     out = {}
     for lost, twin in pair_ids:
         out[(lost, twin)] = "unknown"
-        span = time_range(lost, t_quench, t_start, config.MIN_WARNING_MS)
+        span = time_range(lost, t_quench, t_start, lead_ms)
         both = shared(beams, lost, twin, *span) if span else None
         if both is None:
             continue
@@ -260,16 +302,19 @@ def margin(pair_ids, t_quench):
 
 
 def collect(load=None, beams=None, heights=None):
-    """(pairs, skill): pairs has one row per (model, split, twin pair, lead time) with the pair's groups, gap, beam
-    heating, early height and how long the twin went on; skill one row per finished run with its test pAUC, catch
-    and false-alarm rates."""
+    """(pairs, skill, placebo): pairs has one row per (model, split, twin pair, lead time) with the pair's groups,
+    gap, beam heating (whole time and early), early height and how long the twin went on; skill one row per finished
+    run with its test pAUC, catch and false-alarm rates; placebo one row per (model, split, placebo pair), empty if
+    scripts/twin_differences.py has not written its triplets."""
     from src import extras
     load = load or (lambda shot: extras.load_extras(int(shot), allow_download=False))
     twins = pd.read_csv(v3_runs.TWINS)
     labels = pd.read_csv(os.path.join(config.RESULTS_DIR, "auto_labels", "per_shot.csv"))
     t_quench = labels.set_index("shot_id")["t_quench"].to_dict()
     info = twins.set_index(["shot_id", "other"])[["group", "other_group", "gap", "rms"]]
-    starts, pairs, skill = {}, [], []
+    starts, pairs, skill, placebo = {}, [], [], []
+    triplets_path = os.path.join(config.RESULTS_DIR, "twin_differences", "triplets.csv")
+    fake = placebo_pairs(pd.read_csv(triplets_path), t_quench, starts, load) if os.path.exists(triplets_path) else None
     for recipe, base in run_folders().items():
         for entry in sorted(os.listdir(base)) if os.path.isdir(base) else []:
             metrics_path = os.path.join(base, entry, "metrics.json")
@@ -288,20 +333,27 @@ def collect(load=None, beams=None, heights=None):
                     starts[shot] = v3_runs.flat_top_start(load(shot))
             wins = pair_wins(scores, mine, t_quench, starts)
             pairs.append(wins.join(info, on=["shot_id", "other"]).assign(recipe=recipe, seed=m["seed"]))
-    columns = ["shot_id", "other", "lead_ms", "win", "win_common", "group", "other_group", "gap", "rms", "recipe", "seed",
-               "heating", "height", "margin"]
+            if fake is not None:
+                both_in = fake[fake["shot_id"].isin(ids) & fake["other"].isin(ids)]
+                placebo.append(pair_wins(scores, both_in, {}, {}, leads_ms=(config.MIN_WARNING_MS,)).assign(
+                    recipe=recipe, seed=m["seed"]))
+    columns = ["shot_id", "other", "ref", "lead_ms", "win", "win_common", "win_end", "group", "other_group", "gap", "rms",
+               "recipe", "seed", "heating", "heating_early", "height", "margin"]
     skill = pd.DataFrame(skill, columns=["recipe", "seed", "pauc", "catch_rate", "false_alarm_rate"])
+    placebo = (pd.concat(placebo, ignore_index=True) if placebo else
+               pd.DataFrame(columns=["shot_id", "other", "ref", "lead_ms", "win", "win_common", "win_end", "recipe", "seed"]))
     if not pairs:
-        return pd.DataFrame(columns=columns), skill
+        return pd.DataFrame(columns=columns), skill, placebo
     pairs = pd.concat(pairs, ignore_index=True)
     ids = list(pairs[["shot_id", "other"]].drop_duplicates().itertuples(index=False, name=None))
     beams = beam_power({shot for pair in ids for shot in pair}) if beams is None else beams
     heights = window_means({shot for pair in ids for shot in pair}, "zmag") if heights is None else heights
     keys = list(zip(pairs["shot_id"], pairs["other"]))
     for column, labels in (("heating", heating(ids, beams, t_quench, starts)),
+                           ("heating_early", heating(ids, beams, t_quench, starts, EARLY_MS)),
                            ("height", early_height(ids, heights, t_quench, starts)), ("margin", margin(ids, t_quench))):
         pairs[column] = [labels[key] for key in keys]
-    return pairs, skill
+    return pairs, skill, placebo
 
 
 def c_table(pairs, by=None, value="win"):
@@ -320,16 +372,18 @@ def c_table(pairs, by=None, value="win"):
     return pd.DataFrame(rows, columns=keys + ["C", "low", "high", "splits", "pairs_per_split"])
 
 
-def pooled_table(pairs, value="win", seed=config.RANDOM_SEED):
+def pooled_table(pairs, value="win", seed=config.RANDOM_SEED, connected=False):
     """C pooled over the twin pairs (each pair's mean over the splits it is tested in), with a 95% range from
     resampling whole groups of pairs that share their twin. This range allows for one kept shot being the twin of
     several lost shots, which the range over splits does not; it does not allow for the model changing with the
-    training set. Columns: recipe, C, low, high, pairs."""
+    training set. Columns: recipe, C, low, high, pairs. connected: group pairs linked through any shared shot (for
+    the placebo pairs, where a shot can be on either side)."""
     rows = []
     for recipe, part in pairs[pairs[value].notna()].groupby("recipe", sort=False):
         per_pair = part.groupby(["shot_id", "other"])[value].mean().reset_index()
-        c, low, high, n = twin_differences.cluster_range(per_pair[value].to_numpy(dtype=float),
-                                                         per_pair["other"].to_numpy(), np.random.default_rng(seed), N_BOOT)
+        groups = shot_groups(per_pair["shot_id"], per_pair["other"]) if connected else per_pair["other"].to_numpy()
+        c, low, high, n = twin_differences.cluster_range(per_pair[value].to_numpy(dtype=float), groups,
+                                                         np.random.default_rng(seed), N_BOOT)
         rows.append({"recipe": recipe, "C": c, "low": low, "high": high, "pairs": n})
     return pd.DataFrame(rows, columns=["recipe", "C", "low", "high", "pairs"])
 
@@ -349,9 +403,30 @@ def pooled_delta(pairs, a, b, value="win", seed=config.RANDOM_SEED):
                                           np.random.default_rng(seed), N_BOOT)
 
 
+def pooled_group_difference(pairs, recipe, value="win_common", first="recorded", second="candidate",
+                            seed=config.RANDOM_SEED):
+    """(difference, low, high, pairs of the first kind, of the second) of pooled C between two kinds of lost shot for
+    one model. Groups of pairs that share a twin are resampled together, whatever their kind, and the difference is
+    recomputed in every resample. None if a kind has no pairs."""
+    part = pairs[(pairs["recipe"] == recipe) & pairs[value].notna()]
+    per = part.groupby(["shot_id", "other", "group"])[value].mean().reset_index()
+    is_a, is_b = (per["group"] == first).to_numpy(dtype=float), (per["group"] == second).to_numpy(dtype=float)
+    if is_a.sum() == 0 or is_b.sum() == 0:
+        return None
+    _, code = np.unique(per["other"].to_numpy(), return_inverse=True)
+    v = per[value].to_numpy(dtype=float)
+    sa, na, sb, nb = (np.bincount(code, weights=w) for w in (v * is_a, is_a, v * is_b, is_b))
+    pick = np.random.default_rng(seed).integers(len(sa), size=(N_BOOT, len(sa)))
+    with np.errstate(all="ignore"):
+        boot = sa[pick].sum(axis=1) / na[pick].sum(axis=1) - sb[pick].sum(axis=1) / nb[pick].sum(axis=1)
+    return (float(sa.sum() / na.sum() - sb.sum() / nb.sum()), float(np.nanpercentile(boot, 2.5)),
+            float(np.nanpercentile(boot, 97.5)), int(na.sum()), int(nb.sum()))
+
+
 def summary(collected=None):
     """The ladder and the breakdowns as tables; also writes v3_explore/twin_pairs.csv and summary.json."""
-    pairs, skill = collected or collect()
+    pairs, skill, *rest = collected or collect()
+    placebo = rest[0] if rest else pairs.iloc[:0]
     main = pairs[pairs["lead_ms"] == config.MIN_WARNING_MS]
     exact = main["rms"].astype(float) < v3_runs.EXACT_RMS
     same = main["heating"] == "same"
@@ -362,11 +437,20 @@ def summary(collected=None):
               "by_height": c_table(main[main["height"] != "unknown"], "height"),
               "by_matched": c_table(main[(main["heating"] == "same") & (main["height"] == "same")]),
               "by_margin": c_table(main, "margin"),
+              "end": c_table(main, value="win_end"), "pooled_end": pooled_table(main, "win_end"),
+              "by_heating_early": c_table(main[main["heating_early"] != "unknown"], "heating_early", value="win_common"),
+              "placebo": c_table(placebo, value="win_common"),
+              "placebo_pooled": pooled_table(placebo, "win_common", connected=True),
+              "group_difference": pd.DataFrame(
+                  [{"recipe": r, **dict(zip(("difference", "low", "high", "recorded", "candidate"), d))}
+                   for r in ("baseline", "machine") for d in [pooled_group_difference(main, r)] if d],
+                  columns=["recipe", "difference", "low", "high", "recorded", "candidate"]),
               "by_other_group": c_table(main, "other_group"), "by_lead": c_table(pairs, "lead_ms"),
               "skill": skill.groupby("recipe")[["pauc", "catch_rate", "false_alarm_rate"]].mean().reset_index()}
     if len(pairs):
         os.makedirs(folder(), exist_ok=True)
         pairs.to_csv(os.path.join(folder(), "twin_pairs.csv"), index=False)
+        placebo.to_csv(os.path.join(folder(), "placebo_pairs.csv"), index=False)
         experiment.write_json({name: table.to_dict(orient="records") for name, table in result.items()},
                               os.path.join(folder(), "summary.json"))
     return result
@@ -407,6 +491,33 @@ def text(result):
             cells = [f"{t.loc[model, 'C']:.3f} ({t.loc[model, 'low']:.3f} to {t.loc[model, 'high']:.3f})"
                      for t in (pooled, pooled_common) if model in t.index]
             lines.append(f"- {SEEN[model]}: " + "; ".join(cells) + f", {int(pooled.loc[model, 'pairs']):,} pairs")
+    def by_model(table, models=MODELS):
+        table = table.set_index("recipe") if len(table) else table
+        return table, [m for m in models if m in table.index]
+
+    def pooled_cell(table, model):
+        return (f"{table.loc[model, 'C']:.3f} ({table.loc[model, 'low']:.3f} to {table.loc[model, 'high']:.3f}), "
+                f"{int(table.loc[model, 'pairs']):,} pairs")
+
+    lines += ["", "Final checks (defined in docs/preregistration_v3.md before they were run; exploratory).",
+              "Placebo, two good repeats: K1 against K2 as if K1 were the lost shot (same-time statistic; over splits | "
+              "pooled, groups of connected shots resampled together):"]
+    placebo, models = by_model(result["placebo"])
+    placebo_pooled, _ = by_model(result["placebo_pooled"])
+    lines += [f"- {SEEN[m]}: {cell(placebo.loc[m])} | {pooled_cell(placebo_pooled, m)}" for m in models] or ["- no triplets"]
+    lines += ["Early beam heating, compared only up to "
+              f"{EARLY_MS} ms before the loss (same-time statistic):"]
+    early = result["by_heating_early"]
+    for value in sorted(early["heating_early"].unique()) if len(early) else []:
+        part, models = by_model(early[early["heating_early"] == value])
+        lines.append(f"- {value} early heating: " + "; ".join(f"{m} {cell(part.loc[m])}" for m in models))
+    lines.append("Score at each shot's last shared window (over splits | pooled over twin groups):")
+    end, models = by_model(result["end"])
+    pooled_end, _ = by_model(result["pooled_end"])
+    lines += [f"- {SEEN[m]}: {cell(end.loc[m])} | {pooled_cell(pooled_end, m)}" for m in models]
+    lines.append("Recorded minus candidate lost shots, pooled C (same-time statistic; twin groups resampled jointly):")
+    lines += [f"- {SEEN[r['recipe']]}: {r['difference']:+.3f} ({r['low']:+.3f} to {r['high']:+.3f}), {int(r['recorded']):,} "
+              f"recorded and {int(r['candidate']):,} candidate pairs" for r in result["group_difference"].to_dict("records")]
     lines += ["", f"The ladder on twins whose programmes differ by under {v3_runs.EXACT_RMS:.0%} (exact) and on the "
                   "rest (loose, up to 10%):"]
     exact, loose = (result[name].set_index("recipe") if len(result[name]) else result[name]

@@ -108,9 +108,34 @@ Code as committed at 36cd1a6, started on the server before this note; no output 
   result on campaigns the model never trained on. A range that includes 0.5 is uncertainty, not evidence of no
   skill. Either way the result is reported next to the random-split result, and no setting is changed after it.
 
+### 2026-11-11, later: four final checks (written before any of them was run)
+
+All four use the saved scores of the random-split runs, are exploratory, and are reported whatever they show. No
+further analysis is added to this study after them.
+
+- **Placebo: two good repeats.** For each lost shot with two same-programme kept shots K1 (nearer, later) and K2
+  (earlier), the twin test is run on K1 against K2 as if K1 were the lost shot: both scored from the lost shot's
+  flat-top start to 5 ms before the lost shot's loss, same-time statistic, pairs counted when K1 and K2 are both in
+  a split's test set. Ranges: over splits, and pooled with groups of shots connected through any shared shot
+  resampled together (a shot can be K1 in one triplet and K2 in another). *Reading:* a value above 0.5 means the
+  later of two good repeats tends to score higher under this protocol, an asymmetry that could also be present in
+  the main test; a value near 0.5 is reassuring and does not prove the main test unbiased. It is reported beside
+  the main result and is not subtracted from it.
+- **Early beam heating.** Pairs are also split by beam heating compared only from the flat-top start to 100 ms
+  before the loss (the boundary already used for the early height), so that a beam that changed in response to the
+  event near the loss does not decide the match. A different design, not a correction for confounding.
+- **One other summary of a shot's scores.** Besides the highest score (registered, and its same-time form), the
+  score at each shot's last shared window. It asks whether the lost shot is ranked higher at one fixed time before
+  the loss. All three summaries are reported.
+- **Recorded minus candidate.** The difference between the pooled C of recorded and of candidate lost shots, with
+  groups of pairs sharing a twin resampled jointly and the difference recomputed in each resample.
+
 ### What each range covers
 
 - *Over splits* (corrected resampled t-test): the model changing with the training set and the test shots drawn;
   not one kept shot serving as the twin of several lost shots within a split.
 - *Over groups of pairs sharing a twin* (cluster bootstrap on saved scores): shared twins; conditions on the fitted
   models.
+- The corrected resampled t-test is kept as the pre-specified approximate analysis. Its coverage has not been checked
+  for matched pairs with shared twins. Ranges for the chronological split are conditional on the fitted models and
+  on that one change of campaigns.
