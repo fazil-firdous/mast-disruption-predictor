@@ -824,3 +824,42 @@ A review of draft v0.4 (from another AI model, pasted by Fazil) made six points.
   twin; the chronological test's reading was committed (bd592f7) before any of its output was seen.
 - Not done, on purpose: an early-only beam comparison, a fixed cohort for the lead-time curve and wall-clock gaps
   (not in the data). They would add slices without changing the core inference; the paper lists them as limits.
+
+## 2026-11-11 - The chronological split and the core table (all exploratory; reading fixed in bd592f7 beforehand)
+
+**Chronological split** (`scripts/v3_explore.py --temporal`): trained and tuned on M5-M7, twin test on the 1,085
+pairs of M8-M9; same-time statistic; ranges over groups of pairs sharing a twin.
+
+| Model | Usual metrics on M8-M9 (pAUC, caught, false alarms) | C, all test twins | C, same heating (277) |
+|---|---|---|---|
+| programme-only | 0.024, 0.0%, 0.1% | 0.499 (0.474 to 0.524) | 0.491 (0.476 to 0.505) |
+| machine-side | 0.127, 11.0%, 1.7% | 0.522 (0.479 to 0.565) | 0.523 (0.460 to 0.586) |
+| baseline | 0.163, 14.0%, 4.0% | 0.627 (0.585 to 0.666) | 0.599 (0.534 to 0.668) |
+
+- Baseline minus machine-side on identical pairs: +0.105 (+0.048 to +0.157); with the heating matched +0.076
+  (-0.008 to +0.165).
+- **The within-pair result holds on campaigns the model never saw** (0.627, clear of 0.5), while the usual alarm
+  metrics fall by more than half and the programme-only model keeps nothing (pAUC under random, C at 0.50). What a
+  model learns about risky programmes does not carry over; what it reads in the shot does, in part.
+- Recorded lost shots 0.727 (0.648 to 0.801, 154 pairs), candidates 0.610 (0.565 to 0.655, 931 pairs).
+
+**Core table** (`scripts/paper2_numbers.py`), same-time statistic, random splits; splits range | twin-groups range:
+
+| Pairs (different twins) | Baseline | Machine-side | Difference |
+|---|---|---|---|
+| all, 3,349 (1,554) | 0.679 (0.630-0.728) \| 0.683 (0.661-0.702) | 0.590 \| 0.591 (0.572-0.610) | +0.089 (+0.023 to +0.155) \| +0.092 (+0.066 to +0.116) |
+| same heating, 1,219 (718) | 0.642 (0.572-0.712) \| 0.646 (0.616-0.676) | 0.535 \| 0.543 (0.518-0.568) | +0.106 (-0.004 to +0.217) \| +0.103 (+0.065 to +0.140) |
+| same heating and height, 877 (553) | 0.612 (0.532-0.691) \| 0.620 (0.584-0.654) | 0.520 \| 0.528 (0.499-0.559) | +0.091 (-0.044 to +0.227) \| +0.092 (+0.046 to +0.135) |
+| recorded, 554 (393) | 0.756 (0.642-0.869) \| 0.758 (0.719-0.793) | 0.618 \| 0.609 | +0.138 (+0.000 to +0.275) \| +0.149 (+0.103 to +0.192) |
+| candidates, 2,795 (1,353) | 0.663 (0.605-0.721) \| 0.668 (0.645-0.691) | 0.584 \| 0.587 | +0.079 (-0.000 to +0.158) \| +0.081 (+0.054 to +0.108) |
+
+- Every tested pair has shared time (0 of 39,040 rows dropped), so the same-time statistic is on identical pairs.
+- **Recorded disruptions are separated from their twins more often than candidates** (0.76 against 0.66; the
+  twin-group ranges do not overlap; same order on the later campaigns). The earlier wording 'as recorded
+  disruptions are' was wrong and is corrected in the draft. Weaker precursors in every candidate, or a share of
+  candidates that were not disruptions, would both give this.
+- Twin reuse: 1,700 different kept shots for 3,902 lost shots; 52% serve one, 21% two, 28% three or more, at most
+  18. Triplet gaps: median 2 shots from L to K1 and from K1 to K2 (means 5.0 and 4.3). Lost shots without a twin
+  (892): 19.3% recorded against 16.9% with a twin.
+- Paper 2 draft v0.7 carries all of this (private). Open: the data-release DOI, a physicist's read, the full
+  texts of the three nearest papers.
