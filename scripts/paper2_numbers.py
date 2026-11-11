@@ -46,7 +46,7 @@ def twins_text(twins):
 
 
 def core_table(main):
-    """The table a review asked for: the full model, the machine-side model and their paired difference, with the
+    """The core table: the full model, the machine-side model and their paired difference, with the
     registered statistic and with both shots scored over the same time, on all twins and under stricter matching.
     Two ranges each: over the 50 splits, and over groups of pairs that share a twin."""
     same = main["heating"] == "same"
