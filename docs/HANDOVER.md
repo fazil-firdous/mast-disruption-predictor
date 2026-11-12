@@ -87,14 +87,15 @@ Every saved result carries a fingerprint of the science code, the science settin
   (`docs/literature_review.md`, section 6).
 - **What the twin test showed, in one line:** the full model ranks a lost shot above its same-programme twin more
   often than a machine-side model does; part of every model's score also appears between two good repeats.
-- **How early?** (2026-11-12, `docs/preregistration_how_early.md`): Part A is in the notes; Part B (a 100 ms
-  training horizon) is built and waits for its runs.
+- **How early?** (2026-11-12, `docs/preregistration_how_early.md`): both parts are run and in the notes. The plasma
+  signals' advantage is clear in the last 10 to 30 ms; training to warn 100 ms ahead did not move it earlier.
 
 ## What could come next
 
 In the order they seem worth doing.
 
-1. **How early?** In progress; see the line above and the notes.
+1. **Earlier warning with other inputs.** The how-early study used 20 ms window means. Faster signals, other
+   features and sequence models are untested; its protocol and fixed-time test can be reused as they are.
 2. **A second machine.** The label audit and the twin test need only a programmed current, a solenoid current and
    operators' notes. Any tokamak with those could be checked. Needs data access.
 3. **Recover or progress.** Operators timed 363 internal reconnection events and 159 locked modes; about half the

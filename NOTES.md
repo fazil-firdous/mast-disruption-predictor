@@ -978,3 +978,39 @@ windows reaching 100 ms before a recorded disruption, on random splits 1 to 20 a
   model, common cohort, paired over splits 1 to 20. Not resolved over splits means: a longer horizon, with these
   features, does not buy earlier discrimination. The 10 to 50 ms differences show what it costs late.
 - `--part-b` writes the comparison (`how_early/part_b.txt`) and can be run while the training is going.
+
+## 2026-11-12 - How early? Part B result (100 ms training horizon; splits 1 to 20 and the chronological split)
+
+Common cohort, 124 pairs per split, identical pairs for every model. Over splits.
+
+| Lead | full, 30 ms horizon | full, 100 ms horizon | 100 minus 30 | machine-side, 100 ms | full minus machine-side, both 100 ms |
+|---|---|---|---|---|---|
+| 10 ms | 0.742 | 0.712 | -0.030 (-0.081 to +0.022) | 0.626 | +0.087 (+0.013 to +0.160) |
+| 30 ms | 0.662 | 0.680 | +0.018 (-0.050 to +0.086) | 0.591 | +0.089 (+0.011 to +0.166) |
+| 50 ms | 0.637 | 0.644 | +0.007 (-0.066 to +0.079) | 0.588 | +0.056 (-0.024 to +0.137) |
+| 100 ms | 0.577 | 0.614 (0.549 to 0.679) | **+0.037 (-0.046 to +0.119)** | 0.563 | +0.051 (-0.033 to +0.135) |
+
+- **Primary (bold): not resolved over training sets.** Pooled over 1,716 pairs it is +0.037 (+0.010 to +0.062);
+  the protocol says the range over splits decides the wording.
+- **On the later campaigns there is nothing:** chronological split, 844 pairs, +0.001 (-0.042 to +0.042) at 100 ms;
+  +0.020, +0.036 (-0.005 to +0.076) and +0.018 at 10, 30 and 50 ms.
+- **No resolved cost late either:** -0.030 at 10 ms on random splits, +0.020 on the later campaigns.
+- **Full against machine-side, both with the 100 ms horizon:** resolved at 10 and 30 ms, not at 50 and 100 ms. Later
+  campaigns: +0.088 (+0.037 to +0.140) at 10 ms; +0.034, +0.019 and +0.045 (-0.004 to +0.095) after that.
+- **The usual metrics went up** (means over 20 splits): full model pAUC 0.341 to 0.363 and caught 36.2% to 39.7%
+  (false alarms 5.1% to 5.3%); machine-side pAUC 0.182 to 0.237 and caught 19.0% to 26.5% (4.7% to 5.5%). Their
+  paired ranges, and the machine-side model's own change in C, were added to the script after these means were
+  seen (protocol, 'Changes after the first result'); the numbers are still to be filled in here.
+- **Reading, as fixed beforehand:** training these models to warn 100 ms ahead does not buy earlier discrimination
+  between a lost shot and its twin. With 20 ms window means from the public archive, the plasma signals' advantage
+  is clear in the last 10 to 30 ms and not beyond. This is about these features and this model family, not about
+  what the plasma shows: faster signals, other features and sequence models are untested.
+- **Where this leaves the study:** both parts of the protocol are done. The result belongs in the twin-test paper
+  as one section (it answers 'what if you train for a longer horizon?'), not in a paper of its own.
+
+## 2026-11-12 - The private source of the operations facts is not to be named
+
+Asked; the source prefers not to be named, cited or acknowledged in a paper. The twin-test paper therefore states
+only what is published: that the plasma current is held by feedback on the ohmic coil (described for MAST Upgrade's
+control system in arXiv:2603.28513, section 2.3.2), and, as a limit without a source, that gas, shape and field
+are not matched and that wall conditions change between shots.

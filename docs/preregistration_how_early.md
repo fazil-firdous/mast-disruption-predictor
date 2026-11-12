@@ -75,4 +75,19 @@ Features, model family, tuning grid, splits and everything else stay as in the v
 
 ## Changes after the first result
 
-(none yet)
+- **2026-11-12, after Part B's output had been read. Addition: a range for the usual metrics.** The protocol lists
+  the usual metrics of Part B as a secondary but gives them no range. Added: the difference (100 ms horizon minus
+  30 ms horizon) in pAUC, share caught and share of false alarms, paired over splits 1 to 20, with the corrected
+  range over splits. Seen before this was written: the means (full model pAUC 0.341 and 0.363, caught 36.2% and
+  39.7%; machine-side pAUC 0.182 and 0.237, caught 19.0% and 26.5%) and the twin-test results of Part B. Not seen:
+  the ranges. Reading, fixed now: if a model's pAUC difference is resolved over splits while its twin-test
+  difference at 100 ms is not, the longer horizon raised the usual metric without a measurable gain in telling a
+  lost shot from its twin earlier. If the pAUC difference is not resolved either, the longer horizon changed
+  nothing that this study can measure. No model, pair or lead is changed.
+- **Same date, same state of knowledge. Addition: the machine-side model's own change with the horizon.** The
+  protocol lists C(h) with the 100 ms horizon minus the 30 ms horizon for the full model only. Added: the same
+  difference for the machine-side model at 10, 30, 50 and 100 ms, paired over splits 1 to 20 on the common
+  cohort, because the machine-side model's usual metrics moved more than the full model's. Seen before this was
+  written: the machine-side model's C with the 100 ms horizon on splits 1 to 20 (0.626, 0.591, 0.588, 0.563) and
+  with the 30 ms horizon on all 50 splits (0.616, 0.608, 0.569, 0.530). Not seen: the paired difference. It is
+  read with the rule above.

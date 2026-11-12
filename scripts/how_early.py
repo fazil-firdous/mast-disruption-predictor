@@ -282,21 +282,40 @@ def train_b():
     notify.send("How early, Part B: the runs are done\n\n" + out)
 
 
-def usual_metrics(base, seeds):
-    """Mean test pAUC, catch rate and false-alarm rate over the finished runs of these seeds, or None."""
-    rows = []
+USUAL = ("pauc", "catch_rate", "false_alarm_rate")
+
+
+def usual_by_seed(base, seeds):
+    """{seed: its test metrics} for the finished runs of these seeds."""
+    out = {}
     for seed, path in saved_runs(base):
         if seed in seeds:
             with open(os.path.join(path, "metrics.json")) as f:
-                rows.append(json.load(f)["test"])
+                out[seed] = json.load(f)["test"]
+    return out
+
+
+def usual_metrics(base, seeds):
+    """Mean test pAUC, catch rate and false-alarm rate over the finished runs of these seeds, or None."""
+    rows = list(usual_by_seed(base, seeds).values())
     if not rows:
         return None
-    return tuple(float(np.mean([r[k] for r in rows])) for k in ("pauc", "catch_rate", "false_alarm_rate")) + (len(rows),)
+    return tuple(float(np.mean([r[k] for r in rows])) for k in USUAL) + (len(rows),)
+
+
+def usual_difference(base_a, base_b, seeds):
+    """{metric: (mean, low, high)} of the runs in base_a minus those in base_b, paired split by split, and the
+    number of splits both have; or None."""
+    a, b = usual_by_seed(base_a, seeds), usual_by_seed(base_b, seeds)
+    both = sorted(set(a) & set(b))
+    if not both:
+        return None
+    return {k: corrected_interval(np.array([a[s][k] - b[s][k] for s in both], dtype=float)) for k in USUAL}, len(both)
 
 
 def text_b(random, temporal):
     """Part B in words, in the order of the protocol."""
-    full, long_full, long_machine = "baseline", "baseline" + LONG, "machine" + LONG
+    full, machine, long_full, long_machine = "baseline", "machine", "baseline" + LONG, "machine" + LONG
     main = random[(random["kind"] == "main") & random["cohort"].astype(bool)] if len(random) else random
     lines = [f"How early? Part B (docs/preregistration_how_early.md): trained to warn {HORIZON_B_MS} ms ahead, against "
              "30 ms. Random splits 1 to 20, common cohort, identical pairs.", ""]
@@ -318,6 +337,12 @@ def text_b(random, temporal):
         if long_machine in split:
             cells += [rng(*split[long_machine][:3]), rng(*split_difference(main, lead, long_full, long_machine)[:3], signed=True)]
         lines.append(f"- {lead} ms ({split[full][3]:.0f} pairs per split): " + " | ".join(cells))
+    lines += ["", "Machine-side model per lead, over splits (30 ms | 100 ms | 100 minus 30); added after the first result:"]
+    for lead in COHORT_LEADS:
+        split = over_splits(main, lead) if len(main) else {}
+        if machine in split and long_machine in split:
+            lines.append(f"- {lead} ms: {rng(*split[machine][:3])} | {rng(*split[long_machine][:3])} | "
+                         f"{rng(*split_difference(main, lead, long_machine, machine)[:3], signed=True)}")
     lines += ["", "Usual metrics, mean over the splits (pAUC, caught, false alarms):"]
     folders = v3_explore.run_folders()
     for name, base in (("full, 30 ms", folders["baseline"]), ("full, 100 ms", os.path.join(b_folder(), "baseline")),
@@ -325,6 +350,12 @@ def text_b(random, temporal):
         m = usual_metrics(base, set(B_SEEDS))
         if m:
             lines.append(f"- {name}: {m[0]:.3f}, {m[1]:.1%}, {m[2]:.1%} ({m[3]} splits)")
+    for name, recipe in (("full", "baseline"), ("machine-side", "machine")):
+        d = usual_difference(os.path.join(b_folder(), recipe), folders[recipe], set(B_SEEDS))
+        if d:
+            lines.append(f"- {name}, 100 ms minus 30 ms, paired over {d[1]} splits: pAUC {rng(*d[0]['pauc'], signed=True)}; "
+                         f"caught {rng(*d[0]['catch_rate'], signed=True)}; false alarms "
+                         f"{rng(*d[0]['false_alarm_rate'], signed=True)}")
     t_main = temporal[(temporal["kind"] == "main") & temporal["cohort"].astype(bool)] if len(temporal) else temporal
     lines += ["", "Chronological split, common cohort, pooled (full 30 ms | full 100 ms | 100 minus 30 | full minus "
                   "machine-side, both 100 ms):"]
