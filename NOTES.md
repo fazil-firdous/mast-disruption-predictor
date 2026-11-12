@@ -1021,3 +1021,20 @@ Asked; the source prefers not to be named, cited or acknowledged in a paper. The
 only what is published: that the plasma current is held by feedback on the ohmic coil (described for MAST Upgrade's
 control system in arXiv:2603.28513, section 2.3.2), and, as a limit without a source, that gas, shape and field
 are not matched and that wall conditions change between shots.
+
+## 2026-11-12 - The archive lists a programmed density and the injected gas; not used so far
+
+The published list of the archive's signals (arXiv:2602.10132, table of signals) names, next to the reference
+plasma current that the twins are matched on, a **reference plasma density** (`pulse_schedule/n_e_line`) and the
+**gas injected** (`gas_injection/total_injected`). The twin test did not use either, and an earlier line of
+reasoning here ('no gas plan in the public data') was too quick: what is missing is the requested shape and the
+control settings, as far as is known.
+
+- `scripts/programme_signals.py` looks first, on 150 twin pairs spread over the twin list: which variables the two
+  groups hold, how often the two signals are there and not constant, by campaign, and how alike the two shots of a
+  pair are in them. It reads no model score.
+- **Decided before its output:** if the reference density is there and not constant for most twins, one more
+  exploratory split is added to the twin test, 'same programmed density', built like the heating split and written
+  into `docs/preregistration_v3.md` before it is run. If it is missing or constant for most shots, the paper says
+  so and nothing is added.
+
