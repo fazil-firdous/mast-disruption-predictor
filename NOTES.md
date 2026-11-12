@@ -932,3 +932,33 @@ any claim. Paper 2 says "we found none" and describes the search.
   shot, and control parameters changed between shots. This fits the placebo result (a later good repeat already
   scores above an earlier one) and limits what any matched comparison on this archive can show.
 - To cite or acknowledge the source by name in a paper, ask first.
+
+## 2026-11-12 - How early? Part A (protocol `docs/preregistration_how_early.md`; saved scores, models trained for 30 ms)
+
+`scripts/how_early.py`. C(h): the lost shot's score against its twin's at one fixed moment h before the loss.
+Common cohort: 124 pairs per split, 2,663 pairs. Over splits unless marked.
+
+| Lead | programme-only | machine-side | full | full minus machine-side | pooled difference |
+|---|---|---|---|---|---|
+| 10 ms | 0.505 | 0.616 | 0.749 (0.693 to 0.805) | +0.133 (+0.069 to +0.197) | +0.137 (+0.114 to +0.159) |
+| 30 ms | 0.509 | 0.608 | 0.668 (0.616 to 0.720) | +0.060 (-0.008 to +0.128) | +0.065 (+0.042 to +0.089) |
+| 50 ms | 0.507 | 0.569 | 0.640 (0.583 to 0.698) | **+0.071 (+0.007 to +0.135)** | +0.078 (+0.054 to +0.102) |
+| 100 ms | 0.504 | 0.530 | 0.578 (0.524 to 0.631) | +0.047 (-0.032 to +0.127) | +0.045 (+0.022 to +0.071) |
+
+- **Primary (bold):** resolved over training sets, but only just; at 30 ms the same-sized lead is not.
+- **It does not hold on the later campaigns.** Chronological split, 844 pairs, pooled: the full model's lead over
+  the machine-side model is +0.075 (+0.023 to +0.127) at 10 ms, +0.003 at 30 ms, +0.014 (-0.036 to +0.068) at 50 ms
+  and +0.070 (+0.018 to +0.122) at 100 ms. So beyond the last 10 ms the lead over the machine-side model is small
+  and unstable.
+- **The full model itself stays above 0.5 out to 100 ms**, on random splits (0.578) and on the later campaigns
+  (0.559, 0.517 to 0.603). Programme-only is at 0.49 to 0.51 at every lead, on both: the fixed-lead test does not
+  leak the programme.
+- **Why the machine-side model is close at 30 to 50 ms:** the solenoid is under feedback on the plasma current, so
+  it responds to the plasma. Machine-side is not a plasma-free baseline; programme-only is.
+- **Placebo** (two good repeats at their lost shot's landmark): full 0.546, 0.543, 0.541, 0.516, 0.515 at 10 to
+  200 ms, ranges over splits including 0.5; machine-side 0.547, 0.527, 0.512, 0.501, 0.530.
+- **Same early heating** (50 pairs per split): full 0.701, 0.623, 0.610, 0.543 at 10 to 100 ms; the lead over the
+  machine-side model is resolved over splits at 10 ms only.
+- **Reading, as fixed beforehand:** these models, trained to warn 30 ms ahead, show a clear advantage of plasma
+  signals over machine-side signals only in the last 10 ms or so; a smaller one at 30 to 50 ms that does not carry
+  to later campaigns. This says nothing yet about models trained for a longer horizon: that is Part B.
