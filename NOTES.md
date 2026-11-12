@@ -962,3 +962,19 @@ Common cohort: 124 pairs per split, 2,663 pairs. Over splits unless marked.
 - **Reading, as fixed beforehand:** these models, trained to warn 30 ms ahead, show a clear advantage of plasma
   signals over machine-side signals only in the last 10 ms or so; a smaller one at 30 to 50 ms that does not carry
   to later campaigns. This says nothing yet about models trained for a longer horizon: that is Part B.
+
+## 2026-11-12 - How early? Part B is built (nothing run yet)
+
+`scripts/how_early.py --train-b` trains what the protocol lists: the full and the machine-side model with positive
+windows reaching 100 ms before a recorded disruption, on random splits 1 to 20 and on the chronological split
+(42 runs). Results go to `how_early/h100/`; nothing under `v3/` or `v3_explore/` is touched and no stamp changes.
+
+- **What is the same as the 30 ms runs:** the shots in each part of every split (same seed, same function), the
+  windows, the inputs, the model family and its tuning grid, candidates left out of training, tuning and judging on
+  clear endings, the shot-level definitions of caught and false alarm. A test checks that only the label differs.
+- **What follows the horizon, besides the training labels:** the validation labels, which enter tuning only as the
+  tie-break (window PR-AUC) between settings with the same validation catch rate.
+- **Reading, fixed in the protocol:** primary = C(100 ms) with the 100 ms horizon minus with the 30 ms horizon, full
+  model, common cohort, paired over splits 1 to 20. Not resolved over splits means: a longer horizon, with these
+  features, does not buy earlier discrimination. The 10 to 50 ms differences show what it costs late.
+- `--part-b` writes the comparison (`how_early/part_b.txt`) and can be run while the training is going.
