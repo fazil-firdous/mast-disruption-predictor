@@ -1037,4 +1037,9 @@ control settings, as far as is known.
   exploratory split is added to the twin test, 'same programmed density', built like the heating split and written
   into `docs/preregistration_v3.md` before it is run. If it is missing or constant for most shots, the paper says
   so and nothing is added.
+- **First run on the server (2026-11-12): an hour with no output, stopped by hand.** The script printed only at the
+  end and had no time limit on a request, so a stalled connection to the store could not be told from slow work. It
+  now reads the first shot alone and shows it, prints one line per shot, limits every request to 60 s, counts a
+  failed shot and goes on, and stops with a message when the store does not answer. Checked here against local
+  stores in the archive's format, including a connection that never answers. Default sample: 60 pairs, 4 at a time.
 
