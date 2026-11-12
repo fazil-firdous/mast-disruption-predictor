@@ -16,8 +16,8 @@ The research server cannot reach the store (its address range is blocked there),
 GitHub like the shots do: scripts/programme_fetch.py runs on a GitHub machine (.github/workflows/fetch_programme.yml)
 and this script collects its table.
 
-    python scripts/programme_signals.py --relay      # start the GitHub job, wait, collect its table (about an hour)
-    python scripts/programme_signals.py --collect    # only collect the newest finished job's table
+    python scripts/programme_signals.py --relay      # start the GitHub job, wait, collect its table (an hour or two)
+    python scripts/programme_signals.py --collect    # collect the newest job's table (waits if it is still running)
     python scripts/programme_signals.py              # every twin pair, from the collected table; no network
     python scripts/programme_signals.py --shots 150  # where the store answers: 150 shots spread over the shot table
 
@@ -297,17 +297,39 @@ def trigger(limit=0):
     return time.time()
 
 
-def find_run(requested_at=None):
-    """The run started by trigger() at requested_at; or, with None, the newest run that finished well. None if
-    GitHub lists no such run (yet)."""
+def list_runs():
+    """The latest runs of the GitHub job, as GitHub lists them."""
     response = requests.get(relay._api(f"/actions/workflows/{WORKFLOW}/runs"), headers=relay._headers(),
                             params={"per_page": 20}, timeout=30)
     relay.check(response)
-    runs = response.json().get("workflow_runs", [])
-    if requested_at is not None:
-        return relay.pick_run(runs, requested_at)
-    done = [r for r in runs if r.get("status") == "completed" and r.get("conclusion") == "success"]
-    return max(done, key=lambda r: r["created_at"]) if done else None
+    return response.json().get("workflow_runs", [])
+
+
+def find_run(requested_at):
+    """The run started by trigger() at requested_at, or None if GitHub does not list it yet."""
+    return relay.pick_run(list_runs(), requested_at)
+
+
+def newest_run():
+    """The newest run of the GitHub job, whatever started it and whether or not it has finished; None if there is none."""
+    runs = list_runs()
+    return max(runs, key=lambda r: r["created_at"]) if runs else None
+
+
+def wait(run, say=print, poll_s=30, hours=6):
+    """Wait until the run has finished; an error if it did not finish well or not in time."""
+    last, deadline = None, time.time() + hours * 3600
+    while time.time() < deadline:
+        status, conclusion = relay.run_status(run["id"])
+        if status != last:
+            say(f"  {time.strftime('%H:%M:%S')} the GitHub job is {status.replace('_', ' ')}")
+            last = status
+        if status == "completed":
+            if conclusion != "success":
+                raise RuntimeError(f"the GitHub job ended with '{conclusion}': {run.get('html_url', run['id'])}")
+            return
+        time.sleep(poll_s)
+    raise RuntimeError(f"the GitHub job did not finish within {hours} hours")
 
 
 def collect(run_id):
@@ -338,25 +360,33 @@ def through_github(limit=0, say=print, poll_s=30, hours=6):
         raise RuntimeError("no GitHub token: GITHUB_TOKEN is not set (it lives in ~/mast-private/.env)")
     requested = trigger(limit)
     say("asked GitHub to start the job; waiting for it to appear ...")
-    run, deadline = None, time.time() + hours * 3600
+    run = None
     while run is None and time.time() < requested + 300:
         time.sleep(min(poll_s, 10))
         run = find_run(requested)
     if run is None:
         raise RuntimeError("GitHub did not list the job within five minutes; look at the Actions page of the repository")
     say(f"job started: {run.get('html_url', run['id'])}")
-    last = None
-    while time.time() < deadline:
-        status, conclusion = relay.run_status(run["id"])
-        if status != last:
-            say(f"  {time.strftime('%H:%M:%S')} {status}")
-            last = status
-        if status == "completed":
-            if conclusion != "success":
-                raise RuntimeError(f"the GitHub job ended with '{conclusion}': {run.get('html_url', run['id'])}")
-            return collect(run["id"])
-        time.sleep(poll_s)
-    raise RuntimeError(f"the GitHub job did not finish within {hours} hours")
+    wait(run, say, poll_s, hours)
+    return collect(run["id"])
+
+
+def collect_newest(say=print, poll_s=30, hours=6):
+    """Collect the table of the newest GitHub job, waiting for it first if it is still running."""
+    if not relay.configured():
+        raise RuntimeError("no GitHub token: GITHUB_TOKEN is not set (it lives in ~/mast-private/.env)")
+    run = newest_run()
+    if run is None:
+        raise RuntimeError("GitHub lists no job of fetch_programme yet; start one with --relay")
+    say(f"newest job: started {run['created_at']}, {run.get('html_url', run['id'])}")
+    wait(run, say, poll_s, hours)
+    return collect(run["id"])
+
+
+def coverage(table, pairs):
+    """The share of the twin pairs' shots that the collected table holds."""
+    wanted = set(pairs["shot_id"]) | set(pairs["other"])
+    return len(wanted & set(table["shot_id"].unique())) / max(len(wanted), 1)
 
 
 def manifest_line(manifest):
@@ -377,10 +407,7 @@ def main():
         if args.relay:
             say(manifest_line(through_github(args.limit, say)))
         elif args.collect:
-            run = find_run()
-            if run is None:
-                raise RuntimeError("GitHub lists no finished job of fetch_programme yet")
-            say(manifest_line(collect(run["id"])))
+            say(manifest_line(collect_newest(say)))
     except RuntimeError as error:
         say(f"STOPPED: {error}")
         sys.exit(1)
@@ -405,7 +432,12 @@ def main():
         pairs = pd.read_csv(v3_runs.TWINS)
         labels = pd.read_csv(os.path.join(config.RESULTS_DIR, "auto_labels", "per_shot.csv"))
         t_loss = labels.set_index("shot_id")["t_quench"].to_dict()
-        results = from_table(pd.read_parquet(path), set(pairs["shot_id"]) | set(pairs["other"]))
+        table = pd.read_parquet(path)
+        if coverage(table, pairs) < 0.9:
+            say(f"STOPPED: the collected table holds {coverage(table, pairs):.0%} of the twin pairs' shots; it is from a "
+                "trial. Collect the table of a full job: python scripts/programme_signals.py --collect")
+            sys.exit(1)
+        results = from_table(table, set(pairs["shot_id"]) | set(pairs["other"]))
         shots, compared = tables(results, pairs, t_loss, campaign)
     os.makedirs(folder(), exist_ok=True)
     shots.to_csv(os.path.join(folder(), "shots.csv"), index=False)

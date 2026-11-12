@@ -257,7 +257,15 @@ def test_collecting_the_table_from_github(monkeypatch, tmp_path):
     posted = []
     monkeypatch.setattr(programme_signals.requests, "get", get)
     monkeypatch.setattr(programme_signals.requests, "post", lambda url, **kwargs: posted.append((url, kwargs["json"])) or Reply())
-    assert programme_signals.find_run()["id"] == 8  # the newest run that finished well, however it was started
+    assert programme_signals.newest_run()["id"] == 9  # the newest run, however it was started or ended
+    monkeypatch.setattr(programme_signals.relay, "run_status", lambda run_id: ("completed", "failure"))
+    with pytest.raises(RuntimeError, match="ended with 'failure'"):
+        programme_signals.collect_newest(say=lambda line: None, poll_s=0)
+    states = iter([("queued", None), ("in_progress", None), ("completed", "success")])
+    monkeypatch.setattr(programme_signals.relay, "run_status", lambda run_id: next(states))
+    said = []
+    programme_signals.wait({"id": 8}, said.append, poll_s=0)  # waits through queued and in progress
+    assert [line.split("the GitHub job is ")[1] for line in said] == ["queued", "in progress", "completed"]
     manifest = programme_signals.collect(8)
     assert manifest["shots_with_data"] == 2 and "shots with data of 2 asked" in programme_signals.manifest_line(manifest)
     assert sorted(p.name for p in (tmp_path / "data" / "programme").iterdir()) == ["manifest.json", "programme.parquet"]
@@ -266,6 +274,10 @@ def test_collecting_the_table_from_github(monkeypatch, tmp_path):
     programme_signals.trigger(40)
     assert posted[0][0].endswith("/actions/workflows/fetch_programme.yml/dispatches")
     assert posted[0][1] == {"ref": config.RELAY_BRANCH, "inputs": {"limit": "40"}}
+    pairs = pd.DataFrame({"shot_id": [2, 30], "other": [1, 1]})
+    assert programme_signals.coverage(table, pairs) == pytest.approx(2 / 3)  # shot 30 is not in the table
     monkeypatch.delenv("GITHUB_TOKEN")
     with pytest.raises(RuntimeError, match="no GitHub token"):
         programme_signals.through_github(say=lambda line: None)
+    with pytest.raises(RuntimeError, match="no GitHub token"):
+        programme_signals.collect_newest(say=lambda line: None)

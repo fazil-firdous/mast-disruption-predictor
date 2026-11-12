@@ -64,6 +64,10 @@ def test_concordance_compares_twins_over_the_same_programme_time():
     assert (c, n, c_exact, n_exact) == (0.75, 2, 1.0, 1)
 
 
+# scripts/v3_runs.py calls DataFrame.join(rsuffix=...), which newer pandas versions announce as deprecated. That file
+# has its own stamp: changing a line of it would rerun the 150 pre-registered runs, so the call stays and the
+# announcement is let through here (the CI treats warnings as errors). requirements.txt keeps pandas below 4.
+@pytest.mark.filterwarnings("ignore:The 'lsuffix' and 'rsuffix' keywords")
 def test_tests_use_the_right_seeds_and_holm(monkeypatch):
     rows = []
     for seed in range(1, 51):
