@@ -1043,3 +1043,33 @@ control settings, as far as is known.
   failed shot and goes on, and stops with a message when the store does not answer. Checked here against local
   stores in the archive's format, including a connection that never answers. Default sample: 60 pairs, 4 at a time.
 
+## 2026-11-12 - What else was programmed: a first look at 150 shots (no pairs yet)
+
+`scripts/programme_signals.py --shots 150`, shots spread evenly over the shot table, 4.2 s per shot. Run from a
+machine that reaches the store; the research server's requests to the store timed out on this day (the store itself
+answered elsewhere in 1.4 s), so the look at twin pairs, which needs the server's twin list, is still to do.
+
+The real variable names differ from the published list: every shot's `pulse_schedule` holds `i_plasma`, `n_e_line`
+and `z_ref`; `gas_injection` holds `valve_target_voltage` and `valve_voltage` (one row per valve), `inboard_total`,
+`outboard_total` and, in most later shots, `total_injected` and `pressure`.
+
+| What was asked or injected | present | not constant | M5 | M6 | M7 | M8 | M9 |
+|---|---|---|---|---|---|---|---|
+| reference density (`n_e_line`) | 100% | 72% | 19% | 68% | 89% | 85% | 100% |
+| requested height (`z_ref`) | 100% | 84% | 92% | 100% | 87% | 62% | 67% |
+| requested gas valve voltages, summed | 73% | 71% | 100% | 56% | 61% | 69% | 87% |
+| gas injected outboard | 98% | 97% | 96% | 97% | 100% | 92% | 93% |
+| gas injected inboard | 98% | 61% | 73% | 79% | 61% | 35% | 40% |
+| gas injected in all (`total_injected`) | 85% | 83% | 19% | 97% | 100% | 92% | 93% |
+
+(Shots per campaign in the sample: 26, 34, 46, 26, 15, and 3 without a campaign. The campaign columns give 'not
+constant'.)
+
+- **So the archive does hold a gas programme and a requested height** for most shots. The twin test matched
+  neither; the paper's limitation must say that they exist and were not used, or use them.
+- **Open before any split is defined:** what a constant means for each signal (a reference density of zero is
+  probably 'no density feedback'; a requested height of zero is a real request), and why the valve request is
+  missing in a quarter of the shots. These are questions about the signals, to settle from the data and from the
+  FAIR-MAST team, before any twin score is looked at on a new split.
+- The split, when defined, goes into `docs/preregistration_v3.md` before it is run, as decided on this date.
+
