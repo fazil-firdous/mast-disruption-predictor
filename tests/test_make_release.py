@@ -11,6 +11,13 @@ from scripts import make_release, v3_runs
 from src import config
 
 
+
+def read(path, mode="r"):
+    """The file's content; closes the file (the CI runs with warnings as errors, and an unclosed file is one)."""
+    with open(path, mode) as f:
+        return f.read()
+
+
 def test_release_has_the_tables_without_comment_text(monkeypatch, tmp_path):
     monkeypatch.setattr(config, "RESULTS_DIR", str(tmp_path))
     events_dir = tmp_path / "events"
@@ -36,15 +43,15 @@ def test_release_has_the_tables_without_comment_text(monkeypatch, tmp_path):
     assert names == ["README.md", "SHA256SUMS", "events.csv", "programme_twins.csv", "shots.csv", "twin_score.py"]
     events = pd.read_csv(os.path.join(folder, "events.csv"))
     assert "text" not in events and list(events.columns) == make_release.EVENT_COLUMNS
-    assert "Person" not in open(os.path.join(folder, "events.csv")).read()
+    assert "Person" not in read(os.path.join(folder, "events.csv"))
     twins = pd.read_csv(os.path.join(folder, "programme_twins.csv"))
     assert twins["heating"].tolist() == ["same", "different"] and twins["t_loss"].tolist() == [0.3, 0.3]
     assert twins["t_start"].isna().all()  # no programme in this made-up project
-    readme = open(os.path.join(folder, "README.md")).read()
+    readme = read(os.path.join(folder, "README.md"))
     assert "shots.csv (5 rows" in readme and "CC BY-SA 4.0" in readme and "Beam heating: " in readme
     assert "named_pairs.csv" not in readme and "triplets.csv" not in readme  # only files that are in the release
-    for line in open(os.path.join(folder, "SHA256SUMS")):
+    for line in read(os.path.join(folder, "SHA256SUMS")).splitlines():
         digest, name = line.split()
-        assert hashlib.sha256(open(os.path.join(folder, name), "rb").read()).hexdigest() == digest
+        assert hashlib.sha256(read(os.path.join(folder, name), "rb")).hexdigest() == digest
     with zipfile.ZipFile(folder + ".zip") as z:
         assert sorted(z.namelist()) == sorted(f"{make_release.NAME}/{n}" for n in names)

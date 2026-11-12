@@ -1073,3 +1073,21 @@ constant'.)
   FAIR-MAST team, before any twin score is looked at on a new split.
 - The split, when defined, goes into `docs/preregistration_v3.md` before it is run, as decided on this date.
 
+## 2026-11-12 - The programme signals come through GitHub, like the shots
+
+The research server cannot reach the store: its address range is blocked there (notes of 2026-10-15), which the
+two failed runs of this day rediscovered. So the signals take the relay's road.
+
+- `scripts/programme_fetch.py` runs on a GitHub machine (`.github/workflows/fetch_programme.yml`): every shot of
+  the shot table, 5 ms bin means of the reference density, the requested height, the gas valve requests and drive
+  voltages (summed over valves), the gas flows, the gas injected so far and the gas pressure. One table of about
+  40 MB. Tried on 32 real shots: 1.2 s per shot at 4 at a time.
+- On the server, `scripts/programme_signals.py --relay` starts that job, waits and collects the table;
+  without options the script then compares every twin pair offline: per signal the pair's state (changes in both,
+  the same constant in both, in one only, missing) and the difference up to the loss and up to 100 ms before it.
+- What a few real shots show (11879, 16205, 16571, 24000, 29500): 20 kHz samples from -0.1 s; the reference density
+  is zero in the early shots and a real waveform later; the requested height is a real request (-0.18 m in one
+  shot); the valve requests are empty (all NaN) in many shots of M6 and M7 while the valve drive voltages are
+  always there; the names of the valves change between campaigns.
+- The pair comparison starts at each series' first sample, not at t = 0: gas is puffed before the plasma starts.
+
