@@ -918,3 +918,17 @@ any claim. Paper 2 says "we found none" and describes the search.
     mostly the ending itself.
   - A real study needs events found from the signals alone, a rule for 'recovered', and an expert's check of
     examples.
+
+## 2026-11-12 - Two facts about MAST operation, confirmed by a UKAEA scientist (by email)
+
+- **Same programmed current does not mean same programme.** Gas and shape programmes are set separately and can
+  differ between two shots with the same programmed plasma current (for example a different shape, or higher or
+  lower fuelling). So the twins share the current programme only; this was a stated limit and is now confirmed.
+- **The solenoid responds to the plasma.** During the flat-top it is driven by feedback on the measured against
+  the target plasma current, which lets it deal with unexpected MHD events. So the solenoid current carries
+  information about the plasma, and the 'machine-side' model is not plasma-free. This is the likely reason it
+  scores above 0.5 on twins.
+- **Conditions differ from shot to shot** in ways the archive does not hold: residual impurities from an earlier
+  shot, and control parameters changed between shots. This fits the placebo result (a later good repeat already
+  scores above an earlier one) and limits what any matched comparison on this archive can show.
+- To cite or acknowledge the source by name in a paper, ask first.
