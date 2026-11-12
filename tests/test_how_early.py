@@ -157,7 +157,11 @@ def test_part_b_summary_from_saved_runs(monkeypatch, tmp_path):
     assert line.split(": ", 1)[1].split(" | ")[0].startswith("0.000") and " | 1.000" in line and "+0.500" in line
     line = next(l for l in text.splitlines() if l.startswith("- 50 ms (2 pairs per split)"))
     assert "+0.000" in line  # both horizons separate the pair at 50 ms
+    block = text.split("Machine-side model per lead")[1].split("Usual metrics")[0]
+    assert block.count("0.500") >= 8 and block.count("+0.000") >= 4  # the same flat scores with either horizon
     assert "- full, 30 ms: 0.030, 40.0%, 5.0% (6 splits)" in text and "- full, 100 ms: 0.020, 40.0%, 5.0% (6 splits)" in text
+    assert "- full, 100 ms minus 30 ms, paired over 6 splits: pAUC -0.010" in text  # seed 21 is not in it
+    assert "- machine-side, 100 ms minus 30 ms, paired over 6 splits: pAUC +0.000" in text
     chrono = text.split("Chronological split")[1]
     assert "- 100 ms (2 pairs): 0.000" in chrono and "+1.000" in chrono
     with open(tmp_path / "how_early" / "part_b.txt") as f:
