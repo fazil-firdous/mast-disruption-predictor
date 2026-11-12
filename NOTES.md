@@ -997,10 +997,17 @@ Common cohort, 124 pairs per split, identical pairs for every model. Over splits
 - **No resolved cost late either:** -0.030 at 10 ms on random splits, +0.020 on the later campaigns.
 - **Full against machine-side, both with the 100 ms horizon:** resolved at 10 and 30 ms, not at 50 and 100 ms. Later
   campaigns: +0.088 (+0.037 to +0.140) at 10 ms; +0.034, +0.019 and +0.045 (-0.004 to +0.095) after that.
-- **The usual metrics went up** (means over 20 splits): full model pAUC 0.341 to 0.363 and caught 36.2% to 39.7%
-  (false alarms 5.1% to 5.3%); machine-side pAUC 0.182 to 0.237 and caught 19.0% to 26.5% (4.7% to 5.5%). Their
-  paired ranges, and the machine-side model's own change in C, were added to the script after these means were
-  seen (protocol, 'Changes after the first result'); the numbers are still to be filled in here.
+- **The usual metrics, 100 ms horizon minus 30 ms, paired over the 20 splits** (ranges added after the means had
+  been seen; protocol, 'Changes after the first result'):
+  - Full model: pAUC 0.341 to 0.363, +0.022 (-0.037 to +0.082); caught 36.2% to 39.7%, +3.5 points (-3.5 to +10.5);
+    false alarms +0.2 points (-1.2 to +1.7). **Nothing resolved.**
+  - Machine-side model: pAUC 0.182 to 0.237, **+0.055 (+0.014 to +0.096)**; caught 19.0% to 26.5%, **+7.5 points
+    (+1.4 to +13.7)**; false alarms +0.8 points (-1.5 to +3.2). **Resolved.**
+- **The machine-side model's twin score did not move with it:** 100 ms horizon minus 30 ms, +0.003 (-0.062 to
+  +0.067), -0.018 (-0.065 to +0.028), +0.017 (-0.046 to +0.080) and +0.032 (-0.015 to +0.080) at 10, 30, 50 and
+  100 ms. By the rule fixed before these ranges were seen: for the machine-side model the longer horizon raised the
+  usual metric without a measurable gain in telling a lost shot from its twin; for the full model it changed
+  nothing this study can measure. 'Not resolved' is not 'zero': +0.08 is inside the machine-side range at 100 ms.
 - **Reading, as fixed beforehand:** training these models to warn 100 ms ahead does not buy earlier discrimination
   between a lost shot and its twin. With 20 ms window means from the public archive, the plasma signals' advantage
   is clear in the last 10 to 30 ms and not beyond. This is about these features and this model family, not about
