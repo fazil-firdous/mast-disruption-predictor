@@ -10,9 +10,6 @@ on:
       limit:
         description: "0 = every shot; N = a trial on N shots spread over the shot table"
         default: "0"
-  push:
-    branches: [ccr-eb3694ad-3zv7e7]
-    paths: [".github/workflows/fetch_programme.yml"]
 
 permissions:
   contents: read
@@ -30,7 +27,7 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt
       - name: read the store
-        run: python scripts/programme_fetch.py --limit ${{ github.event_name == 'push' && '0' || inputs.limit }}
+        run: python scripts/programme_fetch.py --limit ${{ inputs.limit }}
       - uses: actions/upload-artifact@v4
         with:
           name: mast-programme
