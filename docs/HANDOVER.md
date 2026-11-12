@@ -45,10 +45,12 @@ cd /root/mastu && git pull                                   # bring the server'
 .venv/bin/python scripts/twin_differences.py                 # lost shot against two good repeats, no model
 .venv/bin/python scripts/make_release.py                     # rebuild the public data release (uploads nothing)
 .venv/bin/python scripts/plot_twin_pair.py --list --after 24000   # pick a twin pair, then give its number
+.venv/bin/python scripts/how_early.py                        # the twin test at fixed times before the loss (Part A)
+.venv/bin/python scripts/how_early.py --part-b               # the 100 ms training horizon against the 30 ms one
 ```
 
 None of these retrains anything except `v3_runs.py --recipe ... --seed ...`, `v3_explore.py --train` and
-`--temporal`, and those skip runs that are already finished.
+`--temporal`, and `how_early.py --train-b`; those skip runs that are already finished.
 
 ## Stamps: why a small change can cost days
 
@@ -85,20 +87,24 @@ Every saved result carries a fingerprint of the science code, the science settin
   (`docs/literature_review.md`, section 6).
 - **What the twin test showed, in one line:** the full model ranks a lost shot above its same-programme twin more
   often than a machine-side model does; part of every model's score also appears between two good repeats.
+- **How early?** (2026-11-12, `docs/preregistration_how_early.md`): Part A is in the notes; Part B (a 100 ms
+  training horizon) is built and waits for its runs.
 
 ## What could come next
 
-In the order they seem worth doing; none is started.
+In the order they seem worth doing.
 
-1. **Which operating conditions go with losing a shot.** The twins make a matched case-control study possible: for
-   each lost shot and its good repeat, compare beam power, density, shape and stability measures well before the
-   loss. It would describe associations, not causes, and needs a MAST physicist to read the result.
+1. **How early?** In progress; see the line above and the notes.
 2. **A second machine.** The label audit and the twin test need only a programmed current, a solenoid current and
-   operators' notes. Any tokamak with those could be checked.
-3. **Earlier warning.** The present features are 20 ms window means and the model is trained to warn 30 ms ahead.
-   Finer time resolution and longer horizons are untested.
+   operators' notes. Any tokamak with those could be checked. Needs data access.
+3. **Recover or progress.** Operators timed 363 internal reconnection events and 159 locked modes; about half the
+   shots survived them. What separates the two outcomes is a question for a collaboration with someone who knows
+   MAST (`scripts/event_outcomes.py` has the counts).
 4. **A retraining-aware range.** Resample groups of shots, retrain inside each resample, and recompute the twin
    test, to get one range that covers both the training set and shared twins. Costly.
+
+Dropped: a matched study of which operating conditions go with losing a shot. Operators choose heating and density
+in response to the session, so the associations could not be read without the experiment plans.
 
 ## Working with an assistant
 

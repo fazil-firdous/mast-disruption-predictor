@@ -932,3 +932,49 @@ any claim. Paper 2 says "we found none" and describes the search.
   shot, and control parameters changed between shots. This fits the placebo result (a later good repeat already
   scores above an earlier one) and limits what any matched comparison on this archive can show.
 - To cite or acknowledge the source by name in a paper, ask first.
+
+## 2026-11-12 - How early? Part A (protocol `docs/preregistration_how_early.md`; saved scores, models trained for 30 ms)
+
+`scripts/how_early.py`. C(h): the lost shot's score against its twin's at one fixed moment h before the loss.
+Common cohort: 124 pairs per split, 2,663 pairs. Over splits unless marked.
+
+| Lead | programme-only | machine-side | full | full minus machine-side | pooled difference |
+|---|---|---|---|---|---|
+| 10 ms | 0.505 | 0.616 | 0.749 (0.693 to 0.805) | +0.133 (+0.069 to +0.197) | +0.137 (+0.114 to +0.159) |
+| 30 ms | 0.509 | 0.608 | 0.668 (0.616 to 0.720) | +0.060 (-0.008 to +0.128) | +0.065 (+0.042 to +0.089) |
+| 50 ms | 0.507 | 0.569 | 0.640 (0.583 to 0.698) | **+0.071 (+0.007 to +0.135)** | +0.078 (+0.054 to +0.102) |
+| 100 ms | 0.504 | 0.530 | 0.578 (0.524 to 0.631) | +0.047 (-0.032 to +0.127) | +0.045 (+0.022 to +0.071) |
+
+- **Primary (bold):** resolved over training sets, but only just; at 30 ms the same-sized lead is not.
+- **It does not hold on the later campaigns.** Chronological split, 844 pairs, pooled: the full model's lead over
+  the machine-side model is +0.075 (+0.023 to +0.127) at 10 ms, +0.003 at 30 ms, +0.014 (-0.036 to +0.068) at 50 ms
+  and +0.070 (+0.018 to +0.122) at 100 ms. So beyond the last 10 ms the lead over the machine-side model is small
+  and unstable.
+- **The full model itself stays above 0.5 out to 100 ms**, on random splits (0.578) and on the later campaigns
+  (0.559, 0.517 to 0.603). Programme-only is at 0.49 to 0.51 at every lead, on both: the fixed-lead test does not
+  leak the programme.
+- **Why the machine-side model is close at 30 to 50 ms:** the solenoid is under feedback on the plasma current, so
+  it responds to the plasma. Machine-side is not a plasma-free baseline; programme-only is.
+- **Placebo** (two good repeats at their lost shot's landmark): full 0.546, 0.543, 0.541, 0.516, 0.515 at 10 to
+  200 ms, ranges over splits including 0.5; machine-side 0.547, 0.527, 0.512, 0.501, 0.530.
+- **Same early heating** (50 pairs per split): full 0.701, 0.623, 0.610, 0.543 at 10 to 100 ms; the lead over the
+  machine-side model is resolved over splits at 10 ms only.
+- **Reading, as fixed beforehand:** these models, trained to warn 30 ms ahead, show a clear advantage of plasma
+  signals over machine-side signals only in the last 10 ms or so; a smaller one at 30 to 50 ms that does not carry
+  to later campaigns. This says nothing yet about models trained for a longer horizon: that is Part B.
+
+## 2026-11-12 - How early? Part B is built (nothing run yet)
+
+`scripts/how_early.py --train-b` trains what the protocol lists: the full and the machine-side model with positive
+windows reaching 100 ms before a recorded disruption, on random splits 1 to 20 and on the chronological split
+(42 runs). Results go to `how_early/h100/`; nothing under `v3/` or `v3_explore/` is touched and no stamp changes.
+
+- **What is the same as the 30 ms runs:** the shots in each part of every split (same seed, same function), the
+  windows, the inputs, the model family and its tuning grid, candidates left out of training, tuning and judging on
+  clear endings, the shot-level definitions of caught and false alarm. A test checks that only the label differs.
+- **What follows the horizon, besides the training labels:** the validation labels, which enter tuning only as the
+  tie-break (window PR-AUC) between settings with the same validation catch rate.
+- **Reading, fixed in the protocol:** primary = C(100 ms) with the 100 ms horizon minus with the 30 ms horizon, full
+  model, common cohort, paired over splits 1 to 20. Not resolved over splits means: a longer horizon, with these
+  features, does not buy earlier discrimination. The 10 to 50 ms differences show what it costs late.
+- `--part-b` writes the comparison (`how_early/part_b.txt`) and can be run while the training is going.

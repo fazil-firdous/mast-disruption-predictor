@@ -1,5 +1,5 @@
-"""Tests for scripts/how_early.py: the score at a landmark, who is eligible, the cohorts, and the summary from
-made-up saved runs. No network."""
+"""Tests for scripts/how_early.py: the score at a landmark, who is eligible, the cohorts, the summary from made-up
+saved runs, and Part B (the 100 ms training horizon: what it trains on, what it skips, its summary). No network."""
 import json
 import os
 
@@ -7,8 +7,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from scripts import how_early, v3_runs
-from src import config
+from scripts import how_early, v3_explore, v3_runs
+from src import config, dataset, experiment
+from tests.test_evaluate import tiny_project  # noqa: F401  (pytest fixture)
 
 T = np.round(np.arange(0.05, 0.40, 0.005), 3)
 
@@ -66,3 +67,98 @@ def test_summary_from_saved_runs(monkeypatch, tmp_path):
     line = next(l for l in text.splitlines() if l.startswith("- 100 ms (2 pairs per split)"))
     assert "machine-side 0.500" in line and "full 0.000" in line and "full minus machine-side -0.500" in line
     assert "- no triplets" in text and "- no runs" in text
+
+
+def test_part_b_changes_only_the_horizon(tiny_project, monkeypatch):
+    monkeypatch.setattr(config, "SWEEP_MODEL", "logreg")  # fast here
+    seen = {}
+    real_fit = v3_explore.fit
+
+    def fit(win, column, recipe, path, info):
+        seen[column] = win
+        return real_fit(win, column, recipe, path, info)
+
+    monkeypatch.setattr(v3_explore, "fit", fit)
+    windows, shots = experiment.load_tables()
+    metrics = how_early.run_b("baseline", 3)
+    out = tiny_project / "results" / "how_early" / "h100" / "baseline" / "seed_3"
+    assert metrics["horizon_ms"] == 100 and metrics["seed"] == 3 and (out / "test_scores.parquet").exists()
+    win = seen["split"]
+    # the same shots in the same parts as the v3 run of this seed, and the same windows
+    assert win.drop_duplicates("shot_id").set_index("shot_id")["split"].to_dict() == dataset.random_split(shots, seed=3).to_dict()
+    usual = dataset.labelled_windows(windows.assign(split=windows["shot_id"].map(dataset.random_split(shots, seed=3))), shots)
+    assert len(win) == len(usual) and (win["t_end"].to_numpy() == usual["t_end"].to_numpy()).all()
+    # only the label differs: positive up to 100 ms before a recorded disruption, where the usual label stops at 30
+    before = (win["t_disrupt"] - win["t_end"]).to_numpy()
+    assert (win["label"].to_numpy() == (before <= 0.1 + 1e-6)).all()
+    assert win["label"].sum() > usual["label"].sum() > 0 and (win["label"] >= usual["label"].to_numpy()).all()
+    how_early.run_b("baseline")
+    assert "split_temporal" in seen and seen["split_temporal"]["label"].sum() == win["label"].sum()
+    assert (tiny_project / "results" / "how_early" / "h100" / "temporal" / "baseline" / "metrics.json").exists()
+    assert not (tiny_project / "results" / "v3").exists() and not (tiny_project / "results" / "v3_explore").exists()
+
+
+def test_train_b_skips_finished_runs(monkeypatch, tmp_path):
+    monkeypatch.setattr(config, "RESULTS_DIR", str(tmp_path))
+    monkeypatch.setattr(how_early, "B_SEEDS", range(1, 3))
+    done = how_early.b_dir("baseline", 1)
+    os.makedirs(done)
+    with open(os.path.join(done, "metrics.json"), "w") as f:
+        json.dump({"test": {"pauc": 0.01}}, f)
+    calls, sent = [], []
+
+    def run_b(recipe, seed, tables):
+        calls.append((recipe, seed))
+        return {"test": {"pauc": 0.02}}
+
+    monkeypatch.setattr(how_early, "run_b", run_b)
+    monkeypatch.setattr(how_early, "part_b", lambda: "in words")
+    monkeypatch.setattr(how_early.experiment, "load_tables", lambda: (None, None))
+    monkeypatch.setattr(how_early.notify, "send", sent.append)
+    how_early.train_b()
+    assert calls == [("machine", 1), ("baseline", 2), ("machine", 2), ("baseline", None), ("machine", None)]
+    assert len(sent) == 1 and sent[0].endswith("in words")
+
+
+def test_part_b_summary_from_saved_runs(monkeypatch, tmp_path):
+    monkeypatch.setattr(config, "RESULTS_DIR", str(tmp_path))
+    os.makedirs(tmp_path / "events")
+    os.makedirs(tmp_path / "auto_labels")
+    pd.DataFrame({"shot_id": [11, 12], "other": [1, 2], "group": "candidate", "other_group": "smooth_end", "gap": 10,
+                  "rms": 0.0}).to_csv(tmp_path / "events" / "programme_twins.csv", index=False)
+    monkeypatch.setattr(v3_runs, "TWINS", str(tmp_path / "events" / "programme_twins.csv"))
+    pd.DataFrame({"shot_id": [1, 2, 11, 12], "t_quench": [np.nan, np.nan, 0.30, 0.30]}).to_csv(
+        tmp_path / "auto_labels" / "per_shot.csv", index=False)
+
+    def save(path, lost_score, pauc):
+        os.makedirs(path)
+        frames = [pd.DataFrame({"shot_id": s, "t_end": T, "score": 0.5}) for s in (1, 2)]
+        frames += [pd.DataFrame({"shot_id": s, "t_end": T, "score": lost_score(T)}) for s in (11, 12)]
+        pd.concat(frames).to_parquet(os.path.join(path, "test_scores.parquet"), index=False)
+        with open(os.path.join(path, "metrics.json"), "w") as f:
+            json.dump({"test": {"pauc": pauc, "catch_rate": 0.4, "false_alarm_rate": 0.05}}, f)
+
+    late = lambda t: np.where(t > 0.24, 0.9, 0.1)  # rises 60 ms before the loss: the 30 ms-horizon model
+    early = lambda t: np.where(t > 0.18, 0.9, 0.1)  # rises 120 ms before: the 100 ms-horizon model
+    flat = lambda t: 0.5 + 0 * t
+    for seed in range(1, 7):
+        save(tmp_path / "v3" / "baseline" / f"seed_{seed}", late, 0.03)
+        save(tmp_path / "v3" / "machine" / f"seed_{seed}", flat, 0.01)
+        save(how_early.b_dir("baseline", seed), early, 0.02)
+        save(how_early.b_dir("machine", seed), flat, 0.01)
+    save(tmp_path / "v3" / "baseline" / "seed_21", early, 0.09)  # a confirmation split: not part of Part B
+    save(v3_explore.temporal_dir("baseline"), late, 0.03)
+    save(how_early.b_dir("baseline"), early, 0.02)
+    save(how_early.b_dir("machine"), flat, 0.01)
+    text = how_early.part_b(load=lambda shot: None)
+    assert ("PRIMARY: full model, C(100 ms) with the 100 ms horizon minus with the 30 ms horizon: over splits +1.000"
+            in text and "6 splits" in text and "Over training sets this is resolved" in text)
+    line = next(l for l in text.splitlines() if l.startswith("- 100 ms (2 pairs per split)"))
+    assert line.split(": ", 1)[1].split(" | ")[0].startswith("0.000") and " | 1.000" in line and "+0.500" in line
+    line = next(l for l in text.splitlines() if l.startswith("- 50 ms (2 pairs per split)"))
+    assert "+0.000" in line  # both horizons separate the pair at 50 ms
+    assert "- full, 30 ms: 0.030, 40.0%, 5.0% (6 splits)" in text and "- full, 100 ms: 0.020, 40.0%, 5.0% (6 splits)" in text
+    chrono = text.split("Chronological split")[1]
+    assert "- 100 ms (2 pairs): 0.000" in chrono and "+1.000" in chrono
+    with open(tmp_path / "how_early" / "part_b.txt") as f:
+        assert f.read().strip() == text
