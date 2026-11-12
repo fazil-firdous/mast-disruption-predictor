@@ -2,6 +2,7 @@
 groups. No network."""
 import numpy as np
 import pandas as pd
+import pytest
 import xarray as xr
 
 from scripts import programme_signals
@@ -56,7 +57,12 @@ def test_sample_spreads_over_the_list():
 def test_look_compares_the_two_shots_of_a_pair():
     pairs = pd.DataFrame({"shot_id": [2, 3, 4, 5], "other": [1, 1, 1, 1]})
     campaign = {1: "M5", 2: "M5", 3: "M5", 4: "M9", 5: "M9"}
-    shots, compared = programme_signals.look(pairs, {2: 0.3, 3: 0.3}, campaign, fake_open, workers=2)
+    said = []
+    shots, compared = programme_signals.look(pairs, {2: 0.3, 3: 0.3}, campaign, fake_open, workers=2, say=said.append)
+    assert said[0].startswith("first shot 1, read in") and "pulse_schedule: i_plasma[time] n_e_line[time]" in said[1]
+    assert len(said) == 3 + 4 and sum(line.startswith("[") for line in said) == 4  # one line per later shot
+    assert any("shot 5: density_ref no, gas_injected no; pulse_schedule and gas_injection failed" in line for line in said)
+    assert any("shot 4: density_ref constant, gas_injected yes" in line for line in said)
     assert len(shots) == 5 and list(shots["campaign"]) == ["M5", "M5", "M5", "M9", "M9"]
     by = compared.set_index("shot_id")
     assert by.loc[2, "density_ref_rms"] == 0.0  # the same density programme
@@ -65,7 +71,63 @@ def test_look_compares_the_two_shots_of_a_pair():
     assert np.isnan(by.loc[5, "density_ref_rms"]) and np.isnan(by.loc[3, "gas_injected_rms"])  # missing in one shot
     assert 0 < by.loc[2, "gas_injected_rms"] < 1
     out = programme_signals.text(shots, compared)
+    assert "4 twin pairs, 5 shots," in out and "s per shot (median)" in out
     assert "reference density (pulse_schedule/n_e_line): present in 80% of the shots, not constant in 60%." in out
     assert "M5 100% of 3; M9 0% of 2" in out
     assert "pairs with it, not constant, in both shots: 2 of 4. Relative difference: median" in out and "under 10% in 50%" in out
     assert "- 1 shots: not opened: OSError" in out
+
+
+def test_a_failed_read_is_counted_not_fatal():
+    class Broken:
+        data_vars = {}
+
+        def __contains__(self, name):
+            raise TimeoutError("stalled")
+
+    row, found = programme_signals.describe(7, lambda shot, name: Broken())
+    assert row["pulse_schedule_vars"] == "not read: TimeoutError" and found["density_ref"] is None
+    assert row["density_ref_samples"] == 0 and row["seconds"] >= 0
+
+
+def test_open_group_sets_a_time_limit(monkeypatch):
+    seen = {}
+
+    def open_zarr(url, **kwargs):
+        seen.update(url=url, **kwargs)
+        return "dataset"
+
+    monkeypatch.setattr(programme_signals.xr, "open_zarr", open_zarr)
+    monkeypatch.setattr(programme_signals.config, "SHOT_ZARR_URL", "https://example.org/{shot_id}.zarr")
+    assert programme_signals.open_group(11823, "pulse_schedule") == "dataset"
+    assert seen["url"] == "https://example.org/11823.zarr" and seen["group"] == "pulse_schedule"
+    assert seen["storage_options"]["client_kwargs"]["timeout"].total == programme_signals.REQUEST_S
+
+
+def test_look_stops_when_the_store_does_not_answer():
+    def stalled(shot_id, name):
+        raise TimeoutError("no answer")
+
+    pairs = pd.DataFrame({"shot_id": range(101, 130), "other": 100})
+    said = []
+    with pytest.raises(RuntimeError, match="first shot"):
+        programme_signals.look(pairs, {}, {}, stalled, workers=2, say=said.append)
+    assert len(said) == 3  # the first shot's three lines, then it stops
+
+    def later(shot_id, name):  # the first shot answers, then nothing does
+        if shot_id == 100:
+            return fake_open(1, name)
+        raise TimeoutError("no answer")
+
+    said = []
+    with pytest.raises(RuntimeError, match="8 shots in a row"):
+        programme_signals.look(pairs, {}, {}, later, workers=1, say=said.append)
+    assert sum(line.startswith("[") for line in said) == programme_signals.GIVE_UP_AFTER
+
+    def absent(shot_id, name):  # shots without the two groups are not a reason to stop
+        if shot_id == 100:
+            return fake_open(1, name)
+        raise KeyError(name)
+
+    shots, compared = programme_signals.look(pairs, {}, {}, absent, workers=2, say=lambda line: None)
+    assert len(shots) == 30 and compared["density_ref_rms"].isna().all()
