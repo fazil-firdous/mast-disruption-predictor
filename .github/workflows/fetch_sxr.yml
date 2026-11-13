@@ -9,6 +9,9 @@ on:
       ids:
         description: "shot numbers, as scripts/sxr_fetch.py encode_ids() writes them"
         required: true
+      examples:
+        description: "optional example pairs, lost:twin:loss_ms;... (rendered as videos by part 0)"
+        default: ""
 
 permissions:
   contents: read
@@ -33,6 +36,11 @@ jobs:
         env:
           IDS: ${{ inputs.ids }}
         run: python scripts/sxr_fetch.py --ids "$IDS" --part ${{ matrix.part }} --parts 4 --workers 8
+      - name: render what the camera sees for the example pairs
+        if: ${{ matrix.part == 0 && inputs.examples != '' }}
+        env:
+          EXAMPLES: ${{ inputs.examples }}
+        run: python scripts/sxr_view.py --examples "$EXAMPLES"
       - uses: actions/upload-artifact@v4
         with:
           name: mast-sxr-${{ matrix.part }}
