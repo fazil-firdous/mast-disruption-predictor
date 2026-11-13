@@ -1271,3 +1271,27 @@ counts usable pairs: both shots with at least 12 good chords in the same camera,
 the loss. It also checks whether a missing camera tells lost from kept, the shortcut the soft X-ray study must not
 learn. No soft X-ray feature, model or score exists yet; the protocol for them is written after this audit.
 
+
+## 2026-11-13 - Soft X-ray audit: the result, and the protocol
+
+The audit read 1,154 shots of 600 twin pairs through GitHub in 8 minutes (1,141 with soft X-rays, 13 without, none
+failed). At SNR >= 5, **437 pairs (73%) are usable in both shots** (529 at SNR >= 3, 324 at SNR >= 10). By campaign
+at SNR >= 5: M5 72%, M6 67%, M7 74%, M8 88%, M9 52% (M9: a soft X-ray group in both shots for 89% of pairs only).
+Cameras: both horizontal cameras in all 1,141 shots (median SNR 20 and 18, 1% of chords saturated), the tangential
+camera in 928 (median SNR 35, 4% saturated). In 14 usable pairs the camera stopped before the loss.
+
+Missingness: lost usable and twin not, 62 pairs; the reverse, 39. The audit asks a chord to cover 95% of the shot's
+whole plasma, and the cameras stop at a fixed time, so a twin that runs on is more often 'not covered'. That is the
+likely reason, not a proven one. The study therefore drops nothing by quality, has no 'has soft X-rays' input, and
+checks its result on pairs with soft X-ray inputs in both shots at the moment compared.
+
+Three development pairs were looked at (pictures and slow-motion videos, M5/M6 only). 18921 (lost): the whole
+profile drops at once several times in the last ~100 ms; its twin 18916 shows no such step. 11880/11876: the
+emission moves across the chords in both shots, the lost one later. 16296/16295: chord 0 sits at its top in both
+(a stuck chord). Anecdotes; they shaped the 'drop' and 'position' features, and the protocol says so.
+
+Protocol: `docs/preregistration_soft_xrays.md`, committed before any soft X-ray feature. Two horizontal cameras;
+per 1 ms bin (computed on GitHub from the raw 500 kHz samples, `scripts/sxr_series.py`): level, position, width,
+peak and the fast fluctuation within the bin; 46 window features; model S = full + soft X-rays against the saved
+full model; primary C(50 ms) difference over splits 1 to 20, smallest gain worth having +0.03.
+`scripts/soft_xrays.py --all` runs every step.

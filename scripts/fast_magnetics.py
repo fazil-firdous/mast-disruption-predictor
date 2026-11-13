@@ -138,13 +138,13 @@ def columns_of(recipe):
     raise ValueError(recipe)
 
 
-def fit(win, split_column, recipe, path, info):
-    """Train like the v3 baseline with this recipe's inputs, test once, save the test window scores (as
-    scripts/v3_explore.py does). Returns the metrics."""
+def fit(win, split_column, recipe, path, info, columns=None):
+    """Train like the v3 baseline with this recipe's inputs (or the given columns), test once, save the test window
+    scores (as scripts/v3_explore.py does). Returns the metrics."""
     train, val_all, test_all = experiment.split_frames(win, split_column)
     train = train[~train["candidate"]].reset_index(drop=True)
     val, test = experiment.judged(val_all, "clear"), experiment.judged(test_all, "clear")
-    columns = experiment.usable(columns_of(recipe), train)
+    columns = experiment.usable(columns_of(recipe) if columns is None else columns, train)
     best = experiment.tune(config.SWEEP_MODEL, train, val, columns)
     os.makedirs(path, exist_ok=True)
     metrics = {"recipe": recipe, **info, "params": best["params"], "threshold": best["threshold"], "columns": columns}
