@@ -1218,3 +1218,11 @@ Chronological split, pooled: field-and-shape twins full 0.601 (0.548 to 0.658), 
   to all twins; somewhat more same-heating pairs.
 - This was the last matching of this study. The release's `programme_twins.csv` now carries the four flags.
 
+## 2026-11-13 - Faster signals, step 0 is built (nothing run yet)
+
+Protocol `docs/preregistration_fast_signals.md` (commit c111faf) before any code. `scripts/fast_magnetics.py`:
+the six magnetic signals over 5 ms windows (same statistics and functions as the 20 ms features), three new
+models (C: 20 + 5 ms, primary; B: 5 ms instead of 20 ms; G: growth), 63 runs. Primary: C(50 ms) of C minus the
+full model, fixed-lead test, common cohort of all twins, paired over splits 1 to 20; worth having: +0.03.
+The feature step checks that the same code at 20 ms reproduces the stored features before anything is trained.
+
