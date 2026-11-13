@@ -1122,3 +1122,48 @@ difference, up to the loss):
 - The plan-twins analysis was written into `docs/preregistration_v3.md` (commit 69023ff) before any score was
   computed on these pairs; the code is `scripts/plan_twins.py`.
 
+## 2026-11-13 - Plan twins: the result survives (as pre-registered on this date, commit 69023ff)
+
+`scripts/plan_twins.py`. Plan twins: same programmed current and, within 1%, the same requested density and
+height, and the same gas valve requests where both shots have them: 2,189 of 3,902 pairs (56%); full-plan twins
+(valve requests present and the same): 1,311 (34%). Same-time statistic, over the 50 splits (pooled in brackets).
+
+| Pairs | per split | full | machine-side | programme-only | full minus machine-side |
+|---|---|---|---|---|---|
+| plan twins | 88 | **0.673 (0.608 to 0.738)** | 0.574 | 0.503 | **+0.099 (+0.005 to +0.193)**; pooled +0.099 (+0.070 to +0.129) |
+| full-plan twins | 53 | 0.691 (0.605 to 0.778) | 0.586 | 0.504 | +0.106 (-0.021 to +0.232); pooled +0.100 (+0.063 to +0.136) |
+| not plan twins | 68 | 0.685 | 0.611 | **0.543 (0.501 to 0.584)** | +0.074 (-0.029 to +0.178) |
+| all twins (known) | 156 | 0.679 | 0.590 | 0.520 | +0.089 (+0.023 to +0.155) |
+
+Chronological split, pooled: plan twins full 0.598 (0.551 to 0.650), machine-side 0.535, programme-only 0.494,
+difference +0.064 (+0.001 to +0.127), 518 pairs; full-plan twins full 0.603, difference +0.045 (-0.034 to +0.126),
+330 pairs.
+
+- **Reading, as fixed beforehand:** the full model's C on plan twins is clear of 0.5, so differences in these three
+  recorded requests do not explain the separation. Plan twins are 56% of twins, so this is more than a restatement.
+- **The matching does what it should.** Where the plans differ, the programme-only model is above chance (0.543): a
+  model that knows only the current programme picks up the other differences that go with it. On plan twins it
+  falls to 0.503. The full model barely moves (0.679 to 0.673).
+- **Its lead over the machine-side model** stays at about +0.10; resolved over splits on plan twins, only just;
+  not resolved on the smaller full-plan set (53 pairs per split), though the pooled range is clear.
+- **The solenoid-only model stays at 0.57 to 0.59 on plan twins**, consistent with the solenoid responding to the
+  plasma through the current feedback.
+- **Still not matched:** the toroidal field and the shape coil currents (see the survey below), and the wall.
+
+## 2026-11-13 - A survey of every group in the store (should have been done at the start)
+
+All groups and variables of shots 11802 (M5), 27000 (M7) and 30471 (M8). Not used so far, and worth knowing:
+
+- `tf/coil_current`: the toroidal field coil current, 5 kHz. **The field can be matched**; the paper's limitation
+  ('the toroidal field is not matched') is a choice, not a limit of the archive.
+- `pf_active/coil_current`: all 13 poloidal coil currents (SOL, P2 inner and outer, P3, P4, P5 upper and lower,
+  P6), 20 kHz, and five coil voltages. P4 and P5 shape the plasma, P6 holds its height: what was delivered, partly
+  under feedback, not the request.
+- `controllers/zip_proxy` (A m, 20 kHz, from M7 on): a plasma current times height signal, the vertical position
+  controller's input as far as can be told from the name. To confirm before use.
+- `soft_x_rays`: five cameras, 12 to 18 chords each, **500 kHz**. Core MHD shows here first. The predictor uses 20 ms
+  means of slow signals, and the how-early study found its signal late; whether fast soft X-ray signals see a loss
+  earlier is untested and is the natural next study.
+- `thomson_scattering` (n_e, T_e profiles), `charge_exchange` (T_i, rotation; later shots), `bolometer` channels,
+  `spectrometer_visible` (D-alpha), `pf_passive` currents (vessel eddy currents).
+
