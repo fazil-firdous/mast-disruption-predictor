@@ -27,12 +27,14 @@ import requests
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts import programme_signals, sxr_fetch, v3_runs
-from src import config, data, relay
+from src import config, data, notify, relay
 
 PAIRS = 600  # the sample of twin pairs, spread over the twin list
 COVER, SAT, MIN_CHORDS = 0.95, 0.01, 12
 SNRS = (3, 5, 10)  # reported at each; 5 is the reference
 WORKFLOW, ARTIFACT = "fetch_sxr.yml", "mast-sxr"
+EXAMPLE_CAMPAIGNS = ("M5", "M6")  # examples come from the development campaigns only
+N_EXAMPLES = 3
 
 
 def folder():
@@ -99,9 +101,27 @@ def sample_pairs():
     return programme_signals.sample(pd.read_csv(v3_runs.TWINS), PAIRS)
 
 
-def trigger(ids):
+def pick_examples(pairs, t_loss, campaign, n=N_EXAMPLES):
+    """A few twin pairs to look at: development campaigns only, operator-recorded losses first, spread in shot order."""
+    p = pairs[pairs["shot_id"].map(campaign).isin(EXAMPLE_CAMPAIGNS) & pairs["shot_id"].map(t_loss).notna()].copy()
+    if "group" in p:
+        p = p.sort_values("group", key=lambda g: g.ne("recorded"), kind="stable")
+        recorded = p[p["group"] == "recorded"]
+        p = recorded if len(recorded) >= n else p
+    p = p.sort_values("shot_id")
+    if len(p) > n:
+        p = p.iloc[np.linspace(0, len(p) - 1, n).round().astype(int)]
+    return [(int(r.shot_id), int(r.other), float(t_loss[r.shot_id])) for r in p.itertuples()]
+
+
+def encode_examples(examples):
+    return ";".join(f"{a}:{b}:{t * 1000:.1f}" for a, b, t in examples)
+
+
+def trigger(ids, examples=()):
     r = requests.post(relay._api(f"/actions/workflows/{WORKFLOW}/dispatches"), headers=relay._headers(), timeout=30,
-                      json={"ref": config.RELAY_BRANCH, "inputs": {"ids": sxr_fetch.encode_ids(ids)}})
+                      json={"ref": config.RELAY_BRANCH, "inputs": {"ids": sxr_fetch.encode_ids(ids),
+                                                                   "examples": encode_examples(examples)}})
     relay.check(r)
     return time.time()
 
@@ -126,12 +146,27 @@ def collect(run_id):
             names = {os.path.basename(n): n for n in archive.namelist()}
             tables.append(pd.read_parquet(io.BytesIO(archive.read(names[sxr_fetch.TABLE]))))
             manifests.append(json.loads(archive.read(names["manifest.json"])))
+            for name in archive.namelist():  # the example videos and pictures, if this part made any
+                if name.endswith((".mp4", ".png")) and "/" not in name.replace("examples/", "", 1):
+                    os.makedirs(os.path.join(folder(), "examples"), exist_ok=True)
+                    with open(os.path.join(folder(), "examples", os.path.basename(name)), "wb") as f:
+                        f.write(archive.read(name))
     os.makedirs(sxr_fetch.folder(), exist_ok=True)
     pd.concat(tables, ignore_index=True).to_parquet(os.path.join(sxr_fetch.folder(), sxr_fetch.TABLE), index=False)
     m = {k: sum(x.get(k, 0) for x in manifests) for k in ("shots_requested", "shots_with_data", "absent", "failed", "not_started")}
     with open(os.path.join(sxr_fetch.folder(), "manifest.json"), "w") as f:
         json.dump(m, f, indent=2)
     return m
+
+
+def send_examples(say=print):
+    """Send the example videos and pictures to Telegram, one caption each."""
+    out = os.path.join(folder(), "examples")
+    for name in sorted(os.listdir(out)) if os.path.isdir(out) else []:
+        lost, kept = name.split(".")[0].split("_")[:2]
+        kind = "slow motion, last 300 ms" if name.endswith(".mp4") else "chord against time"
+        ok = notify.send_file(os.path.join(out, name), f"Soft X-ray camera, lost shot {lost} against its twin {kept} ({kind})")
+        say(f"sent {name} to Telegram: {ok}")
 
 
 def main():
@@ -146,7 +181,11 @@ def main():
             if not relay.configured():
                 raise RuntimeError("no GitHub token: GITHUB_TOKEN is not set (it lives in ~/mast-private/.env)")
             ids = sorted(set(sampled["shot_id"]) | set(sampled["other"]))
-            requested = trigger(ids)
+            labels = pd.read_csv(os.path.join(config.RESULTS_DIR, "auto_labels", "per_shot.csv"))
+            camp = data.load_shot_table().set_index("shot_id")["campaign"].to_dict()
+            examples = pick_examples(sampled, labels.set_index("shot_id")["t_quench"].to_dict(), camp)
+            say(f"example pairs to film (M5/M6 only): {examples}")
+            requested = trigger(ids, examples)
             say(f"asked GitHub to read {len(ids)} shots; waiting for the job to appear ...")
             run = None
             while run is None and time.time() < requested + 300:
@@ -157,6 +196,7 @@ def main():
             say(f"job started: {run.get('html_url', run['id'])}")
             programme_signals.wait(run, say)
             say(f"collected: {collect(run['id'])}")
+            send_examples(say)
         elif args.collect:
             done = [r for r in runs() if r.get("status") == "completed"]
             if not done:

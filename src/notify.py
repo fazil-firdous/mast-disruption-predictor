@@ -53,10 +53,11 @@ def send(text):
 
 
 def send_file(path, caption=""):
-    """Send a PNG as a photo, anything else as a document. Missing files are skipped."""
+    """Send a PNG as a photo, an MP4 as a video, anything else as a document. Missing files are skipped."""
     if not os.path.exists(path):
         return False
-    method, field = ("sendPhoto", "photo") if path.endswith(".png") else ("sendDocument", "document")
+    method, field = (("sendPhoto", "photo") if path.endswith(".png") else ("sendVideo", "video") if path.endswith(".mp4")
+                     else ("sendDocument", "document"))
     with open(path, "rb") as f:
         return _call(method, {"caption": caption[:1000]}, files={field: f})
 
