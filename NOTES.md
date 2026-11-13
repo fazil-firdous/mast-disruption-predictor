@@ -1091,3 +1091,16 @@ two failed runs of this day rediscovered. So the signals take the relay's road.
   always there; the names of the valves change between campaigns.
 - The pair comparison starts at each series' first sample, not at t = 0: gas is puffed before the plasma starts.
 
+## 2026-11-13 - The programme table for every shot is made; GitHub's test check is green again
+
+- **The table.** The GitHub job read all 11,573 shots in 72 minutes: 11,564 with data, 9 with none of the signals,
+  none failed; 1,391,563 rows, 21 MB. GitHub keeps it until 2026-11-15 19:40 UTC; after that `--relay` makes it
+  again. On the server: `scripts/programme_signals.py --collect`, then the same script without options for the
+  look at every twin pair. No twin score has been looked at on any of this.
+- **GitHub's test check had been failing and nobody looked.** Every push of 12 November that was checked afterwards
+  shows it red, and it was probably red before. Two causes, both only visible there (it treats warnings as errors
+  and installs the newest pandas): files left open in the release test, and a pandas notice about a keyword that
+  `scripts/v3_runs.py` uses. That script has its own stamp and is not to be edited, so its test lets the notice
+  through and `requirements.txt` keeps pandas below 4, where the keyword goes away. The check is green on the last
+  two pushes. Rule from now on: look at the check after a push, and run the tests here with `-W error`.
+
