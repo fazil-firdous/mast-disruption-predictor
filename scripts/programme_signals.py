@@ -432,7 +432,8 @@ def manifest_line(manifest):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--relay", action="store_true", help="start the GitHub job, wait and collect its table")
-    parser.add_argument("--collect", action="store_true", help="collect the newest finished GitHub job's table")
+    parser.add_argument("--collect", action="store_true", help="collect the newest GitHub job's table")
+    parser.add_argument("--run", type=int, default=0, help="with --collect: collect this GitHub run instead of the newest")
     parser.add_argument("--limit", type=int, default=0, help="with --relay: a trial on this many shots (0 = every shot)")
     parser.add_argument("--shots", type=int, default=0, help="read this many shots, spread over the table, from the store")
     parser.add_argument("--workers", type=int, default=4, help="with --shots: shots read at the same time")
@@ -441,6 +442,9 @@ def main():
     try:
         if args.relay:
             say(manifest_line(through_github(args.limit, say)))
+        elif args.collect and args.run:
+            wait({"id": args.run}, say)
+            say(manifest_line(collect(args.run)))
         elif args.collect:
             say(manifest_line(collect_newest(say)))
     except RuntimeError as error:
