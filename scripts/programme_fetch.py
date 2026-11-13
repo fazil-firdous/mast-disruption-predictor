@@ -29,6 +29,7 @@ from src import config, data
 GRID_MS = 5
 COLUMNS = list(programme_signals.TARGETS)
 GIVE_UP_AFTER = 20  # shots in a row that the store did not answer for
+WORK_HOURS = 4.5  # a job starts no new shot after this, so it saves its table before GitHub's limit
 PROGRESS_EVERY = 250
 
 
@@ -72,13 +73,20 @@ def shot_frame(shot_id, open_group=programme_signals.open_group):
     return frame.reset_index(drop=True), "ok"
 
 
-def fetch(ids, workers=config.RELAY_WORKERS, open_group=programme_signals.open_group, say=print):
-    """(table, report) for these shots. Stops with an error if the store stops answering."""
+def fetch(ids, workers=config.RELAY_WORKERS, open_group=programme_signals.open_group, say=print, deadline=None):
+    """(table, report) for these shots. Stops with an error if the store stops answering. deadline (time.time()
+    seconds): shots not started by then are left out and counted as 'not_started', so the job still saves."""
     ids = [int(i) for i in ids]
     frames, status, in_a_row, start = [], {}, 0, time.time()
     pool = ThreadPoolExecutor(max_workers=workers)
+
+    def one(shot):
+        if deadline is not None and time.time() > deadline:
+            return None, "not_started"
+        return shot_frame(shot, open_group)
+
     try:
-        futures = {pool.submit(shot_frame, shot, open_group): shot for shot in ids}
+        futures = {pool.submit(one, shot): shot for shot in ids}
         for done, future in enumerate(as_completed(futures), 1):
             frame, status[futures[future]] = future.result()
             if frame is not None:
@@ -96,6 +104,7 @@ def fetch(ids, workers=config.RELAY_WORKERS, open_group=programme_signals.open_g
     report = {"task": "programme", "created": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
               "shots_requested": len(ids), "shots_with_data": len(frames),
               "empty": sum(s == "empty" for s in status.values()), "failed": len(failed), "failed_ids": failed[:200],
+              "not_started": sum(s == "not_started" for s in status.values()),
               "grid_ms": GRID_MS, "columns": COLUMNS, "seconds": round(time.time() - start)}
     return table, report
 
@@ -104,7 +113,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--limit", type=int, default=0, help="a trial on this many shots spread over the table (0 = all)")
     parser.add_argument("--workers", type=int, default=config.RELAY_WORKERS)
+    parser.add_argument("--part", type=int, default=0, help="which share of the shots this job reads (0-based)")
+    parser.add_argument("--parts", type=int, default=1, help="how many jobs share the shots")
     args = parser.parse_args()
+    deadline = time.time() + WORK_HOURS * 3600
     try:
         import zarr
         zarr.config.set({"async.timeout": 3 * programme_signals.REQUEST_S})
@@ -112,9 +124,11 @@ def main():
         pass
     shots = data.load_shot_table()
     ids = (programme_signals.sample(shots, args.limit) if args.limit else shots)["shot_id"].sort_values().tolist()
+    ids = ids[args.part::args.parts]
     print(f"{len(ids)} shots, {args.workers} at a time", flush=True)
     try:
-        table, report = fetch(ids, args.workers, say=lambda line: print(line, flush=True))
+        table, report = fetch(ids, args.workers, say=lambda line: print(line, flush=True), deadline=deadline)
+        report.update(part=args.part, parts=args.parts)
     except RuntimeError as error:
         print(f"STOPPED: {error}", flush=True)
         os._exit(1)
@@ -124,7 +138,8 @@ def main():
     with open(os.path.join(folder, "manifest.json"), "w") as f:
         json.dump(report, f, indent=2)
     size = os.path.getsize(os.path.join(folder, programme_signals.TABLE)) / 1e6
-    print(f"{report['shots_with_data']} shots with data, {report['empty']} without, {report['failed']} failed; "
+    print(f"{report['shots_with_data']} shots with data, {report['empty']} without, {report['failed']} failed, "
+          f"{report['not_started']} not started (time limit); "
           f"{len(table):,} rows, {size:.1f} MB, {report['seconds']} s", flush=True)
     if report["shots_with_data"] == 0:
         sys.exit(1)
