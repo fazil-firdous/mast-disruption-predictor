@@ -1257,3 +1257,17 @@ plan. Only the programme-only model is plasma-free; the paper reads 'machine-sid
 - **Next, as the protocol says:** a null here does not stop the soft X-ray step. Its first part is a quality audit that
   looks at no outcome: which campaigns, chords and shots have usable soft X-ray data, counted in twin pairs.
 
+## 2026-11-13 - Soft X-rays: what is in the store, and the audit before anything else
+
+From 8 real shots across M5 to M9: up to three cameras (`horizontal_cam_lower`, `horizontal_cam_upper`,
+`tangential_cam`), 18 chords each, 500 kHz, stored in chunks of 3 chords by about 0.1 s, about 30 MB per camera
+per shot. Shot 18000 has no soft X-ray group; M5 shots have two cameras. **The cameras stop recording at a fixed time
+(0.34 to 0.59 s in these shots), sometimes before the plasma ends** (shot 22000: plasma to 0.647 s, cameras to
+0.490 s), so a loss after that moment has no soft X-ray data. One camera of shot 22000 sat at its maximum for 20% of
+the plasma (saturation).
+
+`scripts/sxr_audit.py` (with `scripts/sxr_fetch.py` on GitHub) reads 600 twin pairs spread over the twin list and
+counts usable pairs: both shots with at least 12 good chords in the same camera, and that camera still recording at
+the loss. It also checks whether a missing camera tells lost from kept, the shortcut the soft X-ray study must not
+learn. No soft X-ray feature, model or score exists yet; the protocol for them is written after this audit.
+

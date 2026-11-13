@@ -1,0 +1,41 @@
+# Soft X-ray quality audit: the research server cannot reach STFC, so this job reads the soft X-ray cameras of the
+# shots the server names (scripts/sxr_fetch.py) and attaches a table of per-chord quality, which the server collects
+# (scripts/sxr_audit.py --relay). No outcome, model or label passes through here; nothing is committed.
+name: fetch_sxr
+
+on:
+  workflow_dispatch:
+    inputs:
+      ids:
+        description: "shot numbers, as scripts/sxr_fetch.py encode_ids() writes them"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [0, 1, 2, 3]
+    env:
+      MAST_HOME: ${{ github.workspace }}/relay
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: read the soft X-ray cameras
+        env:
+          IDS: ${{ inputs.ids }}
+        run: python scripts/sxr_fetch.py --ids "$IDS" --part ${{ matrix.part }} --parts 4 --workers 8
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mast-sxr-${{ matrix.part }}
+          path: relay/data/sxr_audit
+          retention-days: 3
+          if-no-files-found: error
