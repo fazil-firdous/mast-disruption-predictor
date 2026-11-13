@@ -1073,3 +1073,34 @@ constant'.)
   FAIR-MAST team, before any twin score is looked at on a new split.
 - The split, when defined, goes into `docs/preregistration_v3.md` before it is run, as decided on this date.
 
+## 2026-11-12 - The programme signals come through GitHub, like the shots
+
+The research server cannot reach the store: its address range is blocked there (notes of 2026-10-15), which the
+two failed runs of this day rediscovered. So the signals take the relay's road.
+
+- `scripts/programme_fetch.py` runs on a GitHub machine (`.github/workflows/fetch_programme.yml`): every shot of
+  the shot table, 5 ms bin means of the reference density, the requested height, the gas valve requests and drive
+  voltages (summed over valves), the gas flows, the gas injected so far and the gas pressure. One table of about
+  40 MB. Tried on 32 real shots: 1.2 s per shot at 4 at a time.
+- On the server, `scripts/programme_signals.py --relay` starts that job, waits and collects the table;
+  without options the script then compares every twin pair offline: per signal the pair's state (changes in both,
+  the same constant in both, in one only, missing) and the difference up to the loss and up to 100 ms before it.
+- What a few real shots show (11879, 16205, 16571, 24000, 29500): 20 kHz samples from -0.1 s; the reference density
+  is zero in the early shots and a real waveform later; the requested height is a real request (-0.18 m in one
+  shot); the valve requests are empty (all NaN) in many shots of M6 and M7 while the valve drive voltages are
+  always there; the names of the valves change between campaigns.
+- The pair comparison starts at each series' first sample, not at t = 0: gas is puffed before the plasma starts.
+
+## 2026-11-13 - The programme table for every shot is made; GitHub's test check is green again
+
+- **The table.** The GitHub job read all 11,573 shots in 72 minutes: 11,564 with data, 9 with none of the signals,
+  none failed; 1,391,563 rows, 21 MB. GitHub keeps it until 2026-11-15 19:40 UTC; after that `--relay` makes it
+  again. On the server: `scripts/programme_signals.py --collect`, then the same script without options for the
+  look at every twin pair. No twin score has been looked at on any of this.
+- **GitHub's test check had been failing and nobody looked.** Every push of 12 November that was checked afterwards
+  shows it red, and it was probably red before. Two causes, both only visible there (it treats warnings as errors
+  and installs the newest pandas): files left open in the release test, and a pandas notice about a keyword that
+  `scripts/v3_runs.py` uses. That script has its own stamp and is not to be edited, so its test lets the notice
+  through and `requirements.txt` keeps pandas below 4, where the keyword goes away. The check is green on the last
+  two pushes. Rule from now on: look at the check after a push, and run the tests here with `-W error`.
+

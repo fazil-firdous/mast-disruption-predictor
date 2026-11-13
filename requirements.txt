@@ -1,5 +1,5 @@
 numpy
-pandas
+pandas<4  # scripts/v3_runs.py (own stamp, not to be edited) uses a keyword pandas 4 removes
 pyarrow
 xarray>=2024.10
 zarr>=3,<4

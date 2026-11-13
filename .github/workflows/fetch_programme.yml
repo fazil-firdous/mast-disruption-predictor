@@ -1,0 +1,36 @@
+# What else was programmed: the research server cannot reach STFC (its address range is blocked there), so this job
+# reads, for every shot, the requested density, height and gas valve voltages and the gas given
+# (scripts/programme_fetch.py) and attaches one small table, which the server collects
+# (scripts/programme_signals.py --relay). Only public MAST data passes through here; nothing is committed.
+name: fetch_programme
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "0 = every shot; N = a trial on N shots spread over the shot table"
+        default: "0"
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    env:
+      MAST_HOME: ${{ github.workspace }}/relay
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: read the store
+        run: python scripts/programme_fetch.py --limit ${{ inputs.limit }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mast-programme
+          path: relay/data/programme
+          retention-days: 3
+          if-no-files-found: error
