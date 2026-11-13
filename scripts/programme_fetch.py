@@ -52,11 +52,12 @@ def shot_frame(shot_id, open_group=programme_signals.open_group):
         except Exception as error:
             errors.append(type(error).__name__)
     columns = {}
-    for name, (group, variable) in programme_signals.TARGETS.items():
+    for name in programme_signals.TARGETS:
+        group, variable, channels = programme_signals.target(name)
         if group not in opened:
             continue
         try:
-            s = programme_signals.series(opened[group], variable)
+            s = programme_signals.series(opened[group], variable, channels)
         except Exception as error:
             errors.append(type(error).__name__)
             continue

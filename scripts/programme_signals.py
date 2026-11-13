@@ -43,11 +43,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from scripts import twin_check, v3_runs
 from src import config, data, relay
 
-GROUPS = ("pulse_schedule", "gas_injection")
+GROUPS = ("pulse_schedule", "gas_injection", "tf", "pf_active")
 TARGETS = {"density_ref": ("pulse_schedule", "n_e_line"), "height_ref": ("pulse_schedule", "z_ref"),
            "valves_ref": ("gas_injection", "valve_target_voltage"), "valves_drive": ("gas_injection", "valve_voltage"),
            "gas_inboard": ("gas_injection", "inboard_total"), "gas_outboard": ("gas_injection", "outboard_total"),
-           "gas_injected": ("gas_injection", "total_injected"), "gas_pressure": ("gas_injection", "pressure")}
+           "gas_injected": ("gas_injection", "total_injected"), "gas_pressure": ("gas_injection", "pressure"),
+           "tf_current": ("tf", "coil_current"),
+           "coil_p2": ("pf_active", "coil_current", ("P2IL FEED", "P2IU FEED", "P2OL FEED", "P2OU FEED")),
+           "coil_p4": ("pf_active", "coil_current", ("P4L FEED", "P4U FEED")),
+           "coil_p5": ("pf_active", "coil_current", ("P5L FEED", "P5U FEED"))}
 NAMES = {"density_ref": "reference density (pulse_schedule/n_e_line)",
          "height_ref": "requested height (pulse_schedule/z_ref)",
          "valves_ref": "requested gas valve voltages, summed over valves (gas_injection/valve_target_voltage)",
@@ -55,7 +59,17 @@ NAMES = {"density_ref": "reference density (pulse_schedule/n_e_line)",
          "gas_inboard": "gas flow inboard (gas_injection/inboard_total)",
          "gas_outboard": "gas flow outboard (gas_injection/outboard_total)",
          "gas_injected": "gas injected so far (gas_injection/total_injected)",
-         "gas_pressure": "gas pressure (gas_injection/pressure)"}
+         "gas_pressure": "gas pressure (gas_injection/pressure)",
+         "tf_current": "toroidal field coil current (tf/coil_current)",
+         "coil_p2": "P2 coil currents, summed (pf_active/coil_current)",
+         "coil_p4": "P4 shape coil currents, summed (pf_active/coil_current)",
+         "coil_p5": "P5 shape coil currents, summed (pf_active/coil_current)"}
+
+
+def target(name):
+    """(group, variable, channels or None) of one signal."""
+    spec = TARGETS[name]
+    return spec if len(spec) == 3 else (*spec, None)
 SAME_RMS = twin_check.SAME_RMS  # the cut used for the programmed current
 REQUEST_S = 60  # time limit of one request to the store; a stalled connection then fails and is counted
 ABSENT = ("GroupNotFoundError", "KeyError", "FileNotFoundError")  # errors that mean 'this shot has no such group'
@@ -90,12 +104,21 @@ def variables(ds):
     return sorted(f"{name}[{','.join(str(d) for d in ds[name].dims)}]" for name in ds.data_vars)
 
 
-def series(ds, variable):
+def series(ds, variable, channels=None):
     """(time, values) of a variable along time, finite samples only, or None. A variable with one more axis (one
-    row per valve) is summed over it, so that it becomes one request per time."""
+    row per valve or coil) is summed over it, or over the named channels only, so that it becomes one value per
+    time. A shot that lacks one of the named channels has no series."""
     if variable not in ds or "time" not in ds[variable].dims or ds[variable].ndim > 2:
         return None
     array = ds[variable].transpose(..., "time")
+    if channels is not None:
+        if array.ndim != 2:
+            return None
+        axis = array.dims[0]
+        names = [str(c) for c in ds[axis].values] if axis in ds.coords or axis in ds else []
+        if not set(channels) <= set(names):
+            return None
+        array = array.isel({axis: [names.index(c) for c in channels]})
     t = np.asarray(array["time"].values, dtype=float)
     v = np.asarray(array.values, dtype=float)
     if v.ndim == 2:
@@ -116,9 +139,10 @@ def describe(shot_id, open_group=open_group):
             row[f"{group}_vars"] = " ".join(variables(opened[group]))
         except Exception as error:
             row[f"{group}_vars"] = f"not opened: {type(error).__name__}"
-    for name, (group, variable) in TARGETS.items():
+    for name in TARGETS:
+        group, variable, channels = target(name)
         try:
-            s = series(opened[group], variable) if group in opened else None
+            s = series(opened[group], variable, channels) if group in opened else None
         except Exception as error:  # the list was read but the values were not
             s, row[f"{group}_vars"] = None, f"not read: {type(error).__name__}"
         found[name] = s

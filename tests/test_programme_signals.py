@@ -81,8 +81,8 @@ def test_look_compares_the_two_shots_of_a_pair():
     shots, compared = programme_signals.look(range(1, 6), pairs, {2: 0.3, 3: 0.3}, campaign, fake_open, workers=2,
                                              say=said.append)
     assert said[0].startswith("first shot 1, read in") and "pulse_schedule: i_plasma[time] n_e_line[time] z_ref[time]" in said[1]
-    assert len(said) == 3 + 4 and sum(line.startswith("[") for line in said) == 4  # one line per later shot
-    assert any("shot 5:" in line and "pulse_schedule and gas_injection failed" in line for line in said)
+    assert len(said) == 1 + len(programme_signals.GROUPS) + 4 and sum(line.startswith("[") for line in said) == 4  # one line per later shot
+    assert any("shot 5:" in line and "pulse_schedule and gas_injection and tf and pf_active failed" in line for line in said)
     assert any("shot 4: density_ref constant, height_ref constant, valves_ref constant, valves_drive no, gas_inboard yes" in line
                for line in said)
     assert len(shots) == 5 and list(shots["campaign"]) == ["M5", "M5", "M5", "M9", "M9"]
@@ -151,7 +151,7 @@ def test_look_stops_when_the_store_does_not_answer():
     said = []
     with pytest.raises(RuntimeError, match="first shot"):
         programme_signals.look(ids, None, {}, {}, stalled, workers=2, say=said.append)
-    assert len(said) == 3  # the first shot's three lines, then it stops
+    assert len(said) == 1 + len(programme_signals.GROUPS)  # the first shot's lines, then it stops
 
     def later(shot_id, name):  # the first shot answers, then nothing does
         if shot_id == 100:
@@ -281,3 +281,12 @@ def test_collecting_the_table_from_github(monkeypatch, tmp_path):
         programme_signals.through_github(say=lambda line: None)
     with pytest.raises(RuntimeError, match="no GitHub token"):
         programme_signals.collect_newest(say=lambda line: None)
+
+
+def test_coil_channels_are_picked_by_name():
+    ds = xr.Dataset({"coil_current": (("current_channel", "time"), np.vstack([np.full(len(T), v) for v in (1.0, 2.0, 4.0)]))},
+                    coords={"time": T, "current_channel": ["SOL", "P4L FEED", "P4U FEED"]})
+    assert (programme_signals.series(ds, "coil_current", ("P4L FEED", "P4U FEED"))[1] == 6.0).all()
+    assert programme_signals.series(ds, "coil_current", ("P5L FEED", "P5U FEED")) is None  # a channel is missing
+    assert programme_signals.target("coil_p4") == ("pf_active", "coil_current", ("P4L FEED", "P4U FEED"))
+    assert programme_signals.target("tf_current") == ("tf", "coil_current", None)
