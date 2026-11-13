@@ -104,6 +104,8 @@ def shot_rows(shot_id, open_group=programme_signals.open_group):
     except Exception as error:
         status = "absent" if type(error).__name__ in programme_signals.ABSENT else "unreachable"
         return [{"shot_id": int(shot_id), "camera": "", "chord": "", "t_on": t_on, "t_off": t_off}], status
+    if "time" not in ds.variables:  # some shots keep only the cameras' geometry here, no recording
+        return [{"shot_id": int(shot_id), "camera": "", "chord": "", "t_on": t_on, "t_off": t_off}], "absent"
     rows = []
     t = np.asarray(ds["time"].values, dtype=float)
     for cam in ds.data_vars:
@@ -127,7 +129,11 @@ def fetch(ids, workers=8, open_group=programme_signals.open_group, say=print, de
     def one(shot):
         if deadline is not None and time.time() > deadline:
             return [], "not_started"
-        return shot_rows(shot, open_group)
+        try:
+            return shot_rows(shot, open_group)
+        except Exception as error:  # a shot stored in a way not seen before: counted, never fatal
+            print(f"shot {shot}: skipped, {type(error).__name__}: {str(error)[:120]}", flush=True)
+            return [{"shot_id": int(shot), "camera": "", "chord": ""}], "odd"
 
     try:
         futures = {pool.submit(one, shot): shot for shot in ids}
@@ -148,6 +154,7 @@ def fetch(ids, workers=8, open_group=programme_signals.open_group, say=print, de
               "shots_requested": len(ids), "shots_with_data": sum(s == "ok" for s in status.values()),
               "absent": sum(s == "absent" for s in status.values()),
               "failed": sum(s == "unreachable" for s in status.values()),
+              "odd": sum(s == "odd" for s in status.values()),
               "not_started": sum(s == "not_started" for s in status.values()), "seconds": round(time.time() - start)}
     return table, report
 
