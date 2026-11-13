@@ -89,4 +89,4 @@ soft X-ray study gets its own protocol after a quality audit that looks at no ou
 
 ## Changes after the first result
 
-(none yet)
+(none; the result is in NOTES.md, 2026-11-13)
