@@ -1178,3 +1178,20 @@ shape coils may be partly under feedback. Order as before: the GitHub job makes 
 twins are in them, then a rule is written into the pre-registration, then it is run. Reading is slower: about 3 s
 per shot at 4 at a time here, so the job takes two to three hours.
 
+## 2026-11-13 - Field and shape coils: how alike twins are (no score looked at)
+
+All 11,573 shots read on GitHub (4 h, none failed). Over all 3,902 twin pairs:
+
+| Signal | under 1% | under 10% | median, up to the loss | median, up to 100 ms before |
+|---|---|---|---|---|
+| toroidal field coil current | 86% | 95% | 0.1% | 0.2% |
+| P2 coils | 10% | 57% (72% up to 100 ms before) | 7.7% | 3.9% |
+| P4 shape coils | 18% | 85% (90%) | 2.9% | 1.7% |
+| P5 shape coils | 10% | 81% (90%) | 4.2% | 2.5% |
+
+- The field was already matched in almost every pair: the paper's 'the toroidal field is not matched' becomes a
+  measured statement.
+- The shape coils differ more close to the loss than earlier, as delivered currents under feedback would.
+- Rule for field and shape twins written into `docs/preregistration_v3.md` (commit 37a4bb0) before any score was
+  computed on them; `scripts/plan_twins.py` computes them.
+

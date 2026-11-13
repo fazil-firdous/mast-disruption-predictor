@@ -21,6 +21,8 @@ from src import config, server
 
 SAME = 0.01  # under 1% relative difference counts as the same request
 REQUESTS = ("density_ref", "height_ref", "valves_ref")
+SHAPE = ("coil_p2", "coil_p4", "coil_p5")
+SHAPE_SAME = 0.10  # delivered shape coil currents: the cut used for the programmed current, up to 100 ms before the loss
 MODELS = ("baseline", "machine", "programme", "solenoid")
 NAMES = {"baseline": "full", "machine": "machine-side", "programme": "programme-only", "solenoid": "solenoid-only"}
 
@@ -44,6 +46,21 @@ def flags(compared):
     valves_absent = compared["valves_ref_state"] == "missing"
     out["plan"] = m["density_ref"] & m["height_ref"] & (m["valves_ref"] | valves_absent)
     out["full_plan"] = m["density_ref"] & m["height_ref"] & m["valves_ref"]
+    if "tf_current_rms" in compared:
+        field = pd.to_numeric(compared["tf_current_rms"], errors="coerce") < SAME
+        shape = np.logical_and.reduce([pd.to_numeric(compared[f"{c}_rms_early"], errors="coerce") < SHAPE_SAME
+                                       for c in SHAPE])
+        out["field_plan"] = out["plan"] & field
+        out["shape_plan"] = out["plan"] & field & shape
+    return out
+
+
+def sets(plan):
+    """[(column, label in capitals, label for lines)] of the sets this table has, in the order of the protocol."""
+    out = [("plan", "PLAN TWINS (primary of 2026-11-13)", "plan twins"), ("full_plan", "FULL-PLAN TWINS", "full-plan twins")]
+    if "shape_plan" in plan:
+        out += [("field_plan", "FIELD-PLAN TWINS", "field-plan twins"),
+                ("shape_plan", "FIELD-AND-SHAPE TWINS (primary of 2026-11-13, later)", "field-and-shape twins")]
     return out
 
 
@@ -114,12 +131,11 @@ def composition(main, plan, campaign):
     beam heating. One line per set; shares of distinct pairs. No score."""
     pairs = main.drop_duplicates(["shot_id", "other"]).merge(plan, on=["shot_id", "other"], how="left")
     pairs["campaign"] = pairs["shot_id"].map(campaign).fillna("Unknown")
-    sets = (("plan twins", pairs[pairs["plan"].fillna(False).astype(bool)]),
-            ("full-plan twins", pairs[pairs["full_plan"].fillna(False).astype(bool)]),
-            ("not plan twins", pairs[~pairs["plan"].fillna(False).astype(bool)]), ("all tested twins", pairs))
+    chosen = [(name, pairs[pairs[column].fillna(False).astype(bool)]) for column, _, name in sets(plan)]
+    chosen += [("not plan twins", pairs[~pairs["plan"].fillna(False).astype(bool)]), ("all tested twins", pairs)]
     campaigns = sorted(pairs["campaign"].astype(str).unique())
     lines = ["Who is in each set (distinct tested pairs; shares):"]
-    for name, part in sets:
+    for name, part in chosen:
         n = max(len(part), 1)
         by = part["campaign"].astype(str).value_counts()
         heat = part["heating"].value_counts() if "heating" in part else pd.Series(dtype=float)
@@ -135,17 +151,20 @@ def text(main, plan, temporal, campaign=None):
     lines = ["Plan twins (docs/preregistration_v3.md, 2026-11-13). Exploratory. Matched in a request: changes in both "
              f"shots with a relative difference under {SAME:.0%} up to the loss, or the same constant in both.",
              f"Of {n:,} twin pairs: plan twins {int(plan['plan'].sum()):,} ({plan['plan'].mean():.0%}); full-plan twins "
-             f"{int(plan['full_plan'].sum()):,} ({plan['full_plan'].mean():.0%}).", ""]
+             f"{int(plan['full_plan'].sum()):,} ({plan['full_plan'].mean():.0%})" + (
+                 f"; field-plan twins {int(plan['field_plan'].sum()):,} ({plan['field_plan'].mean():.0%}); field-and-shape "
+                 f"twins {int(plan['shape_plan'].sum()):,} ({plan['shape_plan'].mean():.0%})" if "shape_plan" in plan else "")
+             + ".", ""]
     if campaign is not None:
         lines += composition(main, plan, campaign) + [""]
     keys = plan.set_index(["shot_id", "other"])
     flagged = main.join(keys, on=["shot_id", "other"])
-    for column, label in (("plan", "PLAN TWINS (primary)"), ("full_plan", "FULL-PLAN TWINS")):
+    for column, label, _ in sets(plan):
         lines += c_lines(flagged[flagged[column].fillna(False).astype(bool)], label) + [""]
     lines += c_lines(flagged[~flagged["plan"].fillna(False).astype(bool)], "Twins that are not plan twins") + [""]
     lines += c_lines(main, "All twins (known, for comparison)") + [""]
     lines.append("Chronological split (trained on M5-M7, tested on M8-M9), pooled ranges:")
-    for column, label in (("plan", "plan twins"), ("full_plan", "full-plan twins")):
+    for column, _, label in sets(plan):
         lines += temporal_lines(temporal, plan.loc[plan[column], ["shot_id", "other"]], label)
     lines += temporal_lines(temporal, plan[["shot_id", "other"]], "all twins (known)")
     return "\n".join(lines)
