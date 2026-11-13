@@ -11,6 +11,7 @@ import argparse
 import os
 import subprocess
 import sys
+import warnings
 
 import matplotlib
 matplotlib.use("Agg")
@@ -71,6 +72,13 @@ def pick_camera(a, b):
 
 
 def render(lost, kept, t_loss, out_dir, open_group=programme_signals.open_group, fps=FPS, seconds=SECONDS):
+    """See _render; empty bins and chords give NaN quietly instead of warnings."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        return _render(lost, kept, t_loss, out_dir, open_group, fps, seconds)
+
+
+def _render(lost, kept, t_loss, out_dir, open_group, fps, seconds):
     """Write <lost>_<kept>.mp4 and .png into out_dir; returns their paths, or [] when the pair cannot be shown."""
     try:
         a, b = open_group(lost, "soft_x_rays"), open_group(kept, "soft_x_rays")
