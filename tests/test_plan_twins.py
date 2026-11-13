@@ -36,7 +36,7 @@ def test_summary_from_made_up_wins(monkeypatch):
     main = pd.DataFrame(rows)
     out = plan_twins.text(main, plan_twins.flags(compared()), pd.DataFrame())
     assert "Of 5 twin pairs: plan twins 3 (60%); full-plan twins 2 (40%)." in out
-    block = out.split("PLAN TWINS (primary)")[1].split("FULL-PLAN TWINS")[0]
+    block = out.split("PLAN TWINS (primary of 2026-11-13)")[1].split("FULL-PLAN TWINS")[0]
     assert ": 3 pairs, 3 different twins" in block and "full 1.000" in block and "machine-side 0.500" in block
     assert "full minus machine-side: splits +0.500" in block
     rest = out.split("Twins that are not plan twins")[1].split("All twins")[0]
@@ -62,3 +62,21 @@ def test_composition_of_the_sets():
     assert "3 pairs; recorded 33%; heating same 67%, different 33%, unknown 0%; M5 33%, M9 67%" in plan
     every = next(l for l in lines if l.startswith("- all tested twins"))
     assert "5 pairs; recorded 40%" in every
+
+
+def test_field_and_shape_twins():
+    c = compared()
+    c["tf_current_rms"] = [0.0, 0.0, 0.002, 0.05, 0.0]  # pair 14 has a different field
+    for coil in plan_twins.SHAPE:
+        c[f"{coil}_rms_early"] = [0.02, 0.0, 0.30 if coil == "coil_p4" else 0.0, 0.0, 0.0]  # pair 13 a different P4
+    f = plan_twins.flags(c).set_index("shot_id")
+    assert f["field_plan"].to_dict() == {11: True, 12: False, 13: True, 14: False, 15: False}
+    assert f["shape_plan"].to_dict() == {11: True, 12: False, 13: False, 14: False, 15: False}
+    main = pd.DataFrame([{"shot_id": s, "other": s - 10, "recipe": r, "seed": seed, "lead_ms": 5, "win": w,
+                          "win_common": w, "group": "candidate", "heating": "same"}
+                         for seed in range(1, 4) for s in (11, 12, 13, 14, 15)
+                         for r, w in (("baseline", 1.0), ("machine", 0.5))])
+    out = plan_twins.text(main, plan_twins.flags(c), pd.DataFrame(), {s: "M7" for s in range(10, 16)})
+    assert "field-plan twins 2 (40%); field-and-shape twins 1 (20%)." in out
+    assert "FIELD-AND-SHAPE TWINS (primary of 2026-11-13, later): 1 pairs" in out
+    assert "- field-and-shape twins: no chronological runs" in out
