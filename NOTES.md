@@ -1234,3 +1234,26 @@ plasma's response. This explains why the solenoid-only model stays at 0.57 to 0.
 machine-side model tracks the full model at 30 to 50 ms: it is a fast, indirect plasma signal, not a record of the
 plan. Only the programme-only model is plasma-free; the paper reads 'machine-side' with that in mind.
 
+## 2026-11-13 - Faster signals, step 0: the 5 ms magnetic summaries add nothing measurable (as pre-registered, c111faf)
+
+`scripts/fast_magnetics.py`, 60 runs. Fixed-lead twin test, common cohort of all twins, splits 1 to 20.
+
+- **Primary:** C(50 ms) of C (20 + 5 ms) minus A (full): **-0.004 (-0.072 to +0.065)** over splits; pooled -0.009
+  (-0.027 to +0.010), 1,716 pairs. Not resolved. The pooled range ends at +0.010, below the +0.03 fixed as worth
+  having: given these fitted models, a gain of that size at 50 ms is ruled out. The range over splits is too wide
+  to rule it out on its own.
+- **Every other lead and model agrees:** C minus A at 10, 30 and 100 ms: +0.002, +0.018, +0.008; B (5 ms instead of
+  20 ms) and G (growth) within +-0.01 of A everywhere; none resolved. Plan twins and field-and-shape twins at 50 ms:
+  -0.023 and -0.024, ranges including zero (required check: no positive sign to agree with).
+- **Usual metrics** unchanged: pAUC +0.004 (C), +0.009 (B), -0.000 (G), none resolved.
+- **Placebo** for A and C alike (0.52 to 0.56): the new features do not raise the ordering between good repeats.
+- **Chronological split (secondary, one split, pooled):** C minus A +0.053 (+0.017 to +0.090) at 30 ms, +0.008 at 50 ms,
+  -0.034 (-0.070 to +0.001) at 100 ms. One resolved cell out of four secondary leads on one split, flanked by a
+  negative one; not read as an effect.
+- **Reading, as fixed beforehand:** summarising these magnetic signals over 5 ms instead of 20 ms adds no measurable
+  discrimination at 50 ms. Not that the plasma holds no earlier information. With the 100 ms training horizon (how
+  early, Part B) this is the second way of asking for earlier warning from the same signals that came back empty:
+  the limit is the signals, not their time resolution or the training target.
+- **Next, as the protocol says:** a null here does not stop the soft X-ray step. Its first part is a quality audit that
+  looks at no outcome: which campaigns, chords and shots have usable soft X-ray data, counted in twin pairs.
+
