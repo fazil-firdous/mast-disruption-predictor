@@ -65,3 +65,23 @@ def test_the_viewer_renders_a_pair(tmp_path):
     assert [p.endswith(e) for p, e in zip(paths, (".mp4", ".png"))] == [True, True]
     assert all((tmp_path / name).stat().st_size > 1000 for name in ("4_1.mp4", "4_1.png"))
     assert sxr_view.render(3, 1, 0.25, str(tmp_path), open_group=fake_open) == []  # no soft X-ray group
+
+
+
+def test_a_shot_without_recordings_or_stored_oddly_is_skipped():
+    def odd(shot, group):
+        if group == "summary":
+            return fake_open(shot, group)
+        if shot == 5:
+            return xr.Dataset({"cam_geometry": ("geometry_channel", np.ones(3))})  # geometry only, no time
+        if shot == 6:  # opens, but reading it fails in a way not seen before
+            class Weird:
+                variables = {"time": None}
+
+                def __getitem__(self, key):
+                    raise ValueError("something not seen before")
+            return Weird()
+        return fake_open(shot, group)
+
+    table, report = sxr_fetch.fetch([1, 5, 6], workers=1, open_group=odd, say=lambda line: None)
+    assert report["shots_with_data"] == 1 and report["absent"] == 1 and report["odd"] == 1 and report["failed"] == 0
