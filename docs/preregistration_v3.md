@@ -162,6 +162,31 @@ of 2026-11-12 and 13). Seen before this was written: how alike the two shots of 
   main one and is reported as such. The shape itself (the programmed coil currents), the toroidal field and the
   wall are still not matched. Nothing in the registered tests is changed by this, and it is labelled exploratory.
 
+### 2026-11-13, later: field and shape twins (written before any score was looked at on them)
+
+The plan-twins result is known (above). Seen before this was written: how alike the two shots of every twin pair
+are in the toroidal field coil current and in the P2, P4 and P5 coil currents (`scripts/programme_signals.py`), and
+nothing else about these sets. Toroidal field: within 1% in 86% of pairs, within 10% in 95%. Shape coils, up to
+100 ms before the loss: within 10% in 72% (P2), 90% (P4) and 90% (P5) of pairs; up to the loss the differences
+are larger, as expected if the coils respond to the plasma near the end.
+
+- **Field matched:** the toroidal field coil currents of the two shots differ by under 1% (relative RMS difference
+  up to the lost shot's loss). The field is set before the shot, so it is treated like a request.
+- **Shape matched:** the P2, P4 and P5 coil currents (upper and lower summed) each differ by under 10%, the cut used
+  for the programmed current, compared only up to 100 ms before the loss, so that a response to the developing
+  event does not decide the match (the boundary used for the early heating). These are delivered currents, partly
+  under feedback, not requests; the paper says so.
+- **Sets:** field-plan twins = plan twins with the field matched; field-and-shape twins (primary) = plan twins with
+  the field and the shape matched.
+- **Reported, whatever it shows:** as for plan twins: counts and who is in each set; C of the four models with both
+  statistics and both ranges; full minus machine-side; the chronological split, pooled.
+- **Primary quantity:** the full model's same-time C on field-and-shape twins over the 50 splits, and its lead over
+  the machine-side model.
+- **Reading:** if the full model's C stays clear of 0.5, differences in the field and in the shape coils up to
+  100 ms before the loss do not explain the separation. A smaller set gives a wider range: a range that includes
+  zero for the lead over the machine-side model is uncertainty, not evidence that the lead is gone. This is the last
+  matching added to this study; anything further is a new study.
+
 ### What each range covers
 
 - *Over splits* (corrected resampled t-test): the model changing with the training set and the test shots drawn;
