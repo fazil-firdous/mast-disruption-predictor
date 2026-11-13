@@ -1104,3 +1104,21 @@ two failed runs of this day rediscovered. So the signals take the relay's road.
   through and `requirements.txt` keeps pandas below 4, where the keyword goes away. The check is green on the last
   two pushes. Rule from now on: look at the check after a push, and run the tests here with `-W error`.
 
+## 2026-11-13 - Were the twins the same plan? Mostly yes (no score looked at)
+
+`scripts/programme_signals.py` on all 3,902 twin pairs, from the table the GitHub job made. Per request, among
+pairs where it changes in both shots, the share whose two shots asked for the same thing (under 1% relative
+difference, up to the loss):
+
+| Request | changes in both | same constant in both | in one only | missing | of 'both': under 1% | under 10% |
+|---|---|---|---|---|---|---|
+| reference density | 2,904 | 887 | 111 | 0 | 73% | 83% |
+| requested height | 3,250 | 396 | 253 | 0 | 71% | 74% |
+| gas valve requests | 2,212 | 83 | 68 | 1,539 | 78% | 89% |
+
+- The gas actually given differs much more: valve drive voltages median 13% (under 1% in 24%), outboard flow
+  5%, pressure 12%. That is expected if the density is under feedback: the valves respond to the plasma. So it is
+  not used for matching.
+- The plan-twins analysis was written into `docs/preregistration_v3.md` (commit 69023ff) before any score was
+  computed on these pairs; the code is `scripts/plan_twins.py`.
+
