@@ -109,13 +109,35 @@ def temporal_lines(wins, keep, label):
     return [f"- {label} (same-time statistic): " + "; ".join(cells)]
 
 
-def text(main, plan, temporal):
+def composition(main, plan, campaign):
+    """How plan twins differ from the other twins in who is in them: campaign, recorded or candidate lost shot,
+    beam heating. One line per set; shares of distinct pairs. No score."""
+    pairs = main.drop_duplicates(["shot_id", "other"]).merge(plan, on=["shot_id", "other"], how="left")
+    pairs["campaign"] = pairs["shot_id"].map(campaign).fillna("Unknown")
+    sets = (("plan twins", pairs[pairs["plan"].fillna(False).astype(bool)]),
+            ("full-plan twins", pairs[pairs["full_plan"].fillna(False).astype(bool)]),
+            ("not plan twins", pairs[~pairs["plan"].fillna(False).astype(bool)]), ("all tested twins", pairs))
+    campaigns = sorted(pairs["campaign"].astype(str).unique())
+    lines = ["Who is in each set (distinct tested pairs; shares):"]
+    for name, part in sets:
+        n = max(len(part), 1)
+        by = part["campaign"].astype(str).value_counts()
+        heat = part["heating"].value_counts() if "heating" in part else pd.Series(dtype=float)
+        lines.append(f"- {name}: {len(part):,} pairs; recorded {(part['group'] == 'recorded').mean():.0%}; heating same "
+                     f"{heat.get('same', 0) / n:.0%}, different {heat.get('different', 0) / n:.0%}, unknown "
+                     f"{heat.get('unknown', 0) / n:.0%}; " + ", ".join(f"{c} {by.get(c, 0) / n:.0%}" for c in campaigns))
+    return lines
+
+
+def text(main, plan, temporal, campaign=None):
     """The analysis in words, in the order of the pre-registration."""
     n = len(plan)
     lines = ["Plan twins (docs/preregistration_v3.md, 2026-11-13). Exploratory. Matched in a request: changes in both "
              f"shots with a relative difference under {SAME:.0%} up to the loss, or the same constant in both.",
              f"Of {n:,} twin pairs: plan twins {int(plan['plan'].sum()):,} ({plan['plan'].mean():.0%}); full-plan twins "
              f"{int(plan['full_plan'].sum()):,} ({plan['full_plan'].mean():.0%}).", ""]
+    if campaign is not None:
+        lines += composition(main, plan, campaign) + [""]
     keys = plan.set_index(["shot_id", "other"])
     flagged = main.join(keys, on=["shot_id", "other"])
     for column, label in (("plan", "PLAN TWINS (primary)"), ("full_plan", "FULL-PLAN TWINS")):
@@ -138,7 +160,9 @@ def main():
     plan = flags(pd.read_csv(compared_path))
     pairs = pd.read_csv(pairs_path)
     main_pairs = pairs[pairs["lead_ms"] == config.MIN_WARNING_MS]
-    out = text(main_pairs, plan, temporal_wins())
+    from src import data
+    campaign = data.load_shot_table().set_index("shot_id")["campaign"].to_dict()
+    out = text(main_pairs, plan, temporal_wins(), campaign)
     os.makedirs(folder(), exist_ok=True)
     plan.to_csv(os.path.join(folder(), "pairs.csv"), index=False)
     with open(os.path.join(folder(), "summary.txt"), "w") as f:
