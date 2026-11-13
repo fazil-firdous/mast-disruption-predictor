@@ -1240,8 +1240,9 @@ plan. Only the programme-only model is plasma-free; the paper reads 'machine-sid
 
 - **Primary:** C(50 ms) of C (20 + 5 ms) minus A (full): **-0.004 (-0.072 to +0.065)** over splits; pooled -0.009
   (-0.027 to +0.010), 1,716 pairs. Not resolved. The pooled range ends at +0.010, below the +0.03 fixed as worth
-  having: given these fitted models, a gain of that size at 50 ms is ruled out. The range over splits is too wide
-  to rule it out on its own.
+  having, but it is conditional on these 20 fitted models (pairs resampled, training not); the range over splits,
+  which includes training variation and decides, still includes +0.03. So: no resolved improvement; a worthwhile
+  gain is not excluded. (Wording corrected 2026-11-13 after an outside review; the earlier line said 'ruled out'.)
 - **Every other lead and model agrees:** C minus A at 10, 30 and 100 ms: +0.002, +0.018, +0.008; B (5 ms instead of
   20 ms) and G (growth) within +-0.01 of A everywhere; none resolved. Plan twins and field-and-shape twins at 50 ms:
   -0.023 and -0.024, ranges including zero (required check: no positive sign to agree with).

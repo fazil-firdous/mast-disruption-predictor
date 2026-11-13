@@ -107,6 +107,54 @@ to 20. 50 ms as in step 0: the first lead beyond the 30 ms the models are traine
 A null here ends the soft X-ray part of this study with these summaries; it is reported as a null, with its range.
 Other soft X-ray features would be a new protocol, written before they are computed.
 
+## Clarifications and exploratory checks, 2026-11-13 (before any result of this study)
+
+Written while the GitHub job was reading the cameras: no soft X-ray feature had been computed and no model of this
+study trained. Prompted by an outside methodological review. The primary analysis above is unchanged; everything
+here is exploratory and is reported as such.
+
+**What each preprocessing step knows (all causal; tested in `tests/test_soft_xrays.py`):**
+
+| Step | Uses |
+|---|---|
+| chord offset; chord left out for the shot | samples before t = 0 only |
+| chord empty in a bin (no change within it) | that bin's samples only |
+| bin needs 12 chords | that bin only |
+| value of bin k | samples in (k-1, k] ms; known at k ms |
+| window features at t_end | bins k <= t_end |
+| relative change | bins from the plasma start to the window start |
+| which bins are kept (25 ms before the plasma to 5 ms after) | the plasma window; changes no value inside it |
+
+No gain correction is applied. The chord coordinate y_i = i/17 is the chord's index, not its geometry, so position,
+width and peak are **chord-profile moments** (of b+ = max(b, 0)), not a reconstructed emissivity position or width.
+Where sum(b+) is not positive they are empty; near zero they are noisy, which is not guarded against.
+
+**fluct, exactly:** the population standard deviation of the camera's summed offset-corrected signal over the
+samples in (k-1, k] ms, divided by the number of chords kept for the shot. It is not a clean high-pass filter: a
+trend or a step within the bin adds to it, as an oscillation above ~1 kHz does. Known at k ms.
+
+**A known weakness, found on a synthetic camera before any real feature:** when a bright chord becomes empty
+(stuck), level, width and peak jump (in the test, the brightest of 18 chords sticking moved level by -15%, width by
++12%, peak by +10%), so drop can see a chord leaving as a crash. The features above stay as registered. Checks:
+
+- **E1, coverage at the landmark** (`scripts/sxr_audit.py`, from the audit table): the usability asymmetry
+  recomputed with coverage over the interval the 50 ms comparison needs (from the plasma start to 50 ms before the
+  lost shot's loss) instead of the whole plasma. Tests the fixed-stop explanation directly.
+- **E2, chord-set changes:** at the 50 ms moment, the share of lost shots and of twins whose chord count changes
+  within the 20 ms window; and S minus A at 50 ms on pairs where both shots have soft X-ray inputs and a constant
+  chord count in that window.
+- **E3, availability-only control:** the full model plus two inputs only, whether each camera has a level in the
+  window (S's missingness without its values), on the same 21 splits; C(50 ms) minus A. A gain here means
+  availability itself carries outcome information.
+- **E4, composition:** the share of operator-recorded disruptions among lost shots in all pairs, the pairs with
+  inputs in both shots, and the E2 pairs.
+
+**Wording kept for the paper:** the lead is the time before the detected current quench, not before the thermal
+quench or the onset of an instability; a soft X-ray change 50 ms before it may already be part of the loss. The
+models use a 30 ms positive-label horizon (not 'trained to warn 30 ms before'). M8-M9 are campaigns not used for
+training (their outputs from earlier studies have been examined). A null here is bounded: 'these soft X-ray
+summaries did not add resolved discrimination at 50 ms', with its range, and whether that range excludes +0.03.
+
 ## Changes after the first result
 
 (none yet)
