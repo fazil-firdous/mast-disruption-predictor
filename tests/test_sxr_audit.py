@@ -1,6 +1,9 @@
 """Tests for scripts/sxr_fetch.py and scripts/sxr_audit.py on made-up chords and groups. No network."""
+import shutil
+
 import numpy as np
 import pandas as pd
+import pytest
 import xarray as xr
 
 from scripts import sxr_audit, sxr_fetch
@@ -59,6 +62,7 @@ def test_examples_come_from_development_campaigns_only():
     assert sxr_view.parse_examples("102:101:300.0;103:102:312.5") == [(102, 101, 0.3), (103, 102, 0.3125)]
 
 
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg is not installed here (the GitHub job has it)")
 def test_the_viewer_renders_a_pair(tmp_path):
     from scripts import sxr_view
     paths = sxr_view.render(4, 1, 0.25, str(tmp_path), open_group=fake_open, fps=5, seconds=2)
@@ -85,3 +89,11 @@ def test_a_shot_without_recordings_or_stored_oddly_is_skipped():
 
     table, report = sxr_fetch.fetch([1, 5, 6], workers=1, open_group=odd, say=lambda line: None)
     assert report["shots_with_data"] == 1 and report["absent"] == 1 and report["odd"] == 1 and report["failed"] == 0
+
+
+
+def test_without_ffmpeg_the_viewer_still_makes_the_picture(tmp_path, monkeypatch):
+    from scripts import sxr_view
+    monkeypatch.setattr(sxr_view.shutil, "which", lambda name: None)
+    paths = sxr_view.render(4, 1, 0.25, str(tmp_path), open_group=fake_open, fps=5, seconds=2)
+    assert [p.rsplit(".", 1)[1] for p in paths] == ["png"] and (tmp_path / "4_1.png").exists()

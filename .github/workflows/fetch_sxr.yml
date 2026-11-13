@@ -38,10 +38,12 @@ jobs:
         run: python scripts/sxr_fetch.py --ids "$IDS" --part ${{ matrix.part }} --parts 4 --workers 8
       - name: render what the camera sees for the example pairs
         if: ${{ matrix.part == 0 && inputs.examples != '' }}
+        continue-on-error: true  # a failed video never costs the audit table
         env:
           EXAMPLES: ${{ inputs.examples }}
         run: python scripts/sxr_view.py --examples "$EXAMPLES"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: mast-sxr-${{ matrix.part }}
           path: relay/data/sxr_audit
