@@ -290,3 +290,35 @@ def test_coil_channels_are_picked_by_name():
     assert programme_signals.series(ds, "coil_current", ("P5L FEED", "P5U FEED")) is None  # a channel is missing
     assert programme_signals.target("coil_p4") == ("pf_active", "coil_current", ("P4L FEED", "P4U FEED"))
     assert programme_signals.target("tf_current") == ("tf", "coil_current", None)
+
+
+def test_a_job_past_its_time_saves_what_it_has():
+    table, report = programme_fetch.fetch([1, 2, 3], workers=1, open_group=fake_open, say=lambda line: None, deadline=0)
+    assert report["not_started"] == 3 and report["shots_with_data"] == 0 and len(table) == 0
+
+
+def test_collecting_a_job_run_in_parts(monkeypatch, tmp_path):
+    monkeypatch.setattr(config, "DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("GITHUB_TOKEN", "t")
+    zips = {}
+    for part, shots in ((0, [1, 3]), (1, [2, 4])):
+        table, report = programme_fetch.fetch(shots, workers=1, open_group=fake_open, say=lambda line: None)
+        report.update(part=part, parts=2)
+        packed, buffer = io.BytesIO(), io.BytesIO()
+        table.to_parquet(buffer, index=False)
+        with zipfile.ZipFile(packed, "w") as archive:
+            archive.writestr("programme.parquet", buffer.getvalue())
+            archive.writestr("manifest.json", json.dumps(report))
+        zips[f"https://zip{part}"] = packed.getvalue()
+
+    def get(url, **kwargs):
+        if url.endswith("/artifacts"):
+            return Reply({"artifacts": [{"name": f"mast-programme-{p}", "archive_download_url": f"https://zip{p}"}
+                                        for p in (1, 0)] + [{"name": "mast-data-0", "archive_download_url": "x"}]})
+        return Reply(content=zips[url])
+
+    monkeypatch.setattr(programme_signals.requests, "get", get)
+    manifest = programme_signals.collect(5)
+    assert manifest["parts_collected"] == 2 and manifest["shots_requested"] == 4 and manifest["shots_with_data"] == 4
+    table = pd.read_parquet(tmp_path / "data" / "programme" / "programme.parquet")
+    assert sorted(table["shot_id"].unique()) == [1, 2, 3, 4]

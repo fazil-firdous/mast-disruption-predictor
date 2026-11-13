@@ -357,25 +357,35 @@ def wait(run, say=print, poll_s=30, hours=6):
 
 
 def collect(run_id):
-    """Download the run's table into DATA_DIR/programme (the table and its manifest, nothing else) and return the
-    manifest."""
+    """Download the run's tables (one per part) into DATA_DIR/programme as one table with one manifest (counts
+    added up) and return the manifest. Nothing else from the artifacts is written."""
     response = requests.get(relay._api(f"/actions/runs/{run_id}/artifacts"), headers=relay._headers(), timeout=30)
     relay.check(response)
-    artifact = next((a for a in response.json().get("artifacts", []) if a["name"] == ARTIFACT and not a.get("expired")), None)
-    if artifact is None:
+    artifacts = sorted((a for a in response.json().get("artifacts", [])
+                        if (a["name"] == ARTIFACT or a["name"].startswith(ARTIFACT + "-")) and not a.get("expired")),
+                       key=lambda a: a["name"])
+    if not artifacts:
         raise RuntimeError(f"run {run_id} has no '{ARTIFACT}' artifact (GitHub keeps it for three days)")
-    response = requests.get(artifact["archive_download_url"], headers=relay._headers(), timeout=600)
-    relay.check(response)
+    tables, manifests = [], []
+    for artifact in artifacts:
+        response = requests.get(artifact["archive_download_url"], headers=relay._headers(), timeout=600)
+        relay.check(response)
+        with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+            names = {os.path.basename(name): name for name in archive.namelist()}
+            if TABLE not in names or "manifest.json" not in names:
+                raise RuntimeError(f"the artifact {artifact['name']} of run {run_id} lacks {TABLE} or manifest.json")
+            tables.append(pd.read_parquet(io.BytesIO(archive.read(names[TABLE]))))
+            manifests.append(json.loads(archive.read(names["manifest.json"])))
+    manifest = dict(manifests[0])
+    for key in ("shots_requested", "shots_with_data", "empty", "failed", "not_started"):
+        manifest[key] = sum(m.get(key, 0) for m in manifests)
+    manifest["failed_ids"] = sorted(i for m in manifests for i in m.get("failed_ids", []))[:200]
+    manifest["parts_collected"] = len(manifests)
     os.makedirs(data_folder(), exist_ok=True)
-    with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
-        names = {os.path.basename(name): name for name in archive.namelist()}
-        if TABLE not in names or "manifest.json" not in names:
-            raise RuntimeError(f"the artifact of run {run_id} lacks {TABLE} or manifest.json")
-        for base in (TABLE, "manifest.json"):
-            with open(os.path.join(data_folder(), base), "wb") as f:
-                f.write(archive.read(names[base]))
-    with open(os.path.join(data_folder(), "manifest.json")) as f:
-        return json.load(f)
+    pd.concat(tables, ignore_index=True).to_parquet(os.path.join(data_folder(), TABLE), index=False)
+    with open(os.path.join(data_folder(), "manifest.json"), "w") as f:
+        json.dump(manifest, f, indent=2)
+    return manifest
 
 
 def through_github(limit=0, say=print, poll_s=30, hours=6):
@@ -415,7 +425,8 @@ def coverage(table, pairs):
 
 def manifest_line(manifest):
     return (f"collected: {manifest.get('shots_with_data', '?'):,} shots with data of {manifest.get('shots_requested', '?'):,} "
-            f"asked, {manifest.get('failed', '?')} failed, made {manifest.get('created', '?')}")
+            f"asked, {manifest.get('failed', '?')} failed, {manifest.get('not_started', 0)} not started, "
+            f"made {manifest.get('created', '?')}")
 
 
 def main():
