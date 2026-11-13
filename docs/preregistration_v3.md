@@ -130,6 +130,38 @@ further analysis is added to this study after them.
 - **Recorded minus candidate.** The difference between the pooled C of recorded and of candidate lost shots, with
   groups of pairs sharing a twin resampled jointly and the difference recomputed in each resample.
 
+### 2026-11-13: plan twins (written before any score was looked at on them)
+
+The four final checks were to be the last analysis of this study. This one is added after them, because a person
+who knows the machine said that two shots with the same programmed current can still differ in their gas and
+shape programmes, and the archive turned out to hold some of those requests (`scripts/programme_signals.py`, notes
+of 2026-11-12 and 13). Seen before this was written: how alike the two shots of every twin pair are in each request
+(the look's output), and nothing else about these pairs; no twin score, pAUC or other result was computed on them.
+
+- **Requests compared** (from `pulse_schedule` and `gas_injection`, 5 ms bin means, up to the lost shot's loss):
+  the reference density (`n_e_line`), the requested height (`z_ref`) and the requested gas valve voltages
+  (`valve_target_voltage`, summed over valves). The gas actually given (flows, total injected, pressure, valve
+  drive voltages) is not used for matching: it follows the density feedback, so it is partly the plasma's response.
+- **Matched in one request:** both shots hold it and it changes in both, with a relative difference (RMS of the
+  difference over the larger maximum, as for the programmed current) under 1%; or both hold the same constant (for
+  example no reference density in either).
+- **Plan twins (primary set):** matched in the reference density and in the requested height, and in the valve
+  requests where both shots have them. Where either shot has no valve request (empty in many shots of M6 and M7),
+  the pair is kept and the valve requests are not checked.
+- **Full-plan twins (secondary set):** matched in all three, with valve requests present in both shots.
+- **Reported, whatever it shows:** the number of pairs and of different twins in each set; for each set C of the
+  full, machine-side, programme-only and solenoid-only models with the registered and the same-time statistic,
+  over the 50 splits and pooled over pairs with groups sharing a twin resampled together; the full minus
+  machine-side difference on identical pairs with both ranges; and on the chronological split, C of the full,
+  machine-side and programme-only models and their difference, pooled. The same numbers on all twins are printed
+  beside them for comparison (already known).
+- **Primary quantity:** the full model's same-time C on plan twins over the 50 splits, and its lead over the
+  machine-side model.
+- **Reading:** if the full model's C on plan twins has a range over splits clear of 0.5, differences in these three
+  recorded requests do not explain the separation. If most twins are plan twins, the result largely restates the
+  main one and is reported as such. The shape itself (the programmed coil currents), the toroidal field and the
+  wall are still not matched. Nothing in the registered tests is changed by this, and it is labelled exploratory.
+
 ### What each range covers
 
 - *Over splits* (corrected resampled t-test): the model changing with the training set and the test shots drawn;
