@@ -51,3 +51,14 @@ def test_chronological_lines_use_only_the_chosen_pairs():
     keep = pd.DataFrame({"shot_id": [11, 13], "other": [1, 3]})
     line = plan_twins.temporal_lines(wins, keep, "plan twins")[0]
     assert "full 1.000" in line and ", 2 pairs" in line and "full minus machine-side +0.500" in line
+
+
+def test_composition_of_the_sets():
+    main = pd.DataFrame([{"shot_id": s, "other": s - 10, "recipe": "baseline", "seed": 1, "lead_ms": 5, "win": 1.0,
+                          "win_common": 1.0, "group": "recorded" if s in (11, 12) else "candidate",
+                          "heating": "same" if s != 13 else "different"} for s in (11, 12, 13, 14, 15)])
+    lines = plan_twins.composition(main, plan_twins.flags(compared()), {11: "M5", 12: "M5", 13: "M9", 14: "M9", 15: "M9"})
+    plan = next(l for l in lines if l.startswith("- plan twins"))
+    assert "3 pairs; recorded 33%; heating same 67%, different 33%, unknown 0%; M5 33%, M9 67%" in plan
+    every = next(l for l in lines if l.startswith("- all tested twins"))
+    assert "5 pairs; recorded 40%" in every
