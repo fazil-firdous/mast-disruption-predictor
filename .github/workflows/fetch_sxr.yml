@@ -36,12 +36,18 @@ jobs:
         env:
           IDS: ${{ inputs.ids }}
         run: python scripts/sxr_fetch.py --ids "$IDS" --part ${{ matrix.part }} --parts 4 --workers 8
+      - name: install ffmpeg for the example videos
+        if: ${{ matrix.part == 0 && inputs.examples != '' }}
+        continue-on-error: true
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       - name: render what the camera sees for the example pairs
         if: ${{ matrix.part == 0 && inputs.examples != '' }}
+        continue-on-error: true  # a failed video never costs the audit table
         env:
           EXAMPLES: ${{ inputs.examples }}
         run: python scripts/sxr_view.py --examples "$EXAMPLES"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: mast-sxr-${{ matrix.part }}
           path: relay/data/sxr_audit

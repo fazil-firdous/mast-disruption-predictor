@@ -9,6 +9,7 @@ left, twin on the right, both at the same moment. Bottom: three central chords o
 """
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import warnings
@@ -110,6 +111,8 @@ def _render(lost, kept, t_loss, out_dir, open_group, fps, seconds):
     fig.savefig(base + ".png", facecolor=BG, bbox_inches="tight")
     plt.close(fig)
 
+    if shutil.which("ffmpeg") is None:  # the picture is made; the video needs ffmpeg
+        return [base + ".png"]
     # the video: slow motion through the window
     W, H = 720, 1280
     fig = plt.figure(figsize=(W / 100, H / 100), dpi=100, facecolor=BG)
