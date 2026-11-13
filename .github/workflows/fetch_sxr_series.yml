@@ -1,0 +1,43 @@
+# Soft X-ray study (docs/preregistration_soft_xrays.md): the research server cannot reach STFC, so this job reads the
+# two horizontal soft X-ray cameras of the shots the server names and attaches their 1 ms signals
+# (scripts/sxr_series.py), which the server collects (scripts/soft_xrays.py --relay). No outcome, model or label
+# passes through here; nothing is committed.
+name: fetch_sxr_series
+
+on:
+  workflow_dispatch:
+    inputs:
+      ids:
+        description: "shot numbers, as scripts/sxr_fetch.py encode_ids() writes them"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [0, 1, 2, 3, 4, 5, 6, 7]
+    env:
+      MAST_HOME: ${{ github.workspace }}/relay
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: read the soft X-ray cameras
+        env:
+          IDS: ${{ inputs.ids }}
+        run: python scripts/sxr_series.py --ids "$IDS" --part ${{ matrix.part }} --parts 8 --workers 8
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mast-sxr-series-${{ matrix.part }}
+          path: relay/data/sxr_series
+          retention-days: 3
+          if-no-files-found: error
