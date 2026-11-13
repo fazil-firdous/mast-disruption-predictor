@@ -1226,3 +1226,11 @@ models (C: 20 + 5 ms, primary; B: 5 ms instead of 20 ms; G: growth), 63 runs. Pr
 full model, fixed-lead test, common cohort of all twins, paired over splits 1 to 20; worth having: +0.03.
 The feature step checks that the same code at 20 ms reproduces the stored features before anything is trained.
 
+## 2026-11-13 - How fast the solenoid answers the plasma
+
+From the same private source as before (not to be named): the plasma current feedback on MAST Upgrade responds in
+about 0.1 ms, and was probably similar on MAST. So within one 5 ms window the solenoid current already carries the
+plasma's response. This explains why the solenoid-only model stays at 0.57 to 0.59 on plan twins and why the
+machine-side model tracks the full model at 30 to 50 ms: it is a fast, indirect plasma signal, not a record of the
+plan. Only the programme-only model is plasma-free; the paper reads 'machine-side' with that in mind.
+
