@@ -117,13 +117,16 @@ def test_one_run_end_to_end(tiny_project, monkeypatch):
     series = pd.concat([series_of(int(s), lambda k: 1 + rng.random(len(k))) for s in windows["shot_id"].unique()[::2]])
     table = soft_xrays.build_features(series, windows[["shot_id", "t_end", "t_start"]], say=lambda line: None)
     assert len(table) == len(windows)
-    merged = windows.merge(table, on=["shot_id", "t_end"], how="left")
+    merged = soft_xrays.with_present(windows.merge(table, on=["shot_id", "t_end"], how="left"))
     monkeypatch.setattr(soft_xrays, "load_tables", lambda: (merged, shots))
     metrics = soft_xrays.run(3)
     out = tiny_project / "results" / "soft_xrays" / "sxr" / "seed_3"
     assert (out / "metrics.json").exists() and (out / "test_scores.parquet").exists()
     assert "sxr_lo_level_mean" in metrics["columns"] and not any(c.startswith("has_sxr") for c in metrics["columns"])
     assert set(v3_explore.recipe_columns("baseline")) <= set(soft_xrays.columns())
+    control = soft_xrays.run(3, recipe=soft_xrays.CONTROL)
+    assert "sxr_lo_present" in control["columns"] and "sxr_lo_level_mean" not in control["columns"]
+    assert (tiny_project / "results" / "soft_xrays" / "sxr_avail" / "seed_3" / "metrics.json").exists()
     assert not (tiny_project / "results" / "v3").exists()
 
 
@@ -160,5 +163,36 @@ def test_summary_from_saved_runs(monkeypatch, tmp_path):
     assert "Resolved and at least +0.03" in out
     assert "pairs with soft X-ray inputs in both shots at that moment (1 pairs)" in out
     assert "present for 100% of lost shots and 50% of twins" in out
+    assert "EXPLORATORY" in out and "E3: availability-only control not run yet" in out
+    assert "E4: operator-recorded share of the lost shots: all pairs 0%" in out
     assert (tmp_path / "soft_xrays" / "summary.txt").exists()
     assert fast_magnetics.plan_flags() is None
+
+
+def test_exploratory_checks():
+    from scripts import sxr_audit
+    # E2: a chord leaving inside the window is seen; a constant count is stable
+    a = series_of(11, lambda k: np.ones(len(k)))
+    b = series_of(1, lambda k: np.ones(len(k)))
+    b.loc[(b["camera"] == 0) & (b["k_ms"] > 245), "n_chords"] = 17  # twin loses a chord 5 ms before the landmark
+    main = pd.DataFrame({"shot_id": [11], "other": [1], "ref": [11], "t_loss": [0.30], "t_start": [0.05]})
+    stable, lost_c, twin_c = soft_xrays.chord_changes(main, pd.concat([a, b]))
+    assert stable == set() and lost_c == 0.0 and twin_c == 1.0
+    stable, _, _ = soft_xrays.chord_changes(main, pd.concat([a, series_of(1, lambda k: np.ones(len(k)))]))
+    assert stable == {(11, 1)}
+    # E3: presence inputs only, never empty, and no soft X-ray value among the control's inputs
+    frame = soft_xrays.with_present(pd.DataFrame({"sxr_lo_level_mean": [1.0, np.nan], "sxr_up_level_mean": [np.nan, np.nan]}))
+    assert frame["sxr_lo_present"].tolist() == [1.0, 0.0] and frame["sxr_up_present"].tolist() == [0.0, 0.0]
+    control = soft_xrays.columns(soft_xrays.CONTROL)
+    assert set(soft_xrays.PRESENT) <= set(control) and not set(soft_xrays.FEATURES) & set(control)
+    # E4
+    assert soft_xrays.recorded_share({(11, 1), (12, 2)}, {11: "recorded", 12: "candidate"}) == 0.5
+    # E1: the twin's camera stops after the comparison moment but before its own end: usable at the landmark
+    rows = []
+    for shot, last in ((11, 0.40), (1, 0.27)):
+        rows += [{"shot_id": shot, "camera": "cam", "chord": str(c), "t_on": 0.01, "t_first": -0.01, "t_last": last,
+                  "snr": 20.0, "saturated": 0.0} for c in range(14)]
+    table = pd.DataFrame(rows)
+    pairs = pd.DataFrame({"shot_id": [11], "other": [1]})
+    assert sxr_audit.landmark_counts(pairs, table, {11: 0.30}) == (0, 0, 1, 0)
+    assert sxr_audit.landmark_counts(pairs, table, {11: 0.30}, lead_ms=10) == (1, 0, 0, 0)

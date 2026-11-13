@@ -8,6 +8,7 @@ soft X-ray feature or model of this study).
     python scripts/soft_xrays.py --features   # only: the 46 soft X-ray features for every window
     python scripts/soft_xrays.py --train      # only: the runs not done yet, then the summary
     python scripts/soft_xrays.py --summary    # only: the comparison in words, from the saved runs
+    python scripts/soft_xrays.py --control    # exploratory E3: the availability-only control's 21 runs, then the summary
 
 Writes DATA_DIR/sxr_series/, PROCESSED_DIR/soft_xrays.parquet and RESULTS_DIR/soft_xrays/. Nothing under v3/ or
 v3_explore/ is touched; outside every stamp.
@@ -26,7 +27,7 @@ import requests
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts import fast_magnetics, how_early, programme_signals, sxr_fetch, sxr_series, v3_explore
+from scripts import fast_magnetics, how_early, programme_signals, sxr_fetch, sxr_series, v3_explore, v3_runs
 from src import config, dataset, experiment, features, notify, relay, server
 
 CAMS = ("lo", "up")  # camera codes 0 and 1 of scripts/sxr_series.py
@@ -35,6 +36,8 @@ REL = ("level", "fluct")
 FEATURES = ([f"sxr_{c}_{s}_{st}" for c in CAMS for s in sxr_series.SIGNALS for st in STATS]
             + [f"sxr_{c}_{s}_rel" for c in CAMS for s in REL] + [f"sxr_{c}_drop" for c in CAMS])
 RECIPE = "sxr"
+CONTROL = "sxr_avail"  # exploratory E3: whether each camera has a level, without any soft X-ray value
+PRESENT = [f"sxr_{c}_present" for c in CAMS]
 NAMES = {"baseline": "A, full", RECIPE: "S, full + soft X-rays"}
 SEEDS = range(1, 21)
 PRIMARY_LEAD = 50
@@ -55,8 +58,8 @@ def folder():
     return os.path.join(config.RESULTS_DIR, "soft_xrays")
 
 
-def run_dir(seed=None):
-    return os.path.join(folder(), "temporal", RECIPE) if seed is None else os.path.join(folder(), RECIPE, f"seed_{seed}")
+def run_dir(seed=None, recipe=RECIPE):
+    return os.path.join(folder(), "temporal", recipe) if seed is None else os.path.join(folder(), recipe, f"seed_{seed}")
 
 
 # ------------------------------------------------------------------ features
@@ -207,14 +210,21 @@ def load_tables():
     if not os.path.exists(table_path()):
         raise RuntimeError("no soft_xrays.parquet: run python scripts/soft_xrays.py --features first")
     windows, shots = experiment.load_tables()
-    return windows.merge(pd.read_parquet(table_path()), on=["shot_id", "t_end"], how="left"), shots
+    return with_present(windows.merge(pd.read_parquet(table_path()), on=["shot_id", "t_end"], how="left")), shots
 
 
-def columns():
-    return v3_explore.recipe_columns("baseline") + FEATURES
+def with_present(frame):
+    """frame with E3's two inputs: 1 where that camera has a level mean in the window, else 0 (never empty)."""
+    present = pd.DataFrame({column: frame[f"sxr_{cam}_level_mean"].notna().astype("float32")
+                            for cam, column in zip(CAMS, PRESENT)}, index=frame.index)
+    return pd.concat([frame.drop(columns=[c for c in PRESENT if c in frame]), present], axis=1)
 
 
-def run(seed=None, tables=None):
+def columns(recipe=RECIPE):
+    return v3_explore.recipe_columns("baseline") + (FEATURES if recipe == RECIPE else PRESENT)
+
+
+def run(seed=None, tables=None, recipe=RECIPE):
     """One run: a random split by its seed (the v3 split), or the chronological split (seed None)."""
     windows, shots = tables or load_tables()
     if seed is None:
@@ -222,22 +232,24 @@ def run(seed=None, tables=None):
     else:
         split = dataset.random_split(shots, seed=seed)
         win, column = dataset.labelled_windows(windows.assign(split=windows["shot_id"].map(split)), shots), "split"
-    return fast_magnetics.fit(win, column, RECIPE, run_dir(seed), {"seed": 0 if seed is None else seed}, columns())
+    return fast_magnetics.fit(win, column, recipe, run_dir(seed, recipe), {"seed": 0 if seed is None else seed},
+                              columns(recipe))
 
 
-def train_all(say=print):
+def train_all(say=print, recipe=RECIPE):
     jobs = list(SEEDS) + [None]
-    todo = [s for s in jobs if not server.result_saved(os.path.join(run_dir(s), "metrics.json"))]
-    say(f"{len(todo)} runs to do")
+    todo = [s for s in jobs if not server.result_saved(os.path.join(run_dir(s, recipe), "metrics.json"))]
+    say(f"{len(todo)} runs to do ({recipe})")
     tables = load_tables() if todo else None
     for i, seed in enumerate(todo, 1):
         start = time.time()
-        m = run(seed, tables)
+        m = run(seed, tables, recipe)
         say(f"[{i}/{len(todo)}] {'chronological' if seed is None else f'seed {seed}'}: pAUC {m['test']['pauc']:.3f}, "
             f"{(time.time() - start) / 60:.1f} min")
     out = summary()
     say(out)
-    notify.send("Faster signals, step 1 (soft X-rays): the runs are done\n\n" + out)
+    notify.send(f"Faster signals, step 1 (soft X-rays): the {'control ' if recipe == CONTROL else ''}runs are done\n\n"
+                + out)
 
 
 # ------------------------------------------------------------------ the comparison
@@ -247,7 +259,8 @@ def collect_wins(load=None):
     main, placebo, heating = how_early.pair_frames(load)
     random, temporal = [], []
     sources = [("baseline", v3_explore.run_folders()["baseline"], v3_explore.temporal_dir("baseline")),
-               (RECIPE, os.path.join(folder(), RECIPE), run_dir())]
+               (RECIPE, os.path.join(folder(), RECIPE), run_dir()),
+               (CONTROL, os.path.join(folder(), CONTROL), run_dir(None, CONTROL))]
     for name, base, temporal_path in sources:
         for seed, path in how_early.saved_runs(base):
             if seed in SEEDS:
@@ -280,6 +293,49 @@ def availability(main, table, lead=PRIMARY_LEAD):
     return both, lost_ok / max(n, 1), twin_ok / max(n, 1)
 
 
+def chord_changes(main, series, lead=PRIMARY_LEAD):
+    """Exploratory E2: (pairs where both shots have soft X-ray inputs and a constant chord count in every camera over
+    the 20 ms window ending at the landmark, share of lost shots whose count changes there, share of twins)."""
+    wanted = set(main["shot_id"]) | set(main["other"])
+    by = {key: (g["k_ms"].to_numpy(), g["n_chords"].to_numpy(), g["level"].to_numpy(dtype=float))
+          for key, g in series[series["shot_id"].isin(wanted)].groupby(["shot_id", "camera"])}
+
+    def state(shot, t):
+        """(has inputs, chord count changed) at t."""
+        k_end = int(np.floor(t * 1000 + 1e-6))
+        has, changed = False, False
+        for code in range(len(CAMS)):
+            if (shot, code) not in by:
+                continue
+            k, n, level = by[(shot, code)]
+            inside = (k > k_end - WINDOW_BINS) & (k <= k_end)
+            if inside.any():
+                has |= bool(np.isfinite(level[inside]).any())
+                changed |= len(np.unique(n[inside])) > 1
+        return has, changed
+
+    stable, lost_changed, twin_changed, n = set(), 0, 0, 0
+    for row in main.itertuples():
+        if not np.isfinite(row.t_loss):
+            continue
+        t = row.t_loss - lead / 1000
+        if np.isfinite(row.t_start) and t < row.t_start - how_early.EPS:
+            continue
+        (ha, ca), (hb, cb) = state(row.shot_id, t), state(row.other, t)
+        n += 1
+        lost_changed += ca
+        twin_changed += cb
+        if ha and hb and not ca and not cb:
+            stable.add((row.shot_id, row.other))
+    return stable, lost_changed / max(n, 1), twin_changed / max(n, 1)
+
+
+def recorded_share(pairs, groups):
+    """Exploratory E4: the share of operator-recorded disruptions among the lost shots of these pairs."""
+    lost = [groups.get(p) for p, _ in pairs]
+    return sum(g == "recorded" for g in lost) / max(len(lost), 1)
+
+
 def subset(frame, pairs):
     keep = pd.DataFrame(sorted(pairs), columns=["shot_id", "other"])
     return frame.merge(keep, on=["shot_id", "other"])
@@ -289,8 +345,9 @@ def cells(frame, lead):
     return fast_magnetics.difference_cells(frame, lead, RECIPE)
 
 
-def text(random, temporal, available=None, flags=None):
-    """Step 1 in words, in the order of the protocol. available: (pairs, lost share, twin share) or None."""
+def text(random, temporal, available=None, flags=None, explore=None):
+    """Step 1 in words, in the order of the protocol. available: (pairs, lost share, twin share) or None; explore:
+    {'changes': chord_changes(...), 'groups': {lost shot: ending group}, 'all': all pairs} or None."""
     lines = ["Faster signals, step 1 (docs/preregistration_soft_xrays.md): soft X-rays added to the full model. "
              "Fixed-lead twin test, both shots at the same moment; common cohort of all twins; splits 1 to 20.", ""]
     main = random[(random["kind"] == "main") & random["cohort"].astype(bool)] if len(random) else random
@@ -348,13 +405,50 @@ def text(random, temporal, available=None, flags=None):
     if available is not None:
         lines += ["", f"Missingness at 50 ms: soft X-ray inputs present for {available[1]:.0%} of lost shots and "
                       f"{available[2]:.0%} of twins."]
+    lines += exploratory_lines(main, available, explore)
     return "\n".join(lines)
+
+
+def exploratory_lines(main, available, explore):
+    """E2 to E4 of the protocol's exploratory checks (E1 is in scripts/sxr_audit.py)."""
+    lines = ["", "EXPLORATORY (protocol, 'Clarifications and exploratory checks'; not part of the registered reading):"]
+    if explore and explore.get("changes"):
+        stable, lost_c, twin_c = explore["changes"]
+        lines.append(f"- E2: chord count changes within the 50 ms window for {lost_c:.0%} of lost shots and {twin_c:.0%} "
+                     f"of twins; S minus A at 50 ms on {len(stable):,} pairs with inputs in both and constant chord "
+                     f"counts: {cells(subset(main, stable), PRIMARY_LEAD)}")
+    d = how_early.split_difference(main, PRIMARY_LEAD, CONTROL, "baseline") if len(main) else None
+    if d:
+        lines.append(f"- E3: availability-only control (full + whether each camera has a level) minus A at 50 ms: "
+                     f"{cells_for(main, CONTROL)}. A resolved gain here would mean availability alone carries outcome "
+                     f"information.")
+    else:
+        lines.append("- E3: availability-only control not run yet (python scripts/soft_xrays.py --control)")
+    if explore and explore.get("groups") is not None:
+        g = explore["groups"]
+        parts = [f"all pairs {recorded_share(explore['all'], g):.0%}"]
+        if available is not None:
+            parts.append(f"inputs in both {recorded_share(available[0], g):.0%}")
+        if explore.get("changes"):
+            parts.append(f"E2 pairs {recorded_share(explore['changes'][0], g):.0%}")
+        lines.append("- E4: operator-recorded share of the lost shots: " + "; ".join(parts))
+    return lines
+
+
+def cells_for(frame, recipe, lead=PRIMARY_LEAD):
+    return fast_magnetics.difference_cells(frame, lead, recipe)
 
 
 def summary(load=None):
     random, temporal, main = collect_wins(load)
     table = pd.read_parquet(table_path(), columns=["shot_id", "t_end", "sxr_lo_level_mean", "sxr_up_level_mean"])
-    out = text(random, temporal, availability(main, table), fast_magnetics.plan_flags())
+    twins = pd.read_csv(v3_runs.TWINS)
+    explore = {"all": set(zip(twins["shot_id"], twins["other"])),
+               "groups": dict(zip(twins["shot_id"], twins["group"])) if "group" in twins else None}
+    if os.path.exists(series_path()):
+        explore["changes"] = chord_changes(main, pd.read_parquet(series_path(), columns=["shot_id", "camera", "k_ms",
+                                                                                          "n_chords", "level"]))
+    out = text(random, temporal, availability(main, table), fast_magnetics.plan_flags(), explore)
     os.makedirs(folder(), exist_ok=True)
     with open(os.path.join(folder(), "summary.txt"), "w") as f:
         f.write(out + "\n")
@@ -363,7 +457,7 @@ def summary(load=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    for flag in ("all", "relay", "collect", "features", "train", "summary"):
+    for flag in ("all", "relay", "collect", "features", "train", "summary", "control"):
         parser.add_argument(f"--{flag}", action="store_true")
     args = parser.parse_args()
     say = lambda line: print(line, flush=True)  # noqa: E731
@@ -383,13 +477,15 @@ def main():
                 f"in {have.mean():.0%} of windows ({table.loc[have, 'shot_id'].nunique():,} shots)")
         if args.train or args.all:
             train_all(say)
-        elif args.summary:
+        if args.control:
+            train_all(say, CONTROL)
+        elif args.summary and not (args.train or args.all):
             say(summary())
     except RuntimeError as error:
         say(f"STOPPED: {error}")
         sys.exit(1)
     if not any(vars(args).values()):
-        parser.error("give --all, or one of --relay, --collect, --features, --train, --summary")
+        parser.error("give --all, or one of --relay, --collect, --features, --train, --summary, --control")
 
 
 if __name__ == "__main__":
