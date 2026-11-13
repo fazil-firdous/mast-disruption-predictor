@@ -1167,3 +1167,14 @@ All groups and variables of shots 11802 (M5), 27000 (M7) and 30471 (M8). Not use
 - `thomson_scattering` (n_e, T_e profiles), `charge_exchange` (T_i, rotation; later shots), `bolometer` channels,
   `spectrometer_visible` (D-alpha), `pf_passive` currents (vessel eddy currents).
 
+## 2026-11-13 - Field and shape coils added to the fetch (no score looked at)
+
+The coil channel names are the same in M5 to M9 (checked on shots 11802, 15500, 22000, 24000, 27000, 29500,
+30471), and the currents really differ between shots: the toroidal field coil current is -54 to -85 kA in the
+flat-top, the P4 shape coils -85 to -270 kA. `scripts/programme_fetch.py` now also reads the toroidal field coil
+current and the P2, P4 and P5 coil currents (upper and lower summed). P3 is near zero; P6 holds the plasma's height
+by feedback and is left out. These are currents delivered, not requests: the field is set before the shot, the
+shape coils may be partly under feedback. Order as before: the GitHub job makes the table, the look shows how alike
+twins are in them, then a rule is written into the pre-registration, then it is run. Reading is slower: about 3 s
+per shot at 4 at a time here, so the job takes two to three hours.
+
