@@ -68,7 +68,13 @@ def tables(load=None, beams=None):
     if os.path.exists(named):
         out["named_pairs.csv"] = pd.read_csv(named)
     if os.path.exists(v3_runs.TWINS):
-        out["programme_twins.csv"] = with_heating(pd.read_csv(v3_runs.TWINS), catalogue, load, beams)
+        twins = with_heating(pd.read_csv(v3_runs.TWINS), catalogue, load, beams)
+        flags_path = os.path.join(config.RESULTS_DIR, "plan_twins", "pairs.csv")  # scripts/plan_twins.py
+        if os.path.exists(flags_path):
+            flags = pd.read_csv(flags_path)
+            keep = [c for c in ("plan", "full_plan", "field_plan", "shape_plan") if c in flags]
+            twins = twins.merge(flags[["shot_id", "other"] + keep], on=["shot_id", "other"], how="left")
+        out["programme_twins.csv"] = twins
     if os.path.exists(TRIPLETS):
         out["triplets.csv"] = pd.read_csv(TRIPLETS)
     return out
@@ -142,9 +148,20 @@ def readme(tabs, version):
                   "| heating | same if the two shots' beam power, from the lost shot's flat-top start to 5 ms before "
                   "its loss, differs by under 10% of its peak (RMS) or neither has a beam; different; or unknown |", "",
                   f"Lost shots: {counts(twins, 'group')}. Beam heating: {counts(twins, 'heating')}. Programmes within "
-                  f"1%: {(twins['rms'] < v3_runs.EXACT_RMS).mean():.1%}.", "",
-                  "Twins share the programmed plasma current. Gas, shape and field are not matched, and the twin is "
-                  "always the earlier shot.", ""]
+                  f"1%: {(twins['rms'] < v3_runs.EXACT_RMS).mean():.1%}.", ""]
+        if "plan" in twins:
+            lines += ["| plan | the two shots also asked for the same reference density and height, and the same gas "
+                      "valve voltages where both have them (each within 1%, or the same constant) |",
+                      "| full_plan | as plan, with valve requests present in both shots |"]
+            if "shape_plan" in twins:
+                lines += ["| field_plan | plan, and toroidal field coil currents within 1% |",
+                          "| shape_plan | field_plan, and the P2, P4 and P5 coil currents each within 10%, compared up "
+                          "to 100 ms before the loss |"]
+            lines += ["", "Plan twins: " + ", ".join(f"{c} {int(twins[c].fillna(False).astype(bool).sum()):,}"
+                                                     for c in ("plan", "full_plan", "field_plan", "shape_plan")
+                                                     if c in twins) + ".", ""]
+        lines += ["Every twin shares the programmed plasma current; the columns above say which also share more of "
+                  "the plan. The twin is always the earlier shot.", ""]
     if "programme_twins.csv" in tabs:
         lines += ["### twin_score.py: the twin test for your own predictor", "",
                   "    python twin_score.py scores.csv programme_twins.csv", "",

@@ -55,3 +55,29 @@ def test_release_has_the_tables_without_comment_text(monkeypatch, tmp_path):
         assert hashlib.sha256(read(os.path.join(folder, name), "rb")).hexdigest() == digest
     with zipfile.ZipFile(folder + ".zip") as z:
         assert sorted(z.namelist()) == sorted(f"{make_release.NAME}/{n}" for n in names)
+
+
+
+def test_release_carries_the_plan_flags(monkeypatch, tmp_path):
+    monkeypatch.setattr(config, "RESULTS_DIR", str(tmp_path))
+    events_dir = tmp_path / "events"
+    os.makedirs(events_dir)
+    os.makedirs(tmp_path / "plan_twins")
+    monkeypatch.setattr(make_release, "EVENTS_DIR", str(events_dir))
+    monkeypatch.setattr(make_release, "TRIPLETS", str(tmp_path / "none.csv"))
+    monkeypatch.setattr(v3_runs, "TWINS", str(events_dir / "programme_twins.csv"))
+    pd.DataFrame({"shot_id": [1, 11], "campaign": "M9", "note": False, "termination": "smooth_end",
+                  "t_quench": [np.nan, 0.3], "p_disrupted": 0, "cause": "", "t_event": np.nan, "note_vote": 0,
+                  "words_vote": 0, "solenoid_vote": 0, "group": ["smooth_end", "candidate"]}).to_csv(
+        events_dir / "catalogue.csv", index=False)
+    pd.DataFrame({"shot_id": [11], "group": ["candidate"], "event": ["IRE"], "time_s": [0.29], "t_quench": [0.3],
+                  "source": ["x"], "text": ["x"]}).to_csv(events_dir / "events.csv", index=False)
+    pd.DataFrame({"shot_id": [11], "other": [1], "group": ["candidate"], "other_group": ["smooth_end"], "gap": [10],
+                  "rms": [0.0], "peak_ratio": 1.0, "overlap_s": 0.2}).to_csv(events_dir / "programme_twins.csv", index=False)
+    pd.DataFrame({"shot_id": [11], "other": [1], "plan": [True], "full_plan": [False], "field_plan": [True],
+                  "shape_plan": [True]}).to_csv(tmp_path / "plan_twins" / "pairs.csv", index=False)
+    folder = make_release.build(load=lambda shot: None, beams={})
+    twins = pd.read_csv(os.path.join(folder, "programme_twins.csv"))
+    assert twins.loc[0, ["plan", "full_plan", "field_plan", "shape_plan"]].tolist() == [True, False, True, True]
+    readme = read(os.path.join(folder, "README.md"))
+    assert "| shape_plan |" in readme and "Plan twins: plan 1, full_plan 0, field_plan 1, shape_plan 1." in readme

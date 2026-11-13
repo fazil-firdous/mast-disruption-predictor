@@ -1195,3 +1195,26 @@ All 11,573 shots read on GitHub (4 h, none failed). Over all 3,902 twin pairs:
 - Rule for field and shape twins written into `docs/preregistration_v3.md` (commit 37a4bb0) before any score was
   computed on them; `scripts/plan_twins.py` computes them.
 
+## 2026-11-13 - Field and shape twins: the result survives the strictest match (as pre-registered, 37a4bb0)
+
+`scripts/plan_twins.py`. Same-time statistic, over the 50 splits (pooled in brackets).
+
+| Pairs | share of twins | per split | full | machine-side | programme-only | full minus machine-side |
+|---|---|---|---|---|---|---|
+| field-plan twins | 53% | 83 | 0.670 (0.606 to 0.734) | 0.572 | 0.502 | +0.098 (+0.008 to +0.189) |
+| **field-and-shape twins (primary)** | 42% | 67 | **0.673 (0.602 to 0.744)** | 0.571 | 0.501 | **+0.103 (+0.001 to +0.205)**; pooled +0.111 (+0.075 to +0.145) |
+| all twins (known) | 100% | 156 | 0.679 | 0.590 | 0.520 | +0.089 |
+
+Chronological split, pooled: field-and-shape twins full 0.601 (0.548 to 0.658), machine-side 0.550, programme-only
+0.493, difference +0.051 (-0.015 to +0.122), 419 pairs.
+
+- **Reading, as fixed beforehand:** the full model's C stays clear of 0.5, so differences in the field and in the
+  shape coils up to 100 ms before the loss do not explain the separation. The lead over the machine-side model is
+  resolved over splits on random splits, only just; on the later campaigns its range includes zero (a smaller set:
+  uncertainty, not a lost lead).
+- **The programme-only model is at 0.501**: with the plan, the field and the shape matched, knowing the plan says
+  nothing about the outcome, as it should.
+- **Who is in it** (against all tested twins): recorded 19% (17%), same beam heating 44% (36%), M7 36% (32%). Close
+  to all twins; somewhat more same-heating pairs.
+- This was the last matching of this study. The release's `programme_twins.csv` now carries the four flags.
+
