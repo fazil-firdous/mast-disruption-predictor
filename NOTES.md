@@ -1423,3 +1423,28 @@ A count before any protocol (no model): median slice spacing in the last 50 ms a
 5 ms in both classes; DIII-D disrupted 2 ms in the last 50 ms (25 ms earlier), non-disrupted 25 ms; EAST disrupted
 10 ms throughout, non-disrupted 100 ms. So the sampling may carry the outcome. Protocol
 `docs/preregistration_sampling_audit.md` (00967ee) written before any statistic; `scripts/sampling_audit.py`.
+
+## 2026-11-14 - Sampling audit: in the public DIII-D and EAST records the sampling alone separates the classes (as pre-registered, 00967ee)
+
+`scripts/sampling_audit.py` on the Zhu et al. files (Dataverse doi:10.7910/DVN/XIOHW1). No model. The time used ends
+40 ms before each shot's last slice (as in DisruptionBench). Shot-level AUC, disrupted against non-disrupted, 95%
+range from 2,000 bootstrap resamples of shots.
+
+| Machine | shots (disrupted) | S1 spacing (primary) | S2 change rate after 5 ms forward-fill | S3 whole record |
+|---|---|---|---|---|
+| C-Mod | 4,510 (975) | 0.526 (0.522 to 0.529) | 0.522 (0.504 to 0.540) | 0.500 |
+| DIII-D | 8,608 (1,244) | **1.000 (1.000 to 1.000)** | **0.998 (0.995 to 1.000)** | 0.613 (0.603 to 0.623) |
+| EAST | 14,347 (4,508) | **0.999 (0.999 to 1.000)** | **0.999 (0.998 to 1.000)** | **0.981 (0.979 to 0.983)** |
+
+- Median spacing before the cut: DIII-D 2.0 ms (disrupted) against 25.0 ms; EAST 10.0 ms against 100.0 ms; C-Mod 5.0
+  ms in both. Median share of 5 ms steps with a change after forward-fill: DIII-D 0.68 against 0.21; EAST 0.47
+  against 0.05; C-Mod 0.89 in both.
+- **Reading, as fixed beforehand:** in the public DIII-D and EAST records, the sampling itself carries outcome
+  information after the last 40 ms are removed, and it survives forward-fill to 5 ms: a model given these records can
+  learn the outcome from when values change, without any plasma value. In EAST the whole record's spacing nearly
+  separates the classes (0.981). C-Mod: above 0.5 but under 0.60 (0.526), no such signal of note.
+- Other cuts (S1): DIII-D 1.000 at 0 and 20 ms, 0.774 at 100 ms, 0.644 at 300 ms: the dense sampling sits in the last
+  ~100 ms. EAST 1.000 at 0 and 20 ms, 0.999 at 100 ms, 0.302 at 300 ms (reversed at 300 ms; not read, to be looked at).
+- **Not claimed:** that any published model used this or that any reported performance is inflated. Zhu et al. and
+  DisruptionBench state that they corrected a pre-disruption sampling increase in code that is not public.
+- **Next, before anything public:** send the result privately to the dataset's and benchmark's authors.
