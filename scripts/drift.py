@@ -289,7 +289,7 @@ def text(pairs, wins, seeds, steps, campaign, signals=None):
     if len(st):
         m, lo, hi = stats.corrected_interval(st)
         lines += ["", f"Within A, full model: K2 -> K1 and K1 -> L move the same way in {r((m, lo, hi))} of triplets "
-                      f"(over {len(st)} splits; 0.5 = no link)."]
+                      f"(over {len(st)} splits; about 1/3 = no link, as for three exchangeable shots)."]
     lines += ["", "Campaigns of the pairs (A | B): " + "; ".join(
         f"{c} {int((a['F'].map(campaign) == c).sum())} | {int((b['F'].map(campaign) == c).sum())}"
         for c in sorted(set(campaign.values()) - {None}) if isinstance(c, str))]

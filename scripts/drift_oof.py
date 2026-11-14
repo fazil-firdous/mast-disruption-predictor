@@ -301,7 +301,7 @@ def text(pairs, wins, steps, matched, campaign):
     if steps is not None:
         st = two_level(steps, pairs, (pairs["pop"] == "A").to_numpy(), value="A")
         lines += ["", f"Within A, full model: K2 -> K1 and K1 -> L move the same way in {r(st)} of triplets "
-                      "(0.5 = no link)."]
+                      "(about 1/3 = no link: for three exchangeable shots the two steps agree by chance in a third of triplets)."]
     return "\n".join(lines)
 
 

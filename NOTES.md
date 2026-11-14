@@ -1325,8 +1325,8 @@ in 98% of windows (11,301 shots); 21 runs of about 3.7 minutes. Fixed-lead twin 
 **E1 (exploratory), 2026-11-14:** with coverage required only up to 50 ms before the lost shot's loss (the interval
 the comparison needs), the pairs where exactly one shot is usable become 49 (lost usable) against 39 (twin usable),
 from 62 against 39 with whole-plasma coverage. Sign test on the discordant pairs: p = 0.028 before, p = 0.34 after.
-So the fixed camera stop explains about half of the excess, and what is left is consistent with chance at this
-size. Saturation and SNR are still judged over the whole plasma, so this is not a fully landmark-local audit.
+This is consistent with the fixed camera stop accounting for part of the excess (the change in p-values alone does
+not establish how much), and what is left is consistent with chance at this size. Saturation and SNR are still judged over the whole plasma, so this is not a fully landmark-local audit.
 
 ## 2026-11-14 - Paper 3: the drift study is built (nothing run yet)
 
@@ -1344,8 +1344,9 @@ signals and step agreement within A. Saved scores and cached shots only.
   On the 3,311 pairs with inputs in both and constant chord counts, S minus A is +0.010 (-0.053 to +0.074); pooled
   +0.007 (-0.016 to +0.028). Chord dropout is rare and does not change the result.
 - **E3, availability-only control** (full model plus only whether each camera has a level; 21 runs): minus A at
-  50 ms, -0.003 (-0.044 to +0.038); pooled -0.008 (-0.023 to +0.007). Availability alone carries no outcome
-  information the model can use.
+  50 ms, -0.003 (-0.044 to +0.038); pooled -0.008 (-0.023 to +0.007). No resolved increment from availability
+  alone, for these inputs, this model and these pairs. A constant chord count does not imply constant chord
+  identity, so E2 does not rule out every mask change.
 - **E4:** operator-recorded share of the lost shots 17% (all pairs), 16% (inputs in both), 16% (E2 pairs).
 - With E1 (49 against 39, p = 0.34), the soft X-ray null is not explained by missing data, chord dropout or a
   changed mix of losses. The soft X-ray part ends here, as the stop rule says.
@@ -1383,3 +1384,28 @@ Protocol `docs/preregistration_drift_oof.md` (commit b51699b) before any code. `
 scores (5 folds that keep linked shots together, 10 repetitions, 3 models, 150 runs, full model first), the same
 populations and statistic as part 1, a two-level bootstrap for the deciding range, and the heating-matched Delta as
 the key secondary (operator beam scan or not). Writes only `drift_oof/`; the v3 runs are read, never written.
+
+## 2026-11-14 - Drift study part 2: unresolved (as pre-registered, b51699b)
+
+`scripts/drift_oof.py`, 150 runs (5 grouped folds x 10 repetitions x 3 models), every pair scored in every
+repetition (A 3,134 and B 4,104 pairs tested). Two-level bootstrap.
+
+- **Primary (full model):** Delta = P_A - P_B = **+0.049 (-0.004 to +0.098)**. The range includes both zero and
+  +0.03: **unresolved at this sample size**, as the reading fixed in advance says. P_A 0.535 (0.487 to 0.576),
+  P_B 0.485 (0.471 to 0.500). Beside it: over repetitions only +0.012 to +0.075; pairs only +0.049 (+0.020 to
+  +0.078). Part 1's +0.087 was not borne out at that size; the estimate is about half.
+- **The comparison sequences:** P_B is near one half in both parts (0.485, 0.471 to 0.500, in part 2). Wording
+  (after an outside review): 'the comparison sequences had a later-repeat preference near one half; the contrast
+  with pre-loss sequences remained unresolved'. Near one half is not a demonstrated absence of drift.
+- **Heating-matched pairs (key secondary):** +0.018 (-0.052 to +0.089); A 42% and B 55% of pairs matched. Observed
+  and reported, but not interpreted, because the protocol's gate (a resolved primary) was not met.
+- **Other models:** machine-side +0.028 (-0.017 to +0.083); programme-only +0.004 (-0.023 to +0.031), P_A 0.501 and
+  P_B 0.497: the programme matching works.
+- **By gap:** +0.039, +0.042, +0.073 (gap 1, 2-3, 4+), none resolved. **By campaign:** M6 +0.095 (-0.001 to
+  +0.193), M8 +0.078, M7 +0.053, M5 +0.021, M9 -0.045; none resolved.
+- **Step agreement within A:** 0.410 (0.375 to 0.445). The protocol's summary line said '0.5 = no link'; the
+  correct chance level for three exchangeable shots is 1/3 (about 0.36 with the lost shot scored higher on
+  average), so the steps K2 to K1 and K1 to L agree a little more often than chance: weak persistence of direction
+  across the three shots. Secondary, reference corrected after the result was seen (protocol, 'Changes').
+- **Stop rule:** the drift question is reported as unresolved with this range; no further re-test of it on these
+  data.
