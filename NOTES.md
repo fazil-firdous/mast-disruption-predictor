@@ -1349,3 +1349,30 @@ signals and step agreement within A. Saved scores and cached shots only.
 - **E4:** operator-recorded share of the lost shots 17% (all pairs), 16% (inputs in both), 16% (E2 pairs).
 - With E1 (49 against 39, p = 0.34), the soft X-ray null is not explained by missing data, chord dropout or a
   changed mix of losses. The soft X-ray part ends here, as the stop rule says.
+
+## 2026-11-14 - Drift study: before a loss, the later good repeat scores higher; elsewhere it does not (not resolved over training sets)
+
+`scripts/drift.py` (protocol `docs/preregistration_drift.md`, 34d8d39). Pairs: A 3,211 (good repeats before a
+loss), B 4,158 (good repeats where no loss follows); median shot gap A 2, B 1. Full model, 50 splits.
+
+- **Primary:** Delta = P_A - P_B = **+0.087 (-0.029 to +0.202)** over splits: **not resolved**. P_A 0.568 (0.456 to
+  0.680), P_B 0.481 (0.441 to 0.522). Reading fixed in advance: not resolved, and P_B not above 0.5, so no ordinary
+  drift between repeats is shown by this statistic.
+- **Beside it (does not decide):** pooled over pairs, Delta +0.072 (+0.037 to +0.108), P_A 0.559 (0.530 to 0.591),
+  P_B 0.487 (0.475 to 0.499). Conditional on the fitted models. The range over splits is wide because a pair counts
+  in a split only when both shots are in its test set (about 1 pair in 50 per split).
+- **Secondary:** A above B in every gap band (gap 1: 0.535 vs 0.485; 2-3: 0.602 vs 0.511; 4+: 0.555 vs 0.470), so the
+  gap difference between A and B does not make it. By campaign: M6 0.636 vs 0.485, M7 0.568 vs 0.479, M8 0.564 vs
+  0.480; M5 and M9 about 0.50 in both. Machine-side +0.042, programme-only +0.023 (P_A 0.524, P_B 0.501), none
+  resolved.
+- **Without a model** (pooled shares, later shot higher, A | B): beam power 0.538 | 0.499, locked-mode amplitude
+  0.546 | 0.491, density 0.533 | 0.520, radiated power 0.514 | 0.518, Greenwald fraction 0.495 | 0.519. Before a loss
+  the later good repeat more often had more beam power and a larger locked-mode amplitude; in B, no such trend.
+- **Within A:** K2 to K1 and K1 to L move the same way in 0.417 (0.285 to 0.549): no link shown.
+- **What it suggests, not establishes:** the placebo's 0.54 is not ordinary drift between repeats (B is at 0.48 to
+  0.49); it is specific to the shots before a loss, which may be steps of an operating scan (beam power raised shot
+  by shot until the plasma is lost). Paper 2's wording 'drift between shots' stays accurate; this study is
+  exploratory on examined scores and the deciding range includes zero.
+- **What would settle it:** every pair scored in every repetition (out-of-fold scores), which removes the 1-in-50
+  thinning, and the same comparison on beam-power-matched pairs to separate an operator scan from a change in the
+  machine. That is a new protocol, to be written before it runs.
