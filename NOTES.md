@@ -1532,12 +1532,16 @@ before the moment compared, lost shot against twin.
   inside the 0.47 to 0.53 band at the top). Lost shots repeat EFIT values slightly LESS often than their twins near the
   loss; mean paired difference -0.018. By lead: 0.461 (10 ms), 0.469 (30), 0.480 (50), 0.495 (100 ms): the difference
   shrinks away from the loss.
-- The direction is the opposite of a sparser source in lost shots: if anything, their published EFIT values change
-  more often just before the loss, which plasma evolution would also produce. Not read as a shortcut or a schedule
-  difference (protocol).
+- Wording (narrowed after an outside review): the examined repetition signature (simultaneous repeat of all six
+  variables, adjacent pairs with any NaN left out) differed near the landmark, with fewer repeats in lost shots.
+  Without native provenance this does not distinguish plasma evolution from source-update or processing differences:
+  fewer repeats could also mean denser native updates, which is one of the concerns being tested. The 30 ms endpoint
+  was prespecified within an exploratory extension.
 - Over the flat-top, the share of adjacent 5 ms slices with all six values identical is 0.296 (lost) and 0.270 (kept,
-  shot medians): about a quarter of published EFIT points repeat the previous one, so the native reconstructions are
-  often sparser than the published 5 ms grid. The maintainers' answer on native time stamps is still needed.
+  shot medians): about a quarter of published EFIT points repeat the previous one exactly. Holding, identical new
+  reconstructions, quantisation or other processing can all produce that, so it does not establish a native cadence.
+  The whole-flat-top medians and the landmark-matched pairs concern different windows and populations. The
+  maintainers' answer on native time stamps is still needed.
 
 ## 2026-11-14 - Harmonisation: the sparse grid did not remove the timing difference (as pre-registered, 17e2444)
 
@@ -1555,8 +1559,10 @@ before the moment compared, lost shot against twin.
 - **DIII-D:** 0.020 is the same failure with the fitted direction reversed; the protocol's one-sided rule missed it
   (recorded in the protocol as a change after the result). R2 is not read.
 - **C-Mod:** no residual timing (0.504); the values model keeps its AUC (0.90) on every representation; drop 0.000.
-- **What this run shows:** a values-only model reaches 0.98 to 0.99 in EAST and DIII-D on every representation,
-  including the harmonised grid, and C-Mod reaches 0.90 with no timing difference at all. In this endpoint-aligned
-  task the plasma values near the end separate the classes well on their own, so the run cannot say how much of a
-  model's score on these files comes from the schedule. The question "what remains after harmonisation" is not
+- **What this run shows (wording narrowed after an outside review):** the tested value-based representations also
+  discriminate well (0.98 to 0.99 in EAST and DIII-D, 0.90 in C-Mod), but these runs do not isolate plasma dynamics
+  from observation-process effects: last values, means and last-minus-first can carry holding, freshness and
+  endpoint effects. R2 is reported descriptively, not as a successful removal of sampling information. C-Mod's R2
+  residual near 0.5 concerns that one diagnostic and population; the timing-only model reached 0.613 on C-Mod, so a
+  small timing association there is not excluded. The question "what remains after harmonisation" is not
   answered here; by the stop rule, no further harmonisation is tried.
