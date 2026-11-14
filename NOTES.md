@@ -1566,3 +1566,35 @@ before the moment compared, lost shot against twin.
   residual near 0.5 concerns that one diagnostic and population; the timing-only model reached 0.613 on C-Mod, so a
   small timing association there is not excluded. The question "what remains after harmonisation" is not
   answered here; by the stop rule, no further harmonisation is tried.
+
+## 2026-11-14 - Accounting check before contacting the authors (`scripts/sampling_audit_check.py`, exploratory)
+
+Environment: python 3.12.3, numpy 2.5.4, pandas 3.0.6, scipy 1.18.1, scikit-learn 1.9.1; code commit 375a7e1. md5
+20ja072_fig4_data.zip b605a694bc3ff5038dc3b27c5e91b23b, 20ja072_fig6_data.zip cc23957f4fd596d90a0a741f72cc4f04.
+
+- **Counts:** C-Mod 4,510 shots (975 disrupted), DIII-D 8,608 (1,244), EAST 14,347 (4,508); no duplicate (shot, time)
+  rows in any file.
+- **EAST split, inclusion flow:** training 8,530 (2,514 disrupted), validation 1,137 (335), test 1,706 (503), all in the
+  file, lists pairwise disjoint; 2,974 shots of the file are in no list (1,156 disrupted, 1,818 not), which explains the
+  difference between the split totals and the file totals. The file's `trainingClasses` agree with our label for 100%
+  of training shots. Which published task the lists belong to is to be confirmed with the authors.
+- **C4 in full:** within each disrupted shot, time + time_until_disrupt is constant (spread 0.000 ms, all machines). Last
+  slice minus disruption time: DIII-D and EAST 0.000 ms in every shot; C-Mod up to 5.0 ms (219 of 975 beyond 1 ms, i.e.
+  within one 5 ms slice).
+- **C5 counts** (equal-count shot-number bins, disrupted/not): DIII-D and EAST have both classes in every bin in
+  hundreds. C-Mod's earliest bin is 332/119 (mostly disrupted), the others 50 to 90 disrupted each.
+- **The reversed DIII-D residual-timing fit, diagnosed:** classes_ [False, True], probability column for True, ids
+  aligned, so no label or column inversion. The fitted coefficient is -4.8e-5 (feature in seconds, unscaled) with
+  intercept -1.775: the L2-penalised fit is almost flat and its sign is set by a few large ages in non-disrupted shots
+  (max 12.5 ms; disrupted median 0.17 ms, non-disrupted median 0.00 ms). Train AUC of the fit 0.022, test 0.020. The raw
+  age with its natural direction (higher age = disrupted), no fit: train 0.982, test 0.981 (exploratory diagnostic,
+  not a substitute for the registered analysis, and not presented as a trained model's performance). So the residual
+  timing association in DIII-D's R2 is strong; R2 is reported descriptively only.
+
+## 2026-11-14 - The released CCNN repository's default data path (read only; nothing run from it)
+
+Reading github.com/Aphoh/fusion-dp (MIT licence, commit 22fb64b, 2024-05-22): the default data module (`Lucas`)
+downloads a preprocessed file (`lucas_data_f32.pickle.gzip`, a public URL in the code) and uses each shot's array with
+the last 8 rows removed; a second module (`Dhruva`) applies `resample_array` (first row of every 20 rows for EAST, 5
+for DIII-D), which looks like the sampling correction. Protocol `docs/preregistration_public_pipeline_audit.md`
+(18e8ab3) before the file was downloaded; `scripts/public_pipeline_audit.py` opens it with a restricted unpickler.
