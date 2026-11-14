@@ -64,4 +64,10 @@ test shots (seed 42). Beside it: AUC(R0), AUC(R1), AUC(R2) and the residual timi
 
 ## Changes after the first result
 
-(none yet)
+- **2026-11-14, the residual timing rule was one-sided.** The rule read R2 only if the residual timing AUC was not
+  above 0.60. DIII-D gave 0.020 (0.013 to 0.030): far below 0.5, so the observation age separates the classes almost
+  perfectly, with the fitted direction reversed on the test shots (a likely cause, not checked: the age feature was not
+  standardised, and a few large ages pull an L2-penalised logistic fit to the wrong sign). The rule should have been
+  |AUC - 0.5| > 0.10. DIII-D's R2 is therefore NOT read as "survives harmonisation", although the code printed that
+  line by the letter of the rule. Recorded here because it was found after the result was seen. Following the stop
+  rule of the outside review (do not change preprocessing until a timing test passes), no new harmonisation is tried.
