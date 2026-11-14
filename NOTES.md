@@ -1409,3 +1409,17 @@ repetition (A 3,134 and B 4,104 pairs tested). Two-level bootstrap.
   across the three shots. Secondary, reference corrected after the result was seen (protocol, 'Changes').
 - **Stop rule:** the drift question is reported as unresolved with this range; no further re-test of it on these
   data.
+
+## 2026-11-14 - A second dataset: C-Mod, DIII-D and EAST (Zhu et al., public on Harvard Dataverse)
+
+Harvard Dataverse doi:10.7910/DVN/XIOHW1 (pointed to by an outside reviewer; confirmed as the DisruptionBench data
+by its corresponding author, who also confirmed that research use with citation is fine). Per time slice: shot,
+time, time_until_disrupt and 12 plasma signals, including the current error (Ip - Ip_prog)/Ip_prog (Zhu et al.,
+table 1), but neither Ip nor the programmed current, so MAST-style twins cannot be built from it directly (asked
+the author whether a version with Ip exists). C-Mod 4,510 shots (975 disrupted), DIII-D 8,608 (1,244), EAST 14,347
+(4,508).
+
+A count before any protocol (no model): median slice spacing in the last 50 ms and 100-500 ms before the end. C-Mod
+5 ms in both classes; DIII-D disrupted 2 ms in the last 50 ms (25 ms earlier), non-disrupted 25 ms; EAST disrupted
+10 ms throughout, non-disrupted 100 ms. So the sampling may carry the outcome. Protocol
+`docs/preregistration_sampling_audit.md` (00967ee) written before any statistic; `scripts/sampling_audit.py`.
