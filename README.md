@@ -8,6 +8,8 @@ Machine learning that watches a MAST tokamak plasma pulse as it unfolds and trie
 
 **Paper:** F. Firdous, *What disruption labels reward: how 11,471 MAST plasmas ended, and what predictors learn from each label set* (2026), [doi:10.5281/zenodo.24081241](https://doi.org/10.5281/zenodo.24081241). ORCID [0009-0007-1270-5525](https://orcid.org/0009-0007-1270-5525).
 
+**Dataset:** F. Firdous, *MAST events and twins: how 11,471 MAST discharges ended, events named by operators, and same-programme shot pairs* (2026), [doi:10.5281/zenodo.24133737](https://doi.org/10.5281/zenodo.24133737): how every shot ended, the events operators named, the same-programme twin pairs and a standalone twin-test scorer (CC BY-SA 4.0).
+
 ## How it works
 1. **Data**: every MAST shot in FAIR-MAST (UKAEA, 11,573 shots): plasma current, radiated power, neutron rate and beam power at 1 ms; saddle-coil locked-mode signal; Mirnov coil fluctuations in four frequency bands; density and the Greenwald fraction; EFIT q95, li, beta_N, elongation and vertical position; solenoid and programmed current.
 2. **Labels**: a shot counts as disrupted only if the operator's note says so and a fast current quench is found; the quench gives the disruption time. Every shot also gets an automatic ending class (flat-top drop, flux exhausted, ramp-down, smooth), which gives a second, physics-based label set.
