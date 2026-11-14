@@ -1590,3 +1590,11 @@ Environment: python 3.12.3, numpy 2.5.4, pandas 3.0.6, scipy 1.18.1, scikit-lear
   age with its natural direction (higher age = disrupted), no fit: train 0.982, test 0.981 (exploratory diagnostic,
   not a substitute for the registered analysis, and not presented as a trained model's performance). So the residual
   timing association in DIII-D's R2 is strong; R2 is reported descriptively only.
+
+## 2026-11-14 - The released CCNN repository's default data path (read only; nothing run from it)
+
+Reading github.com/Aphoh/fusion-dp (MIT licence, commit 22fb64b, 2024-05-22): the default data module (`Lucas`)
+downloads a preprocessed file (`lucas_data_f32.pickle.gzip`, a public URL in the code) and uses each shot's array with
+the last 8 rows removed; a second module (`Dhruva`) applies `resample_array` (first row of every 20 rows for EAST, 5
+for DIII-D), which looks like the sampling correction. Protocol `docs/preregistration_public_pipeline_audit.md`
+(18e8ab3) before the file was downloaded; `scripts/public_pipeline_audit.py` opens it with a restricted unpickler.
