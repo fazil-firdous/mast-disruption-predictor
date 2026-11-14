@@ -1634,3 +1634,21 @@ with an unconverged attempt), 3,902 twin pairs.
   separation, but resolved, and it explains in part the level-2 value-repetition signature (fewer repeats in lost
   shots, T = 0.469). The protocol's further step was gated on a range entirely outside 0.47 to 0.53, which is not met;
   a check of whether the twin result needs the EFIT inputs at all is the proportionate next step (its own protocol).
+
+## 2026-11-14 - No-EFIT check: the twin test's late lead does not need the EFIT inputs (as pre-registered, a909369)
+
+`scripts/no_efit.py`: N = the full model without any EFIT-derived input (93 of 133 inputs left), 21 runs.
+
+- **Primary, as registered:** C(30 ms) of N minus M: +0.043 (-0.025 to +0.110) over splits 1 to 20; pooled +0.040
+  (+0.011 to +0.068). Not resolved: without EFIT the lead over the machine-side model is not shown at 30 ms.
+- **Context (computed after the result, exploratory):** with EFIT, on the same 20 splits, A minus M at 30 ms is +0.052
+  (-0.021 to +0.126), not resolved either; so the protocol's second clause ("EFIT carries part of it") does not apply
+  (recorded in the protocol). A minus M: +0.119 (+0.063 to +0.174) at 10 ms, +0.066 at 50 ms, +0.046 at 100 ms.
+- **What EFIT adds (A minus N):** +0.026 (10 ms), +0.010 (30), +0.024 (50), +0.014 (100 ms); none resolved over splits.
+- **At 10 ms, where the twin test's separation sits:** N minus M = +0.092 (+0.020 to +0.165), resolved: the lead over
+  the machine-side model survives without any EFIT input, at the lead where lost shots' native EFIT is densest (source
+  audit T = 0.538 at 10 ms). The small native-EFIT schedule difference cannot be what that lead rests on.
+- Plan twins at 30 ms, N minus M +0.041 (-0.050 to +0.133). Placebo for N at 30 ms 0.556. Chronological split, 30 ms,
+  N minus M pooled +0.021 (-0.031 to +0.070).
+- Usual metrics, N minus A: pAUC -0.066 (-0.122 to -0.009), caught -8.9 points (-15.0 to -2.8): EFIT helps the usual
+  score clearly, the twin comparison little.
