@@ -1538,3 +1538,25 @@ before the moment compared, lost shot against twin.
 - Over the flat-top, the share of adjacent 5 ms slices with all six values identical is 0.296 (lost) and 0.270 (kept,
   shot medians): about a quarter of published EFIT points repeat the previous one, so the native reconstructions are
   often sparser than the published 5 ms grid. The maintainers' answer on native time stamps is still needed.
+
+## 2026-11-14 - Harmonisation: the sparse grid did not remove the timing difference (as pre-registered, 17e2444)
+
+`scripts/harmonisation.py`, values-only boosting (36 features, 300 ms window ending 40 ms before the last slice), test once.
+
+| Machine | residual timing AUC on R2 | AUC R0 slices | R1 5 ms fill | R2 harmonised | Drop R1 - R2 |
+|---|---|---|---|---|---|
+| EAST (official) | **0.938 (0.919 to 0.958)** | 0.993 | 0.991 | 0.980 | +0.011 (+0.006 to +0.016) |
+| DIII-D | **0.020 (0.013 to 0.030)** | 0.982 | 0.981 | 0.977 | +0.004 (-0.000 to +0.009) |
+| C-Mod | 0.504 (0.457 to 0.548) | 0.907 | 0.901 | 0.900 | +0.000 (-0.011 to +0.013) |
+
+- **EAST, as fixed:** the residual timing AUC is above 0.60, so harmonisation did not remove the timing difference
+  (median observation age at R2 points 3.1 ms in disrupted shots, 0.0 ms in others: non-disrupted slices fall on the
+  100 ms grid, dense ones do not); R2 is only reported.
+- **DIII-D:** 0.020 is the same failure with the fitted direction reversed; the protocol's one-sided rule missed it
+  (recorded in the protocol as a change after the result). R2 is not read.
+- **C-Mod:** no residual timing (0.504); the values model keeps its AUC (0.90) on every representation; drop 0.000.
+- **What this run shows:** a values-only model reaches 0.98 to 0.99 in EAST and DIII-D on every representation,
+  including the harmonised grid, and C-Mod reaches 0.90 with no timing difference at all. In this endpoint-aligned
+  task the plasma values near the end separate the classes well on their own, so the run cannot say how much of a
+  model's score on these files comes from the schedule. The question "what remains after harmonisation" is not
+  answered here; by the stop rule, no further harmonisation is tried.
