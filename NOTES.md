@@ -1448,3 +1448,11 @@ range from 2,000 bootstrap resamples of shots.
 - **Not claimed:** that any published model used this or that any reported performance is inflated. Zhu et al. and
   DisruptionBench state that they corrected a pre-disruption sampling increase in code that is not public.
 - **Next, before anything public:** send the result privately to the dataset's and benchmark's authors.
+
+## 2026-11-14 - Self-audit of MAST's observation times is built (nothing run yet)
+
+After the public-files result, and on an outside reviewer's advice, the same question for our own data first.
+Protocol `docs/preregistration_mast_timing_audit.md` (d1251c2) before any time stamp was read. EFIT slice times come
+through GitHub (`scripts/efit_times_fetch.py`); the summary grid from the cached shot tables.
+`scripts/mast_timing_audit.py`: primary, the timing concordance of the EFIT slice count in the 20 ms window at 30 ms
+before the loss, lost shot against twin at the same programme time; a model comparison only if timing differs.

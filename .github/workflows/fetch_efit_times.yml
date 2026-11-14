@@ -1,0 +1,43 @@
+# Timing self-audit (docs/preregistration_mast_timing_audit.md): the research server cannot reach STFC, so this job reads
+# the EFIT slice times of the shots the server names (scripts/efit_times_fetch.py) and attaches them, and the server
+# collects them (scripts/mast_timing_audit.py --relay). No outcome, model or label passes through here; nothing is
+# committed.
+name: fetch_efit_times
+
+on:
+  workflow_dispatch:
+    inputs:
+      ids:
+        description: "shot numbers, as scripts/sxr_fetch.py encode_ids() writes them"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [0, 1, 2, 3]
+    env:
+      MAST_HOME: ${{ github.workspace }}/relay
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: read the EFIT slice times
+        env:
+          IDS: ${{ inputs.ids }}
+        run: python scripts/efit_times_fetch.py --ids "$IDS" --part ${{ matrix.part }} --parts 4 --workers 8
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mast-efit-times-${{ matrix.part }}
+          path: relay/data/efit_times
+          retention-days: 3
+          if-no-files-found: error
