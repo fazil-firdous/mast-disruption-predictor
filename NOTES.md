@@ -1507,3 +1507,34 @@ group, none failed); summary grid from the cached shot tables; 3,902 twin pairs.
   0.999 (EAST): not a difference between shot ranges.
 - Score orientation, bin type (equal-count bins by shot number), cohort sizes and the endpoint convention are as in
   the protocol. Retrospective, endpoint-aligned separability; not an online warning claim.
+
+## 2026-11-14 - A timing-only predictor on the files' own test split (as pre-registered, b63add6)
+
+`scripts/timing_model.py`: three timestamp features per shot (occupancy of 5 ms steps, median gap, max gap, in the
+100 ms before a cut 40 ms before the last slice; no plasma value), logistic regression, C chosen on validation, test
+evaluated once.
+
+- **Primary, EAST on its official split** (train 2,514 / 6,016, validation 335 / 802, test 503 / 1,203 disrupted / not;
+  no listed shot missing): **test AUC 0.998 (0.994 to 1.000)**. Reading, as fixed: a predictor trained only on
+  observation times discriminates the classes on the files' own held-out test shots. Fixed statistics on the same test
+  shots: occupancy 0.996, minus gap 0.998. Chosen C 0.01, validation AUC 1.000.
+- DIII-D (our seeded split, secondary): test AUC 0.998 (0.993 to 1.000); fixed statistics 1.000.
+- C-Mod (our seeded split, secondary): test AUC 0.613 (0.569 to 0.656), above chance and under 0.80; fixed statistics
+  0.545 and 0.521. Some timing information in C-Mod too, small; the three features together carry more than each alone.
+- Endpoint-aligned and retrospective; not an online warning system; nothing said about any published model.
+
+## 2026-11-14 - MAST value-repetition signatures (exploratory, as pre-registered, e1fbe14)
+
+`scripts/mast_value_repetition.py`: exact adjacent repeats of the six EFIT variables on the published 5 ms grid, 100 ms
+before the moment compared, lost shot against twin.
+
+- **Primary R at 30 ms, 3,710 pairs: T = 0.469 (0.459 to 0.479):** reported as found (resolved below 0.5, its range
+  inside the 0.47 to 0.53 band at the top). Lost shots repeat EFIT values slightly LESS often than their twins near the
+  loss; mean paired difference -0.018. By lead: 0.461 (10 ms), 0.469 (30), 0.480 (50), 0.495 (100 ms): the difference
+  shrinks away from the loss.
+- The direction is the opposite of a sparser source in lost shots: if anything, their published EFIT values change
+  more often just before the loss, which plasma evolution would also produce. Not read as a shortcut or a schedule
+  difference (protocol).
+- Over the flat-top, the share of adjacent 5 ms slices with all six values identical is 0.296 (lost) and 0.270 (kept,
+  shot medians): about a quarter of published EFIT points repeat the previous one, so the native reconstructions are
+  often sparser than the published 5 ms grid. The maintainers' answer on native time stamps is still needed.
