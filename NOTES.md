@@ -1327,3 +1327,11 @@ the comparison needs), the pairs where exactly one shot is usable become 49 (los
 from 62 against 39 with whole-plasma coverage. Sign test on the discordant pairs: p = 0.028 before, p = 0.34 after.
 So the fixed camera stop explains about half of the excess, and what is left is consistent with chance at this
 size. Saturation and SNR are still judged over the whole plasma, so this is not a fully landmark-local audit.
+
+## 2026-11-14 - Paper 3: the drift study is built (nothing run yet)
+
+Protocol `docs/preregistration_drift.md` (commit 34d8d39) before any code. `scripts/drift.py`: population A (K2, K1
+before a lost shot, the placebo triplets) against B (good repeats where the next same-programme shot is not lost),
+the same statistic for both (each shot's mean saved score over the shared time, ending 30 ms before the earlier
+last window), primary P_A - P_B for the full model over the v3 splits; secondary by model, gap, campaign, raw
+signals and step agreement within A. Saved scores and cached shots only.
