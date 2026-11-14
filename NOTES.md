@@ -1335,3 +1335,17 @@ before a lost shot, the placebo triplets) against B (good repeats where the next
 the same statistic for both (each shot's mean saved score over the shared time, ending 30 ms before the earlier
 last window), primary P_A - P_B for the full model over the v3 splits; secondary by model, gap, campaign, raw
 signals and step agreement within A. Saved scores and cached shots only.
+
+## 2026-11-14 - Soft X-rays: the exploratory checks E2 to E4 (protocol, written before any result)
+
+- **Missingness, recounted over scorable pairs:** soft X-ray inputs at 50 ms for 98% of lost shots and 98% of
+  twins. The earlier 98% against 92% came from counting pairs the test does not score (fixed denominator).
+- **E2, chord-set changes:** the chord count changes within the 50 ms window for 4% of lost shots and 3% of twins.
+  On the 3,311 pairs with inputs in both and constant chord counts, S minus A is +0.010 (-0.053 to +0.074); pooled
+  +0.007 (-0.016 to +0.028). Chord dropout is rare and does not change the result.
+- **E3, availability-only control** (full model plus only whether each camera has a level; 21 runs): minus A at
+  50 ms, -0.003 (-0.044 to +0.038); pooled -0.008 (-0.023 to +0.007). Availability alone carries no outcome
+  information the model can use.
+- **E4:** operator-recorded share of the lost shots 17% (all pairs), 16% (inputs in both), 16% (E2 pairs).
+- With E1 (49 against 39, p = 0.34), the soft X-ray null is not explained by missing data, chord dropout or a
+  changed mix of losses. The soft X-ray part ends here, as the stop rule says.
