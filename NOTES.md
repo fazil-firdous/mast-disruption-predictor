@@ -1456,3 +1456,22 @@ Protocol `docs/preregistration_mast_timing_audit.md` (d1251c2) before any time s
 through GitHub (`scripts/efit_times_fetch.py`); the summary grid from the cached shot tables.
 `scripts/mast_timing_audit.py`: primary, the timing concordance of the EFIT slice count in the 20 ms window at 30 ms
 before the loss, lost shot against twin at the same programme time; a model comparison only if timing differs.
+
+## 2026-11-14 - Self-audit: MAST's observation times carry no outcome information (as pre-registered, d1251c2)
+
+`scripts/mast_timing_audit.py --relay`: EFIT slice times of 11,374 shots read on GitHub (97 without an equilibrium
+group, none failed); summary grid from the cached shot tables; 3,902 twin pairs.
+
+- **Primary:** EFIT slices available in the 20 ms window at 30 ms before the loss, lost shot against twin at the same
+  programme time: **T = 0.500 (0.500 to 0.500) on 3,726 pairs**, mean paired difference 0.00. **Key:** summary-grid
+  samples, T = 0.500 (0.500 to 0.500) on 3,760 pairs. Every pair is tied.
+- The same at 10, 50 and 100 ms and for every measure (EFIT age and gap, grid gap): 0.500, differences 0.00.
+- Without pairs (window ending 40 ms before each shot's last grid sample; 4,794 lost, 6,481 kept): AUC 0.500 for both.
+- EFIT gaps over the flat-top: median 5.00 ms and 90th percentile 5.00 ms, lost and kept alike; no EFIT slices for 0.7%
+  of lost and 0.9% of kept shots.
+- **Reading, as fixed beforehand:** no timing difference between lost shots and their twins at the moment compared.
+  The FAIR-MAST level-2 data used here sit on fixed time bases (EFIT every 5 ms, a common summary grid), so
+  observation times cannot carry the outcome; the twin test's EFIT and summary inputs have no observation-time
+  shortcut. No model comparison is needed (the protocol's second step applies only if timing differs).
+- Next to the public-files audit: MAST (fixed bases) and C-Mod (uniform 5 ms) show nothing; DIII-D and EAST, whose
+  public records change cadence, separate the classes by timing alone. The difference is the sampling, not the machine.
