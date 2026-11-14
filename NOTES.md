@@ -1652,3 +1652,29 @@ with an unconverged attempt), 3,902 twin pairs.
   N minus M pooled +0.021 (-0.031 to +0.070).
 - Usual metrics, N minus A: pAUC -0.066 (-0.122 to -0.009), caught -8.9 points (-15.0 to -2.8): EFIT helps the usual
   score clearly, the twin comparison little.
+
+## 2026-11-14 - Which FAIR-MAST version our data are, and which known faults touch our inputs
+
+Source: the FAIR-MAST level-2 release history (`docs/level2/release-history.md` of ukaea/fair-mast, read 2026-11-14;
+pointed to by the outside reviewer). Level 2 is regenerated at the same paths; each group carries `ingested_at` and
+`commit_url`. The deployed release is September 2026 (ingested 23 to 29 September, commit ed6ea4e); a corrections
+release is announced (date TBC). Remote attributes today: shots 22000, 27000 and 30421 ingested 24 to 30 September 2026,
+commit ...0948. Our shot and extras caches were built by the relay between 16 October and 1 November 2026, so they are
+the September 2026 release (to confirm from cache file dates; the cached parquet files keep no attributes).
+Hashes of the public C-Mod/DIII-D/EAST files: SHA-256 fig4 7e6330c2a21c11f9d693a7b6c6422628e45f9abd4b8432d38f7479dcdacb1218,
+fig6 7e20beaf2420d7cab62c838e0d100920327259de45fb0fef0ee555d1e07bd708.
+
+Known faults of the September 2026 files, against what we use:
+- **Saddle coils M02, M08, M012 have their field sign reversed from shot 24782** (to be corrected). Our `lm_n1` (n=1
+  locked-mode amplitude) is fitted to all twelve saddle fields (`b_field_tor_probe_saddle_field`, channels M01 to M012),
+  so for shots from 24782 on (part of M8 and M9, the chronological test campaigns) it is fitted with three coils
+  inverted: a distorted n=1 amplitude, still non-axisymmetric, consistent within a pair of nearby shots. Relevant.
+- **Samples dropped or misplaced on grid-resampled datasets** (equilibrium, magnetics, summary), mostly near t = 0; on
+  shot 30421, 18 of 107 wmhd slices held the previous value and two EFIT solutions were dropped. Relevant to the
+  level-2 value-repetition signature (part of it is a processing fault) and to all level-2 inputs near the start.
+- **Solenoid (`SOL`) 2x too high, P6 coils 4x too low.** A uniform scale: tree models are invariant to it, and the
+  ending classes use the solenoid's sweep rate relative to its own average (`src/termination.py`). P6 is not used.
+- **CC04 Mirnov coil reversed/flat from 25470**: our Mirnov signal is the first centre-column channel with data, which
+  is '201' in the shots checked, not CC04. Saddle *voltage* channels empty: we use the field, not the voltage. Thomson
+  axis doubling: not used.
+Next: does the twin result need the locked-mode inputs? (protocol `docs/preregistration_no_lm.md`).
