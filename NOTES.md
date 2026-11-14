@@ -1606,3 +1606,12 @@ values without its maximum-age rule (which emptied 0 to 1% of points). So, to th
 correction applied to the public files equalises the change pattern but leaves the freshness difference that the
 harmonisation study measured: residual timing AUC 0.938 (EAST), raw age 0.981 (DIII-D). Whether the authors' actual
 correction differs is one of the questions sent to them.
+
+## 2026-11-14 - MAST source level: level-1 efm reconstruction times are irregular (protocol 6190b6b)
+
+FAIR-MAST level 1 documents `efm/all_times` (attempted) and `efm/cnvrgd_times` (converged) reconstruction times (lead
+from the outside reviewer). In three shots chosen without regard to outcome (30421, 27000, 22000), both exist, are
+identical (all converged) and have irregular gaps (5 to 50 ms; median 5 ms): 120, 106 and 96 reconstructions. So the
+level-2 5 ms grid holds values over native gaps, and the native schedule can be tested. Protocol
+`docs/preregistration_mast_source_times.md` written before any level-1 time of a twin pair was read;
+`scripts/mast_source_audit.py` (with `efit_times_fetch.py --level1` on GitHub).
