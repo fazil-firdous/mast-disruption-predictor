@@ -1383,3 +1383,27 @@ Protocol `docs/preregistration_drift_oof.md` (commit b51699b) before any code. `
 scores (5 folds that keep linked shots together, 10 repetitions, 3 models, 150 runs, full model first), the same
 populations and statistic as part 1, a two-level bootstrap for the deciding range, and the heating-matched Delta as
 the key secondary (operator beam scan or not). Writes only `drift_oof/`; the v3 runs are read, never written.
+
+## 2026-11-14 - Drift study part 2: unresolved (as pre-registered, b51699b)
+
+`scripts/drift_oof.py`, 150 runs (5 grouped folds x 10 repetitions x 3 models), every pair scored in every
+repetition (A 3,134 and B 4,104 pairs tested). Two-level bootstrap.
+
+- **Primary (full model):** Delta = P_A - P_B = **+0.049 (-0.004 to +0.098)**. The range includes both zero and
+  +0.03: **unresolved at this sample size**, as the reading fixed in advance says. P_A 0.535 (0.487 to 0.576),
+  P_B 0.485 (0.471 to 0.500). Beside it: over repetitions only +0.012 to +0.075; pairs only +0.049 (+0.020 to
+  +0.078). Part 1's +0.087 was not borne out at that size; the estimate is about half.
+- **Ordinary drift is not there:** P_B is at or just below 0.5 in both parts, so the twin study's placebo (0.54) is
+  not explained by good repeats drifting in general.
+- **Heating-matched pairs (key secondary, read only if the primary is resolved):** +0.018 (-0.052 to +0.089); A 42%
+  and B 55% of pairs matched. Not read, by the protocol.
+- **Other models:** machine-side +0.028 (-0.017 to +0.083); programme-only +0.004 (-0.023 to +0.031), P_A 0.501 and
+  P_B 0.497: the programme matching works.
+- **By gap:** +0.039, +0.042, +0.073 (gap 1, 2-3, 4+), none resolved. **By campaign:** M6 +0.095 (-0.001 to
+  +0.193), M8 +0.078, M7 +0.053, M5 +0.021, M9 -0.045; none resolved.
+- **Step agreement within A:** 0.410 (0.375 to 0.445). The protocol's summary line said '0.5 = no link'; the
+  correct chance level for three exchangeable shots is 1/3 (about 0.36 with the lost shot scored higher on
+  average), so the steps K2 to K1 and K1 to L agree a little more often than chance: weak persistence of direction
+  across the three shots. Secondary, reference corrected after the result was seen (protocol, 'Changes').
+- **Stop rule:** the drift question is reported as unresolved with this range; no further re-test of it on these
+  data.

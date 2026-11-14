@@ -75,4 +75,8 @@ comparison (secondary) is reported next to the primary and the wording says so; 
 
 ## Changes after the first result
 
-(none yet)
+- **2026-11-14, reference for the step agreement (a secondary).** The summary printed "0.5 = no link" for the share
+  of triplets where K2 to K1 and K1 to L move the same way. That is wrong: for three exchangeable shots the two steps
+  share the middle shot and agree in one third of triplets by chance (simulated: 0.333, and up to about 0.36 when the
+  lost shot is scored higher on average, as it is). The reference is now about 1/3. No number changes; the wording of
+  the summary line does. Found after the result had been seen, and recorded here for that reason.
