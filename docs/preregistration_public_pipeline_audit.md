@@ -55,4 +55,12 @@ Shots and class counts per machine; rows per shot; the excluded counter channel,
 
 ## Changes after the first result
 
-(none yet)
+- **2026-11-14, the file is not available.** The URL in the repository's code (`datamodules/lucas.py`) returned 404 Not
+  Found on 2026-11-14, so the primary analysis could not be run; nothing was opened. The released default data path
+  therefore cannot be reproduced from public sources today; the Dataverse release is the public source.
+- **Same day, a check of the repository's correction instead (exploratory):** `resample_array` with factor 20, applied
+  to a 5 ms forward-fill from the first slice, gives exactly the values of the harmonisation study's R2 grid (100 ms
+  from the first slice, latest slice at or before each point) without R2's maximum-age rule (unit test,
+  `tests/test_public_pipeline_audit.py`). That rule emptied 0 to 1% of points in EAST and DIII-D. So the
+  harmonisation study's R2 results stand, to that approximation, for the released correction applied to the public
+  files: residual timing AUC 0.938 in EAST, raw observation age 0.981 in DIII-D (see NOTES).

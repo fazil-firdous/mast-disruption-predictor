@@ -10,6 +10,9 @@ on:
       ids:
         description: "shot numbers, as scripts/sxr_fetch.py encode_ids() writes them"
         required: true
+      level1:
+        description: "non-empty: read the level-1 efm attempted/converged times instead of the level-2 grid"
+        default: ""
 
 permissions:
   contents: read
@@ -33,7 +36,8 @@ jobs:
       - name: read the EFIT slice times
         env:
           IDS: ${{ inputs.ids }}
-        run: python scripts/efit_times_fetch.py --ids "$IDS" --part ${{ matrix.part }} --parts 4 --workers 8
+          LEVEL1: ${{ inputs.level1 }}
+        run: python scripts/efit_times_fetch.py --ids "$IDS" --part ${{ matrix.part }} --parts 4 --workers 8 ${LEVEL1:+--level1}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

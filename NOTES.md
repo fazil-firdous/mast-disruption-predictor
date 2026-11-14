@@ -1598,3 +1598,20 @@ downloads a preprocessed file (`lucas_data_f32.pickle.gzip`, a public URL in the
 the last 8 rows removed; a second module (`Dhruva`) applies `resample_array` (first row of every 20 rows for EAST, 5
 for DIII-D), which looks like the sampling correction. Protocol `docs/preregistration_public_pipeline_audit.md`
 (18e8ab3) before the file was downloaded; `scripts/public_pipeline_audit.py` opens it with a restricted unpickler.
+
+**Public-pipeline audit, 2026-11-14:** the preprocessed file of the released CCNN code returned 404, so the
+registered audit could not run (protocol, 'Changes'). Instead, a unit test shows that the repository's own correction,
+`resample_array` (factor 20) on a 5 ms forward-fill from the first slice, gives exactly the harmonisation study's R2
+values without its maximum-age rule (which emptied 0 to 1% of points). So, to that approximation, the released
+correction applied to the public files equalises the change pattern but leaves the freshness difference that the
+harmonisation study measured: residual timing AUC 0.938 (EAST), raw age 0.981 (DIII-D). Whether the authors' actual
+correction differs is one of the questions sent to them.
+
+## 2026-11-14 - MAST source level: level-1 efm reconstruction times are irregular (protocol 6190b6b)
+
+FAIR-MAST level 1 documents `efm/all_times` (attempted) and `efm/cnvrgd_times` (converged) reconstruction times (lead
+from the outside reviewer). In three shots chosen without regard to outcome (30421, 27000, 22000), both exist, are
+identical (all converged) and have irregular gaps (5 to 50 ms; median 5 ms): 120, 106 and 96 reconstructions. So the
+level-2 5 ms grid holds values over native gaps, and the native schedule can be tested. Protocol
+`docs/preregistration_mast_source_times.md` written before any level-1 time of a twin pair was read;
+`scripts/mast_source_audit.py` (with `efit_times_fetch.py --level1` on GitHub).
