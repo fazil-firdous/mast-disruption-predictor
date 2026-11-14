@@ -1615,3 +1615,22 @@ identical (all converged) and have irregular gaps (5 to 50 ms; median 5 ms): 120
 level-2 5 ms grid holds values over native gaps, and the native schedule can be tested. Protocol
 `docs/preregistration_mast_source_times.md` written before any level-1 time of a twin pair was read;
 `scripts/mast_source_audit.py` (with `efit_times_fetch.py --level1` on GitHub).
+
+## 2026-11-14 - MAST source level: lost shots have slightly denser native EFIT near the loss (as pre-registered, 6190b6b)
+
+`scripts/mast_source_audit.py --relay`: level-1 efm times of 10,974 shots (497 without the group, none failed; 172 shots
+with an unconverged attempt), 3,902 twin pairs.
+
+- **Primary SE1 (converged reconstructions in the 20 ms window) at 30 ms, 3,588 pairs: T = 0.529 (0.521 to 0.538):**
+  reported as found (the range excludes 0.5 but is not entirely above 0.53, so no reading was fixed for it). Mean paired
+  difference +0.16 reconstructions per 20 ms window. **Key SE2 (age of the latest):** T = 0.524 (0.517 to 0.532),
+  0.68 ms fresher in lost shots.
+- By lead, SE1: 0.538 (10 ms, +0.23), 0.529 (30), 0.516 (50), 0.506 (100 ms, +0.02); SE2 similarly fades by 100 ms. Gaps
+  (SE3) and unconverged attempts (SA1) show nothing (0.50).
+- Without pairs (window ending 40 ms before the last grid sample), lost against kept: AUC 0.441 (0.432 to 0.451): over
+  that endpoint-aligned window lost shots have fewer reconstructions than kept shots, whose ends differ in kind.
+- **Reading:** the native schedule differs slightly between lost shots and their twins at the moment compared, more
+  near the loss: lost shots got a little more, and fresher, EFIT reconstructions. Small next to the twin test's
+  separation, but resolved, and it explains in part the level-2 value-repetition signature (fewer repeats in lost
+  shots, T = 0.469). The protocol's further step was gated on a range entirely outside 0.47 to 0.53, which is not met;
+  a check of whether the twin result needs the EFIT inputs at all is the proportionate next step (its own protocol).
