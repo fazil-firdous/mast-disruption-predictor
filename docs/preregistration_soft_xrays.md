@@ -157,4 +157,8 @@ summaries did not add resolved discrimination at 50 ms', with its range, and whe
 
 ## Changes after the first result
 
-(none yet)
+- **2026-11-14, missingness denominator.** The first summary gave soft X-ray inputs at 50 ms for 98% of lost shots
+  and 92% of twins, counting pairs where one shot had no window at that moment at all (its plasma already over);
+  such pairs are not scored by the test. The line now counts only pairs where both shots have a window then. A
+  reporting fix of a secondary line; no model, pair or primary number changes. The first numbers are kept in
+  NOTES.md.

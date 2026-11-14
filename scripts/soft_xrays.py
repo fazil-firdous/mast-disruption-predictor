@@ -271,7 +271,8 @@ def collect_wins(load=None):
 
 
 def availability(main, table, lead=PRIMARY_LEAD):
-    """(pairs with soft X-ray inputs in both shots at the landmark, share of lost shots with them, share of twins).
+    """(pairs with soft X-ray inputs in both shots at the landmark, share of lost shots with them, share of twins),
+    over the pairs where both shots have a window at that moment (the pairs the test can score).
     'With inputs': either camera's level mean is present in the window scored at that moment."""
     ok = table[["sxr_lo_level_mean", "sxr_up_level_mean"]].notna().any(axis=1).astype(float)
     by_shot = {s: (g["t_end"].to_numpy(dtype=float), ok.loc[g.index].to_numpy())
@@ -285,6 +286,8 @@ def availability(main, table, lead=PRIMARY_LEAD):
             continue
         a = how_early.score_at(*by_shot[row.shot_id], t) if row.shot_id in by_shot else np.nan
         b = how_early.score_at(*by_shot[row.other], t) if row.other in by_shot else np.nan
+        if not (np.isfinite(a) and np.isfinite(b)):
+            continue  # one shot has no window at that moment (its plasma is over): the pair is not scored at all
         n += 1
         lost_ok += a == 1.0
         twin_ok += b == 1.0
@@ -403,8 +406,8 @@ def text(random, temporal, available=None, flags=None, explore=None):
                       f"caught {how_early.rng(*u[0]['catch_rate'], signed=True)}; false alarms "
                       f"{how_early.rng(*u[0]['false_alarm_rate'], signed=True)}"]
     if available is not None:
-        lines += ["", f"Missingness at 50 ms: soft X-ray inputs present for {available[1]:.0%} of lost shots and "
-                      f"{available[2]:.0%} of twins."]
+        lines += ["", f"Missingness at 50 ms, pairs where both shots have a window then: soft X-ray inputs present for "
+                      f"{available[1]:.0%} of lost shots and {available[2]:.0%} of twins."]
     lines += exploratory_lines(main, available, explore)
     return "\n".join(lines)
 
