@@ -36,4 +36,9 @@ metrics of N against A.
 
 ## Changes after the first result
 
-(none yet)
+- **2026-11-14, the second clause of the "not resolved" reading does not apply.** That clause ("then the EFIT inputs
+  carry part of it") presupposed that the full model's own lead over the machine-side model is resolved at 30 ms on
+  splits 1 to 20. Computed after the result (exploratory context, not registered): A minus M at 30 ms is +0.052 (-0.021
+  to +0.126), not resolved either. So the registered statement stands only as written in its first clause: without
+  EFIT the lead is not shown at 30 ms, and neither is it with EFIT on these 20 splits. Recorded here because the
+  comparison was computed after the result was seen.
