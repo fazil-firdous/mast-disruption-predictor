@@ -1325,8 +1325,8 @@ in 98% of windows (11,301 shots); 21 runs of about 3.7 minutes. Fixed-lead twin 
 **E1 (exploratory), 2026-11-14:** with coverage required only up to 50 ms before the lost shot's loss (the interval
 the comparison needs), the pairs where exactly one shot is usable become 49 (lost usable) against 39 (twin usable),
 from 62 against 39 with whole-plasma coverage. Sign test on the discordant pairs: p = 0.028 before, p = 0.34 after.
-So the fixed camera stop explains about half of the excess, and what is left is consistent with chance at this
-size. Saturation and SNR are still judged over the whole plasma, so this is not a fully landmark-local audit.
+This is consistent with the fixed camera stop accounting for part of the excess (the change in p-values alone does
+not establish how much), and what is left is consistent with chance at this size. Saturation and SNR are still judged over the whole plasma, so this is not a fully landmark-local audit.
 
 ## 2026-11-14 - Paper 3: the drift study is built (nothing run yet)
 
@@ -1344,8 +1344,9 @@ signals and step agreement within A. Saved scores and cached shots only.
   On the 3,311 pairs with inputs in both and constant chord counts, S minus A is +0.010 (-0.053 to +0.074); pooled
   +0.007 (-0.016 to +0.028). Chord dropout is rare and does not change the result.
 - **E3, availability-only control** (full model plus only whether each camera has a level; 21 runs): minus A at
-  50 ms, -0.003 (-0.044 to +0.038); pooled -0.008 (-0.023 to +0.007). Availability alone carries no outcome
-  information the model can use.
+  50 ms, -0.003 (-0.044 to +0.038); pooled -0.008 (-0.023 to +0.007). No resolved increment from availability
+  alone, for these inputs, this model and these pairs. A constant chord count does not imply constant chord
+  identity, so E2 does not rule out every mask change.
 - **E4:** operator-recorded share of the lost shots 17% (all pairs), 16% (inputs in both), 16% (E2 pairs).
 - With E1 (49 against 39, p = 0.34), the soft X-ray null is not explained by missing data, chord dropout or a
   changed mix of losses. The soft X-ray part ends here, as the stop rule says.
@@ -1393,10 +1394,11 @@ repetition (A 3,134 and B 4,104 pairs tested). Two-level bootstrap.
   +0.03: **unresolved at this sample size**, as the reading fixed in advance says. P_A 0.535 (0.487 to 0.576),
   P_B 0.485 (0.471 to 0.500). Beside it: over repetitions only +0.012 to +0.075; pairs only +0.049 (+0.020 to
   +0.078). Part 1's +0.087 was not borne out at that size; the estimate is about half.
-- **Ordinary drift is not there:** P_B is at or just below 0.5 in both parts, so the twin study's placebo (0.54) is
-  not explained by good repeats drifting in general.
-- **Heating-matched pairs (key secondary, read only if the primary is resolved):** +0.018 (-0.052 to +0.089); A 42%
-  and B 55% of pairs matched. Not read, by the protocol.
+- **The comparison sequences:** P_B is near one half in both parts (0.485, 0.471 to 0.500, in part 2). Wording
+  (after an outside review): 'the comparison sequences had a later-repeat preference near one half; the contrast
+  with pre-loss sequences remained unresolved'. Near one half is not a demonstrated absence of drift.
+- **Heating-matched pairs (key secondary):** +0.018 (-0.052 to +0.089); A 42% and B 55% of pairs matched. Observed
+  and reported, but not interpreted, because the protocol's gate (a resolved primary) was not met.
 - **Other models:** machine-side +0.028 (-0.017 to +0.083); programme-only +0.004 (-0.023 to +0.031), P_A 0.501 and
   P_B 0.497: the programme matching works.
 - **By gap:** +0.039, +0.042, +0.073 (gap 1, 2-3, 4+), none resolved. **By campaign:** M6 +0.095 (-0.001 to
