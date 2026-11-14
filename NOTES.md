@@ -1470,8 +1470,40 @@ group, none failed); summary grid from the cached shot tables; 3,902 twin pairs.
 - EFIT gaps over the flat-top: median 5.00 ms and 90th percentile 5.00 ms, lost and kept alike; no EFIT slices for 0.7%
   of lost and 0.9% of kept shots.
 - **Reading, as fixed beforehand:** no timing difference between lost shots and their twins at the moment compared.
-  The FAIR-MAST level-2 data used here sit on fixed time bases (EFIT every 5 ms, a common summary grid), so
-  observation times cannot carry the outcome; the twin test's EFIT and summary inputs have no observation-time
-  shortcut. No model comparison is needed (the protocol's second step applies only if timing differs).
+  **Scope (narrowed 2026-11-14 after an outside review):** FAIR-MAST level 2 publishes equilibrium on a 5 ms grid and
+  summary on a 1 ms grid by zero-order hold, each published point taking the latest source sample at or before it
+  (ukaea.github.io/fair-mast/level2/changes-from-source.html; to confirm for the version used). So the audit measured
+  publication-grid coordinates, and all ties are a property of that representation. It excludes discrimination by
+  the examined publication-coordinate statistics; it does not establish equal native EFIT reconstruction cadence or
+  source-data freshness. Not "cleared", not "contaminated". The 5 ms delay is our pipeline's assumption. No model
+  comparison follows (the protocol's second step applies only if timing differs). An earlier line here said
+  "observation times cannot carry the outcome; no observation-time shortcut": that was too broad.
 - Next to the public-files audit: MAST (fixed bases) and C-Mod (uniform 5 ms) show nothing; DIII-D and EAST, whose
   public records change cadence, separate the classes by timing alone. The difference is the sampling, not the machine.
+
+## 2026-11-14 - Sampling audit part 2 (as pre-registered, 1051923)
+
+`scripts/sampling_audit_2.py`, no model. AUC disrupted against non-disrupted shots.
+
+| Machine | C1 flags, no value read | C2 early window (100-300 ms after first slice) | C5 within shot-number bins | C4 last slice minus disruption time |
+|---|---|---|---|---|
+| C-Mod | 0.527 (0.508 to 0.545) | 0.500 | 0.525 (10 of 10 bins) | median 0.0 ms (5-95%: -3.0 to 0.0) |
+| DIII-D | **0.998 (0.995 to 1.000)** | 0.528 (0.513 to 0.542) | **1.000** (10 of 10) | 0.0 ms (0.0 to 0.0) |
+| EAST | **0.999 (0.997 to 0.999)** | 0.469 (0.461 to 0.477) | **0.999** (10 of 10) | 0.0 ms (0.0 to 0.0) |
+
+- **C1, as fixed:** observation times alone, with no value read, carry outcome information after the 40 ms cut in
+  DIII-D and EAST (median share of flagged 5 ms steps: DIII-D 0.70 against 0.20; EAST 0.50 against 0.05).
+- **C2, as fixed:** early in the record there is no such signal (EAST 0.469, below 0.5, reported; DIII-D 0.528, under
+  0.60). Median early spacing is the same by class (25 ms DIII-D, 100 ms EAST). **So part 1's EAST S3 (0.981) did not
+  mean "from the start"**: the separation is an end-of-record property; S3 reflected the dense final segment, and
+  disrupted records are shorter (median 2.61 s against 6.20 s in EAST, 2.78 against 4.00 s in DIII-D).
+- **C3 (common cohort of records >= 1 s):** slices in the 100 ms before the cut, disrupted against not. DIII-D 50 | 4
+  at 0 ms, 33 | 4 at 40 ms, 5 | 4 at 100 ms; AUC 1.000, 1.000, 0.778 (100 ms), 0.632 (300 ms). EAST 10 | 1 at 0 to 100
+  ms (AUC 1.000 to 0.999), 1 | 1 at 300 ms (AUC 0.318). The dense segment spans roughly the last 100 ms (DIII-D) and
+  100 to 300 ms (EAST). EAST's reversal at 300 ms is reported, not explained.
+- **C4:** in disrupted records the last slice is at the disruption time, so "40 ms before the last slice" is 40 ms
+  before the disruption here.
+- **C5, as fixed:** all ten shot-number bins have both classes, and the within-bin AUCs average 1.000 (DIII-D) and
+  0.999 (EAST): not a difference between shot ranges.
+- Score orientation, bin type (equal-count bins by shot number), cohort sizes and the endpoint convention are as in
+  the protocol. Retrospective, endpoint-aligned separability; not an online warning claim.
