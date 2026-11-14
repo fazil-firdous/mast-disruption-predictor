@@ -1376,3 +1376,10 @@ loss), B 4,158 (good repeats where no loss follows); median shot gap A 2, B 1. F
 - **What would settle it:** every pair scored in every repetition (out-of-fold scores), which removes the 1-in-50
   thinning, and the same comparison on beam-power-matched pairs to separate an operator scan from a change in the
   machine. That is a new protocol, to be written before it runs.
+
+## 2026-11-14 - Drift study part 2 is built (nothing run yet)
+
+Protocol `docs/preregistration_drift_oof.md` (commit b51699b) before any code. `scripts/drift_oof.py`: out-of-fold
+scores (5 folds that keep linked shots together, 10 repetitions, 3 models, 150 runs, full model first), the same
+populations and statistic as part 1, a two-level bootstrap for the deciding range, and the heating-matched Delta as
+the key secondary (operator beam scan or not). Writes only `drift_oof/`; the v3 runs are read, never written.
