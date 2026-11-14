@@ -68,6 +68,35 @@ def pair_table(pairs, table, t_loss, snr=5):
     return pd.DataFrame(rows)
 
 
+LANDMARK_MS = 50
+
+
+def landmark_counts(pairs, table, t_loss, snr=5, lead_ms=LANDMARK_MS):
+    """Exploratory E1 (protocol of the soft X-ray study): (lost only, twin only, both, neither) usable, where a chord
+    must record from the plasma start to lead_ms before the lost shot's loss, the interval the comparison at that
+    lead needs, instead of covering the shot's whole plasma. SNR and saturation as in the audit."""
+    t = table[table["camera"].astype(str) != ""]
+    t = t[(t["snr"] >= snr) & (t["saturated"].fillna(1) <= SAT)]
+    by_shot = {s: g for s, g in t.groupby("shot_id")}
+
+    def ok(shot, t_end):
+        g = by_shot.get(shot)
+        if g is None:
+            return False
+        start = g["t_on"].where(np.isfinite(g["t_on"]), 0.0)
+        good = g[(g["t_first"] <= start + 1e-3) & (g["t_last"] >= t_end)]
+        return bool((good.groupby("camera").size() >= MIN_CHORDS).any())
+
+    counts = [0, 0, 0, 0]
+    for p in pairs.itertuples():
+        tl = t_loss.get(p.shot_id, np.nan)
+        if not np.isfinite(tl):
+            continue
+        a, b = ok(p.shot_id, tl - lead_ms / 1000), ok(p.other, tl - lead_ms / 1000)
+        counts[0 if a and not b else 1 if b and not a else 2 if a and b else 3] += 1
+    return tuple(counts)
+
+
 def text(sampled, table, t_loss, campaign):
     n = len(sampled)
     lines = [f"Soft X-ray audit (faster signals, step 1). {n} twin pairs sampled over the twin list; "
@@ -90,6 +119,9 @@ def text(sampled, table, t_loss, campaign):
               f"{int((~pt['lost_ok'] & ~pt['kept_ok']).sum())}"]
     lost_by_cam_end = sum(1 for p in pt.itertuples() if p.shared and not p.usable)
     lines.append(f"- usable in both but the camera stopped before the loss: {lost_by_cam_end} pairs")
+    e1 = landmark_counts(sampled, table, t_loss)
+    lines.append(f"- E1 (exploratory): with coverage only up to {LANDMARK_MS} ms before the lost shot's loss, lost usable "
+                 f"and twin not: {e1[0]}; twin usable and lost not: {e1[1]}; both: {e1[2]}; neither: {e1[3]}")
     t = table[table["camera"].astype(str) != ""]
     lines += ["", "Cameras: " + "; ".join(f"{c} in {g['shot_id'].nunique()} shots, median SNR {g['snr'].median():.0f}, "
                                           f"saturated chords {(g['saturated'] > SAT).mean():.0%}"

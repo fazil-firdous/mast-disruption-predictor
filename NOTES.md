@@ -1240,8 +1240,9 @@ plan. Only the programme-only model is plasma-free; the paper reads 'machine-sid
 
 - **Primary:** C(50 ms) of C (20 + 5 ms) minus A (full): **-0.004 (-0.072 to +0.065)** over splits; pooled -0.009
   (-0.027 to +0.010), 1,716 pairs. Not resolved. The pooled range ends at +0.010, below the +0.03 fixed as worth
-  having: given these fitted models, a gain of that size at 50 ms is ruled out. The range over splits is too wide
-  to rule it out on its own.
+  having, but it is conditional on these 20 fitted models (pairs resampled, training not); the range over splits,
+  which includes training variation and decides, still includes +0.03. So: no resolved improvement; a worthwhile
+  gain is not excluded. (Wording corrected 2026-11-13 after an outside review; the earlier line said 'ruled out'.)
 - **Every other lead and model agrees:** C minus A at 10, 30 and 100 ms: +0.002, +0.018, +0.008; B (5 ms instead of
   20 ms) and G (growth) within +-0.01 of A everywhere; none resolved. Plan twins and field-and-shape twins at 50 ms:
   -0.023 and -0.024, ranges including zero (required check: no positive sign to agree with).
@@ -1295,3 +1296,28 @@ per 1 ms bin (computed on GitHub from the raw 500 kHz samples, `scripts/sxr_seri
 peak and the fast fluctuation within the bin; 46 window features; model S = full + soft X-rays against the saved
 full model; primary C(50 ms) difference over splits 1 to 20, smallest gain worth having +0.03.
 `scripts/soft_xrays.py --all` runs every step.
+
+## 2026-11-14 - Soft X-rays: no measurable gain at 50 ms (as pre-registered, docs/preregistration_soft_xrays.md)
+
+`scripts/soft_xrays.py --all`: the GitHub job read 11,471 shots in about 27 minutes (8 parts); soft X-ray inputs
+in 98% of windows (11,301 shots); 21 runs of about 3.7 minutes. Fixed-lead twin test, common cohort, splits 1 to 20.
+
+- **Primary:** C(50 ms) of S (full + soft X-rays) minus A (full): **+0.008 (-0.044 to +0.060)** over splits; pooled
+  +0.005 (-0.016 to +0.026), 1,716 pairs. **Not resolved.** The range over splits (the one that decides) still
+  includes +0.03, so a worthwhile gain is not excluded; the pooled range excludes it only for these fitted models.
+- **Required checks agree in sign:** pairs with inputs in both shots at 50 ms (3,431 pairs) +0.008 (-0.048 to
+  +0.065); plan twins +0.007 (-0.065 to +0.080). Field-and-shape twins +0.003 (-0.090 to +0.097).
+- **Per lead (over splits):** +0.016 at 10 ms, +0.023 at 30 ms, +0.008 at 50 ms, -0.006 at 100 ms; none resolved.
+  Pooled, 30 ms is just resolved (+0.022, +0.001 to +0.043), and on the chronological split too (+0.051, +0.015 to
+  +0.088), while 50 and 100 ms there are negative (-0.017, -0.030). Step 0 showed the same 30 ms pattern on the
+  chronological split (+0.053). Secondary, not tested, not read as an effect; if real, it is a late gain, inside
+  the window where the loss may already be under way (lead measured to the detected current quench).
+- **Placebo** unchanged (A and S both 0.53 to 0.56): soft X-rays do not raise the ordering between good repeats.
+- **Usual metrics** unchanged: pAUC +0.007 (-0.065 to +0.078), caught +1.2 points, false alarms +0.2 points.
+- **Missingness:** the first summary said inputs at 50 ms for 98% of lost shots and 92% of twins; that line counted
+  pairs where one shot had no window at that moment (not scored by the test). Recounted over scorable pairs only
+  (protocol, 'Changes after the first result'); the exploratory checks E1 to E4 follow.
+- **Reading, as fixed beforehand:** these soft X-ray summaries add no measurable discrimination at 50 ms beyond the
+  full model. With step 0, two pre-registered ways of adding faster information (5 ms magnetics, soft X-rays at
+  1 ms) gave no resolved gain at 50 ms. Bounded: these features, this model family, these cohorts; not 'the public
+  MAST data cannot see a loss earlier'. By the stop rule, the soft X-ray part ends here with these summaries.
