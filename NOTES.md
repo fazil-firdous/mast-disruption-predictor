@@ -1811,3 +1811,29 @@ Literature: Chen et al., "FusionCLIP" (arXiv:2611.09493, 6 Nov 2026), EAST video
 at its own timestamps and sampling rate (no common grid), with a time-aware query encoder; disruption-prediction labels
 from time to disruption. Relevant to the technical note: an encoder given native observation times can use an
 outcome-associated schedule if one exists in its data. We have not examined their data and claim nothing about them.
+
+## 2026-11-15 - Corrected full model (A_c): the 10 ms lead holds with the documented saddle-sign correction
+
+`scripts/saddle_correction.py --train` (protocol and amendments 1, 2; gates G1a, G2a, G3, G4, G5 passed; amendment 2
+not yet independently reviewed). A_c = the full model with the polarity-corrected first-harmonic saddle-array features
+under an assumed geometry; A = original representation; L = no-lm sensitivity; M = machine-side.
+- G5 after training: 2,490 eligible pair-split rows at 10 ms for every model, identical pairs in every split.
+- **Primary, as fixed: C(10 ms) of A_c minus M +0.120 (+0.047 to +0.192) over splits 1 to 20; pooled +0.109 (+0.079
+  to +0.140). Resolved and positive.** A_c is the corrected full-model analysis (A4); 10 ms was chosen after earlier work
+  had shown it to be the strongest lead.
+- What the correction changes (A_c minus A): +0.001 (-0.062 to +0.064) at 10 ms, +0.011, -0.001, +0.010 at 30, 50,
+  100 ms; none resolved (not shown equivalent). Usual metrics A_c minus A: pAUC +0.005 (-0.050 to +0.060), caught -0.4
+  points. A_c minus L: +0.017 (-0.047 to +0.080) at 10 ms, none resolved.
+- A_c minus M at 30, 50, 100 ms over splits: +0.063, +0.065, +0.057, ranges include 0 (pooled ranges exclude 0).
+- By shot range at 10 ms: lost shot before 24782 (1,189) A_c minus M +0.138 (+0.061 to +0.214); from 24782 on (527)
+  +0.078 (-0.028 to +0.183), unresolved over splits (pooled +0.063, +0.008 to +0.120, does not override that).
+- Chronological split, pooled, conditional on the one fitted model: A_c minus M +0.043 (-0.012 to +0.096) at 10 ms,
+  NOT resolved; +0.018 (-0.034 to +0.071) at 30 ms. A_c minus A at 10 ms -0.032 (-0.067 to +0.001), not resolved.
+  (L minus M there was +0.084, +0.029 to +0.139.) The chronological evidence for the corrected model is weaker than for
+  L and is reported as it is.
+- Placebo for A_c at 10 ms: 0.548 (0.464 to 0.633), broad.
+Wording for the twin paper's revision: "With the documented sign correction of three saddle-field channels applied (a
+polarity-corrected first-harmonic saddle-array feature under an assumed coil geometry), the full model's 10 ms
+twin-concordance advantage over the machine-side model was +0.120 (+0.047 to +0.192) over 20 splits; the correction
+changed the full model's concordance little and not resolvably (+0.001, -0.062 to +0.064). In the single chronological
+split the corresponding difference was +0.043 (-0.012 to +0.096), not resolved."
