@@ -1695,3 +1695,30 @@ Next: does the twin result need the locked-mode inputs? (protocol `docs/preregis
 - Wording, following the outside review's model: in the tested 20-split evaluation, the 10 ms concordance advantage over
   the machine-side model remained positive after retraining without the listed locked-mode input features. This does not
   establish that the original model ignored the faulty coils, or that no other processing fault matters.
+
+## 2026-11-15 - After the outside review of the no-locked-mode check: correct the feature, not only drop it
+
+The review: the no-lm model is a robustness check, not a correction of a known feature-construction error. Retraining
+without a feature lets other signals stand in, and the original fitted model may still use the faulty representation;
+an unresolved A minus L is not shown harmlessness. Taken on board:
+- Narrower wording of the 2026-11-14 and 2026-11-15 entries: our cache is *consistent with* the September 2026 release,
+  with exact ingestion provenance unavailable; it is not identified as that release. The remote `commit_url` (...0948)
+  and the release-history commit (ed6ea4e) are not yet reconciled. "Cannot be what it rests on" (no-lm reading) is
+  replaced by: the 10 ms advantage remained positive after retraining without the listed locked-mode inputs; this does
+  not establish that the original model ignored the faulty coils.
+- Joint robustness is not shown: N (no EFIT) and L (no lm) are separate sensitivities. Wording: "the 10 ms advantage
+  remained positive in separate retraining sensitivities excluding the identified EFIT-derived inputs or the identified
+  locked-mode inputs", not that it survives removal of both.
+- CC04: the documented fault is the flux loop `flux_loop_flux/CC04`, a different diagnostic from our centre-column
+  Mirnov coil; "'201' rather than CC04" is not the argument. We use no flux loop. The Mirnov channel selected per shot,
+  by campaign, is now recorded (P5).
+- M09: our n=1 fit skips channels without data (never zero) and needs 6; M09 is empty, so the fit uses 11 coils at
+  their nominal angles. Finite-channel counts by campaign are now recorded (P5).
+- Under the over-split analysis the from-24782 subgroup is unresolved and its positive pooled range does not override
+  that; L's placebo range (0.464 to 0.639) is broad, neither a directional effect nor shown equivalent to chance; the
+  chronological ranges are conditional on the one fitted chronological model.
+Plan (protocol `docs/preregistration_saddle_correction.md`, committed before any channel data or model): re-read the
+saddle channels on GitHub; check on a frozen 50-shot sample whether our data carry the documented reversal (so data
+already corrected are not corrected twice); check the cache against today's store (P1 to P5); only then rebuild the
+eight lm window features with the corrected signs and retrain the full model (A_c), primary C(10 ms) of A_c minus M.
+Original cache and results untouched.
