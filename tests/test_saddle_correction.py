@@ -271,3 +271,13 @@ def test_originals_are_kept_once(tmp_path, monkeypatch):
     (tmp_path / "check.txt").write_text("second")
     sc.preserve_originals()
     assert (tmp_path / "check_original.txt").read_text() == "first"
+
+
+def test_ledger_change_counts():
+    from scripts import saddle_ledger as sl
+    a = np.array([1.0, 2.0, np.nan, 3.0, np.nan])
+    b = np.array([1.0, 2.5, 4.0, np.nan, np.nan])
+    n = sl.change_counts(a, b)
+    assert n == {"finite, value differs": 1, "finite to missing": 1, "missing to finite": 1, "unchanged finite": 1,
+                 "unchanged missing": 1}
+    assert sum(n.values()) == len(a)
