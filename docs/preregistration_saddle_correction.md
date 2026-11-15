@@ -101,6 +101,66 @@ No combined model without both EFIT and locked-mode inputs. Without it the wordi
 positive in separate retraining sensitivities excluding the identified EFIT-derived inputs or the identified locked-mode
 inputs", not that it survives removal of both.
 
+## Amendment 1 (2026-11-15, before any channel data were seen)
+
+Written after a second outside review, while the first GitHub read was running and before anything from it was
+collected or looked at. That read is cancelled and repeated with the code of this amendment, so that the frozen
+sample's channel inputs are kept. The registered V statistic and its rule stay as written above; what follows is added,
+and labelled as added.
+
+**A1, order and gates.** Training of A_c starts only if every gate below passes; the code refuses otherwise. If a gate
+fails it is documented, the direct swap is not made, and the next step is a focused diagnostics question, not a bigger
+analysis.
+- G1 (P1, cache reproduced): every shot of the window table from 24782 to 30473 is read, and for every one of them
+  today's `lm_raw` reproduces our cached `lm_n1`: same time grid (equal within 1e-9 s), same NaN pattern, finite values
+  equal within 1e-9 relative. The tolerance allows only floating-point differences between machines running the same
+  code on the same stored data (the fit uses a least-squares solver). Shots outside that range are reported, not gated
+  (their features are not swapped), but any disagreement there is stated as a sign of a store change.
+- G2 (P4, rebuild reproduced): for every shot from 24782 to 30473, the lm window features rebuilt from `lm_raw` have
+  exactly the window table's window ends and NaN pattern, and values equal within 1e-6 relative (float32 storage). The
+  largest discrepancies and the affected shots and windows are reported either way.
+- G3 (polarity): V gives V1 AND the reference diagnostic A2 is consistent with it. The decision uses channel data only,
+  never a model score.
+- G4 (fit conditioning): for every finite-channel mask that occurs in shots from 24782 to 30473, the fit's design
+  matrix (1, cos phi, sin phi at the assumed angles) has rank 3 and a condition number of at most 10.
+- G5 (fixed comparison): A_c uses the same windows, splits, hyperparameter search, eligibility, landmarks and pair rules
+  as A; the eligible pair counts per model and split are shown and must be identical.
+
+**A2, a reference diagnostic (added; the V rule is not replaced).** In V, the reference for one suspect coil is the
+median of all other channels, which still includes the other two suspect coils. A2 uses a reference fixed now, before
+any channel is seen: the channels documented as unaffected (every stored saddle-field channel except M02, M08 and M012),
+taking only those with data in the shot. For each channel and frozen shot: r_ref = Pearson correlation, over the same
+bins as V (bins where `lm_raw` is defined; at least 20 bins where both are finite; NaN if either is constant), between
+the channel and the median of the reference channels other than itself. Per period (B, F) and channel: the median r_ref,
+the number of shots with a finite r_ref, and the counts of clear positive (r_ref > 0.2), clear negative (< -0.2) and
+indeterminate shots. A2 is consistent with V1 if M02, M08 and M012 each flip (|median| > 0.2 on both sides, sign
+differs), no reference channel flips, and each of the three has a finite r_ref in at least 15 shots on each side. V
+also requires at least 15 shots with a finite r on each side for each of the three; with fewer it is V3. To compute A2,
+the GitHub read keeps the frozen shots' offset-removed 1 ms channel bins (`channel_bins`), so any later diagnostic is
+computed from the same frozen inputs.
+
+**A3, geometry.** The mapping of stored channel to toroidal angle (stored order M01..M012 = middle-row coils at 15, 45,
+..., 345 degrees) is a name and order match, not a confirmed correspondence; the FAIR-MAST geometry notes warn that data
+and geometry channels may not align directly. A wrong relative mapping can change the fitted amplitude (a common
+angular shift changes only the phase). Until the mapping is confirmed by the maintainers or a MAST diagnostics
+specialist, the feature is called "the first-harmonic saddle-array feature under an assumed geometry", not a validated
+locked-mode amplitude, in every paper and note; the mapping table (source label, assumed coil, angle and extent, units,
+evidence, availability by campaign) is published with the results. This downgrade is what lets G3 to G5 proceed
+without a confirmed geometry.
+
+**A4, reporting not tied to the outcome.** Replacing the reading of Step 3: once G1 to G5 pass, A_c is the corrected
+full-model analysis whether or not its 10 ms lead is resolved; the outcome changes the conclusion, not A_c's status. A is
+reported as the original representation, A_c as the corrected representation, L as the no-lm sensitivity. The primary
+(C(10 ms) of A_c minus M) is kept, with the note that 10 ms was chosen after earlier work had shown it to be the
+strongest lead.
+- Resolved and positive: the corrected full model shows the 10 ms lead over the machine-side model.
+- Not resolved: the corrected full model does not show it; the uncorrected full model's lead is not presented as
+  established, and the paper's claim narrows to what the sensitivities show.
+
+**A5, if V3 or a gate fails.** Report what is known and pending, the no-lm sensitivity, and tell the editor. V3 is not
+read as evidence that the documented correction is wrong, and V2 is not read as proof that our data were already
+corrected.
+
 ## Changes after the first result
 
 (none yet)
