@@ -1678,3 +1678,47 @@ Known faults of the September 2026 files, against what we use:
   is '201' in the shots checked, not CC04. Saddle *voltage* channels empty: we use the field, not the voltage. Thomson
   axis doubling: not used.
 Next: does the twin result need the locked-mode inputs? (protocol `docs/preregistration_no_lm.md`).
+
+## 2026-11-15 - No-locked-mode check: the 10 ms lead does not need the lm inputs (as pre-registered, 023ff0b)
+
+`scripts/no_lm.py`: L = the full model without any lm-derived input (125 of 133 inputs), 21 runs.
+
+- **Primary: C(10 ms) of L minus M: +0.103 (+0.034 to +0.172) over splits 1 to 20; pooled +0.094 (+0.064 to +0.126).**
+  Reading, as fixed: resolved and positive: the 10 ms lead over the machine-side model does not need the locked-mode
+  inputs, so the saddle-coil sign fault of the September 2026 files (from shot 24782) cannot be what it rests on.
+- What the lm inputs add (A minus L): +0.016 (10 ms), -0.012 (30), +0.006 (50), -0.012 (100 ms), none resolved; usual
+  metrics L minus A: pAUC -0.001 (-0.053 to +0.051), caught -1.1 points. Unresolved, not shown to be equivalent.
+- By shot range at 10 ms: lost shot before 24782 (1,189 lost shots) L minus M +0.119 (+0.049 to +0.190); from 24782 on
+  (527) +0.066 (-0.054 to +0.186), pooled +0.061 (+0.002 to +0.118). Fewer pairs after 24782; not resolved over splits.
+- Chronological split (test campaigns mostly from 24782 on), pooled: L minus M +0.084 (+0.029 to +0.139) at 10 ms,
+  +0.036 (-0.020 to +0.092) at 30 ms. Placebo for L at 10 ms: 0.552 (0.464 to 0.639).
+- Wording, following the outside review's model: in the tested 20-split evaluation, the 10 ms concordance advantage over
+  the machine-side model remained positive after retraining without the listed locked-mode input features. This does not
+  establish that the original model ignored the faulty coils, or that no other processing fault matters.
+
+## 2026-11-15 - After the outside review of the no-locked-mode check: correct the feature, not only drop it
+
+The review: the no-lm model is a robustness check, not a correction of a known feature-construction error. Retraining
+without a feature lets other signals stand in, and the original fitted model may still use the faulty representation;
+an unresolved A minus L is not shown harmlessness. Taken on board:
+- Narrower wording of the 2026-11-14 and 2026-11-15 entries: our cache is *consistent with* the September 2026 release,
+  with exact ingestion provenance unavailable; it is not identified as that release. The remote `commit_url` (...0948)
+  and the release-history commit (ed6ea4e) are not yet reconciled. "Cannot be what it rests on" (no-lm reading) is
+  replaced by: the 10 ms advantage remained positive after retraining without the listed locked-mode inputs; this does
+  not establish that the original model ignored the faulty coils.
+- Joint robustness is not shown: N (no EFIT) and L (no lm) are separate sensitivities. Wording: "the 10 ms advantage
+  remained positive in separate retraining sensitivities excluding the identified EFIT-derived inputs or the identified
+  locked-mode inputs", not that it survives removal of both.
+- CC04: the documented fault is the flux loop `flux_loop_flux/CC04`, a different diagnostic from our centre-column
+  Mirnov coil; "'201' rather than CC04" is not the argument. We use no flux loop. The Mirnov channel selected per shot,
+  by campaign, is now recorded (P5).
+- M09: our n=1 fit skips channels without data (never zero) and needs 6; M09 is empty, so the fit uses 11 coils at
+  their nominal angles. Finite-channel counts by campaign are now recorded (P5).
+- Under the over-split analysis the from-24782 subgroup is unresolved and its positive pooled range does not override
+  that; L's placebo range (0.464 to 0.639) is broad, neither a directional effect nor shown equivalent to chance; the
+  chronological ranges are conditional on the one fitted chronological model.
+Plan (protocol `docs/preregistration_saddle_correction.md`, committed before any channel data or model): re-read the
+saddle channels on GitHub; check on a frozen 50-shot sample whether our data carry the documented reversal (so data
+already corrected are not corrected twice); check the cache against today's store (P1 to P5); only then rebuild the
+eight lm window features with the corrected signs and retrain the full model (A_c), primary C(10 ms) of A_c minus M.
+Original cache and results untouched.

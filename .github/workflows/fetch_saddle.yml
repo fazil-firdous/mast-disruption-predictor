@@ -1,0 +1,47 @@
+# Saddle-sign correction (docs/preregistration_saddle_correction.md): the research server cannot reach STFC, so this job
+# reads the saddle-coil channels of the shots the server names and computes the locked-mode amplitude as stored and with
+# the documented sign correction (scripts/saddle_fetch.py), which the server collects (scripts/saddle_correction.py
+# --relay). No outcome, model or label passes through here; nothing is committed.
+name: fetch_saddle
+
+on:
+  workflow_dispatch:
+    inputs:
+      ids:
+        description: "shot numbers, as scripts/sxr_fetch.py encode_ids() writes them"
+        required: true
+      sample:
+        description: "the frozen sample, encoded the same way (their summary signals are attached too)"
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [0, 1, 2, 3, 4, 5, 6, 7]
+    env:
+      MAST_HOME: ${{ github.workspace }}/relay
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: read the saddle channels
+        env:
+          IDS: ${{ inputs.ids }}
+          SAMPLE: ${{ inputs.sample }}
+        run: python scripts/saddle_fetch.py --ids "$IDS" --sample "$SAMPLE" --part ${{ matrix.part }} --parts 8 --workers 8 --hours 5
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mast-saddle-${{ matrix.part }}
+          path: relay/data/saddle_fetch
+          retention-days: 3
+          if-no-files-found: error
