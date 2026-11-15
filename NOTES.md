@@ -1760,3 +1760,16 @@ requested, 10,547 with saddle data, 924 with no saddle field in the store ("no_s
   shots none. The earlier note "'201' in the shots checked" is narrowed accordingly.
 - A3: the mapping table (`results/saddle_correction/channel_mapping.csv`) keeps the evidence as "name and stored order
   only (not confirmed)".
+- **P2, provenance reconciled**: every group's `commit_url` is
+  `https://github.com/ukaea/fair-mast-ingestion/tree/ed6ea4e2a81f2317ae474f7c5421071994220948`, so the "...0948" seen
+  before and the release history's "ed6ea4e" are the same ingestion commit. 9,420 magnetics groups are marked "(dirty)"
+  (uncommitted changes in the ingestion code when they were written), 2,050 are not; summary groups the same (9,421 and
+  2,050). `ingested_at` runs from 2026-09-21 to 2026-10-05 (13 dates), wider than the release history's 23 to 29
+  September. Units of the saddle field: T in every shot with data. Our cache is still described as consistent with this
+  ingestion (P1 and P3 reproduce it exactly), not proven to be it.
+- **G2 FAILS as implemented, for the same reason as G1**: the lm window features rebuilt from today's lm_raw reproduce
+  the window table exactly (largest difference 0) for all 2,949 shots from 24782 to 30473 with saddle data; the 477
+  no-saddle shots are counted as not read. No corrected features were built and no corrected model was trained.
+- Predetermined examples (cached lm_n1 = today's lm_raw to the printed digits in all four): 24781 (before the range)
+  lm_corr = lm_raw; 24785, 27000 and 30421 lm_corr differs (27000: about 2 to 3 times larger at mid-shot; 30421: within
+  about 40% at 0.128 s and a few per cent later).
