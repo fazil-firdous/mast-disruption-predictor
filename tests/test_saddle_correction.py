@@ -81,34 +81,92 @@ def test_shot_result_tables(monkeypatch):
     assert len(out["summary_sample"]) == len(groups["summary"]["time"])
 
 
-def channels_for(shots, flip_stored):
-    rows = []
+def read_for(shots, flip_stored):
+    channels, bins = [], []
     for shot in shots:
         groups = {"summary": summary_group(), "magnetics": magnetics(shot, flip_stored, seed=shot % 97)}
-        out, _ = sf.shot_result(shot, lambda s, g: groups[g])
-        rows.append(out["channels"])
-    return pd.concat(rows, ignore_index=True)
+        out, _ = sf.shot_result(shot, lambda s, g: groups[g], sample=True)
+        channels.append(out["channels"])
+        bins.append(out["channel_bins"])
+    return pd.concat(channels, ignore_index=True), pd.concat(bins, ignore_index=True)
+
+
+BEFORE, AFTER = list(range(20000, 20015)), list(range(25000, 25015))
 
 
 def sample_frame(before, after):
     return pd.DataFrame({"shot_id": before + after, "group": ["B"] * len(before) + ["F"] * len(after)})
 
 
-def test_verdict_v1_when_the_reversal_is_stored_and_v2_when_not():
-    before, after = [20000, 21000, 22000], [25000, 27000, 29000]
-    sample = sample_frame(before, after)
-    stored = channels_for(before + after, flip_stored=True)
-    assert sc.verdict(sc.channel_medians(stored, sample)) == "V1"
-    assert sc.verdict(sc.channel_medians(stored, sample, "r_corr")) == "V2"
-    clean = channels_for(before + after, flip_stored=False)
-    assert sc.verdict(sc.channel_medians(clean, sample)) == "V2"
+@pytest.fixture(scope="module")
+def stored():
+    return read_for(BEFORE + AFTER, flip_stored=True)
+
+
+@pytest.fixture(scope="module")
+def clean():
+    return read_for(BEFORE + AFTER, flip_stored=False)
+
+
+def test_verdict_v1_when_the_reversal_is_stored_and_v2_when_not(stored, clean):
+    sample = sample_frame(BEFORE, AFTER)
+    med = sc.channel_medians(stored[0], sample)
+    assert sc.verdict(med) == "V1"
+    assert med.loc["M02", "F_neg"] == 15 and med.loc["M02", "B_pos"] == 15 and med.loc["M02", "B_shots"] == 15
+    assert sc.verdict(sc.channel_medians(stored[0], sample, "r_corr")) == "V2"
+    assert sc.verdict(sc.channel_medians(clean[0], sample)) == "V2"
+
+
+def test_too_few_shots_is_v3(stored):
+    sample = sample_frame(BEFORE[:14], AFTER)
+    assert sc.verdict(sc.channel_medians(stored[0], sample)) == "V3"
+
+
+def test_reference_diagnostic(stored, clean):
+    sample = sample_frame(BEFORE, AFTER)
+    ref = sc.reference_r(stored[1])
+    assert set(ref["label"]) == set(LABELS)
+    assert sc.a2_consistent(sc.channel_medians(ref, sample, "r_ref"))
+    assert not sc.a2_consistent(sc.channel_medians(sc.reference_r(clean[1]), sample, "r_ref"))
 
 
 def test_verdict_v3_when_unclear():
-    sample = sample_frame([20000], [25000])
-    channels = pd.DataFrame({"shot_id": [20000] * 3 + [25000] * 3, "label": ["M02", "M08", "M012"] * 2,
-                             "finite": True, "r_raw": [0.9, 0.9, 0.05, -0.9, -0.9, -0.9]})
-    assert sc.verdict(sc.channel_medians(channels, sample)) == "V3"
+    sample = sample_frame([20000 + i for i in range(15)], [25000 + i for i in range(15)])
+    rows = []
+    for shot, group in sample.itertuples(index=False):
+        for label, r in zip(["M02", "M08", "M012"], [0.9, 0.9, 0.05] if group == "B" else [-0.9, -0.9, -0.9]):
+            rows.append({"shot_id": shot, "label": label, "finite": True, "r_raw": r})
+    assert sc.verdict(sc.channel_medians(pd.DataFrame(rows), sample)) == "V3"
+
+
+def test_conditioning():
+    rank, cond = sc.design_condition([True] * 8 + [False] + [True] * 3)
+    assert rank == 3 and cond < 2
+    assert sc.design_condition([True, True] + [False] * 10)[0] < 3
+    channels = pd.DataFrame({"shot_id": np.repeat([25000, 25001], 12), "index": np.tile(np.arange(12), 2),
+                             "finite": [k != 8 for k in range(12)] * 2})
+    frame, ok = sc.conditioning(channels, {25000, 25001})
+    assert ok and frame["shots"].sum() == 2
+    adjacent = pd.DataFrame({"shot_id": 25000, "index": np.arange(12), "finite": [k < 6 for k in range(12)]})
+    assert sc.design_condition(adjacent["finite"])[1] > 1
+
+
+def test_compare_rebuild():
+    mine = pd.DataFrame({"t_end": [0.1, 0.2], "lm_mean": np.float32([1.0, np.nan])})
+    assert sc.compare_rebuild(mine, mine.copy(), ["lm_mean"])[0]
+    near = mine.assign(lm_mean=np.float32([1.0000001, np.nan]))
+    assert sc.compare_rebuild(mine, near, ["lm_mean"])[0]
+    assert not sc.compare_rebuild(mine, mine.assign(lm_mean=np.float32([1.01, np.nan])), ["lm_mean"])[0]
+    assert not sc.compare_rebuild(mine, mine.assign(lm_mean=np.float32([1.0, 2.0])), ["lm_mean"])[0]
+    assert not sc.compare_rebuild(mine, mine.iloc[:1], ["lm_mean"])[0]
+
+
+def test_training_refuses_without_gates(tmp_path, monkeypatch):
+    monkeypatch.setattr(sc, "folder", lambda: str(tmp_path))
+    sc.write_gates(G1=True, G2=True, G3=False, G4=True)
+    assert sc.gates_pass() == (False, ["G3"])
+    with pytest.raises(RuntimeError):
+        sc.load_tables()
 
 
 def test_frozen_sample_rule():

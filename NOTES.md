@@ -1722,3 +1722,15 @@ saddle channels on GitHub; check on a frozen 50-shot sample whether our data car
 already corrected are not corrected twice); check the cache against today's store (P1 to P5); only then rebuild the
 eight lm window features with the corrected signs and retrain the full model (A_c), primary C(10 ms) of A_c minus M.
 Original cache and results untouched.
+
+## 2026-11-15 - Saddle-sign protocol, amendment 1 (second outside review), before any channel data
+
+No run of the first GitHub read was listed when checked (03:37 UTC); the read is started again with the amended code, which keeps the frozen
+shots' channel bins. Changes (`docs/preregistration_saddle_correction.md`, amendment 1): V is a diagnostic consistency
+check, not the sole authority for polarity; training of the corrected model refuses unless G1 (today's channels
+reproduce our cached lm for every shot from 24782 to 30473), G2 (the rebuilt lm window features reproduce the window
+table), G3 (V1 and a fixed-reference diagnostic A2 agree), G4 (fit rank 3, condition at most 10 for every finite-channel
+mask) and G5 (identical eligible pairs) pass. The feature is called "the first-harmonic saddle-array feature under an
+assumed geometry" until the channel-to-angle mapping is confirmed (mapping table published with the results). A_c is
+the corrected full-model analysis whatever its 10 ms result. Also fixed: `channel_medians` used a pandas join keyword
+that newer pandas deprecates (CI failed on it); now built without it.

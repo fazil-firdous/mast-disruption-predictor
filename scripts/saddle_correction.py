@@ -2,9 +2,11 @@
 
     python scripts/saddle_correction.py --sample     # draw the frozen sample (once; a later draw must give the same)
     python scripts/saddle_correction.py --relay      # read the saddle channels on GitHub (scripts/saddle_fetch.py)
-    python scripts/saddle_correction.py --check      # validation V and provenance P1, P2, P3, P5
-    python scripts/saddle_correction.py --features   # P4, and under V1 the corrected lm window features
-    python scripts/saddle_correction.py --train      # A_c on splits 1 to 20 and the chronological split (V1 only)
+    python scripts/saddle_correction.py --check      # V, A2, gates G1 (cache), G3 (polarity), G4 (conditioning); P2, P3, P5;
+                                                     # the channel mapping table (A3)
+    python scripts/saddle_correction.py --features   # G2 (rebuild reproduced); the corrected lm features only if G1-G4 pass
+    python scripts/saddle_correction.py --train      # A_c on splits 1 to 20 and the chronological split; refuses unless
+                                                     # every gate passes (amendment 1)
     python scripts/saddle_correction.py --summary
 
 Reads the window table and caches, never changes them; writes DATA_DIR/saddle_correction/ and
@@ -16,6 +18,7 @@ import json
 import os
 import sys
 import time
+import warnings
 import zipfile
 
 import numpy as np
@@ -35,7 +38,10 @@ WORKFLOW, ARTIFACT, PARTS = "fetch_saddle.yml", "mast-saddle", 8
 N_SPREAD, N_EDGE = 20, 5
 DIAGNOSTIC = (27000, 30421)
 FLIP_THRESHOLD = 0.2
-REL_TOL = 1e-9
+REL_TOL = 1e-9  # G1: same code, same stored data, different machines
+REBUILD_TOL = 1e-6  # G2: float32 storage of the window table
+MIN_SHOTS = 15  # amendment 1: shots with a finite r on each side
+MAX_COND = 10.0  # G4
 
 
 def data_folder():
@@ -178,16 +184,21 @@ def table(name):
     return pd.read_parquet(path)
 
 
-# ------------------------------------------------------------------ validation V
+# ------------------------------------------------------------------ validation V and the reference diagnostic A2
 
 def channel_medians(channels, sample, value="r_raw"):
-    """Frame indexed by label with the median r per period (B, F) over the frozen decision shots, and the shot counts."""
+    """Frame indexed by label: median r per period (B, F) over the frozen decision shots, the number of shots with a
+    finite r (B_shots, F_shots), and the counts of clear positive, clear negative and indeterminate shots."""
     decide = sample[sample["group"].isin(["B", "F"])]
     part = channels[channels["shot_id"].isin(decide["shot_id"]) & channels["finite"].astype(bool)]
     part = part.merge(decide, on="shot_id")
-    med = part.groupby(["label", "group"])[value].median().unstack("group")
-    n = part.dropna(subset=[value]).groupby(["label", "group"])["shot_id"].nunique().unstack("group")
-    out = med.reindex(columns=["B", "F"]).join(n.reindex(columns=["B", "F"]), rsuffix="_shots")
+    r = part[value]
+    part = part.assign(pos=r > FLIP_THRESHOLD, neg=r < -FLIP_THRESHOLD, unclear=~((r > FLIP_THRESHOLD) | (r < -FLIP_THRESHOLD)),
+                       has=r.notna())
+    g = part.groupby(["label", "group"])
+    stats = {"": g[value].median(), "_shots": g["has"].sum(), "_pos": g["pos"].sum(), "_neg": g["neg"].sum(),
+             "_unclear": g["unclear"].sum()}
+    out = pd.concat([s.unstack("group").reindex(columns=["B", "F"]).add_suffix(k) for k, s in stats.items()], axis=1)
     return out.reindex(sorted(out.index, key=label_order))
 
 
@@ -206,12 +217,17 @@ def flips(med):
     return out
 
 
+def enough_shots(med, labels):
+    return all(label in med.index and med.loc[label, "B_shots"] >= MIN_SHOTS and med.loc[label, "F_shots"] >= MIN_SHOTS
+               for label in labels)
+
+
 def verdict(med):
-    """'V1', 'V2' or 'V3', as the protocol fixes them."""
-    flip = flips(med)
+    """'V1', 'V2' or 'V3', as the protocol fixes them (with amendment 1's minimum of MIN_SHOTS per side)."""
     listed = list(saddle_fetch.FLIP)
-    if any(label not in med.index for label in listed):
+    if not enough_shots(med, listed):
         return "V3"
+    flip = flips(med)
     others = sum(v for k, v in flip.items() if k not in listed)
     if all(flip[k] for k in listed) and others <= 1:
         return "V1"
@@ -221,7 +237,64 @@ def verdict(med):
     return "V3"
 
 
-# ------------------------------------------------------------------ provenance P1, P2, P3, P5
+def reference_r(bins):
+    """Amendment 1, A2: per frozen shot and channel, r_ref against the median of the documented-unaffected channels
+    with data (other than itself), over the bins where lm_raw is defined. Same columns as the channels table."""
+    rows = []
+    for shot, part in bins.groupby("shot_id", sort=True):
+        wide = part.pivot_table(index="time", columns="label", values="delta", aggfunc="first", dropna=False)
+        defined = part.groupby("time")["defined"].first().reindex(wide.index, fill_value=False).to_numpy(dtype=bool)
+        finite = {c: bool(np.isfinite(wide[c].to_numpy()).any()) for c in wide.columns}
+        reference = [c for c in wide.columns if c not in saddle_fetch.FLIP and finite[c]]
+        for label in wide.columns:
+            ref = [c for c in reference if c != label]
+            r = np.nan
+            if finite[label] and ref:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", RuntimeWarning)
+                    median = np.nanmedian(wide[ref].to_numpy(dtype=float), axis=1)
+                x = wide[label].to_numpy(dtype=float)
+                ok = defined & np.isfinite(x) & np.isfinite(median)
+                if ok.sum() >= saddle_fetch.MIN_BINS and np.std(x[ok]) > 0 and np.std(median[ok]) > 0:
+                    r = float(np.corrcoef(x[ok], median[ok])[0, 1])
+            rows.append({"shot_id": int(shot), "label": label, "finite": finite[label], "r_ref": r})
+    return pd.DataFrame(rows, columns=["shot_id", "label", "finite", "r_ref"])
+
+
+def a2_consistent(med_ref):
+    """A2 agrees with V1: the three listed channels flip, no reference channel flips, MIN_SHOTS per side for the three."""
+    listed = list(saddle_fetch.FLIP)
+    if not enough_shots(med_ref, listed):
+        return False
+    flip = flips(med_ref)
+    return all(flip.get(k, False) for k in listed) and not any(v for k, v in flip.items() if k not in listed)
+
+
+def design_condition(mask):
+    """(rank, condition number) of the n=1 fit's design matrix for one finite-channel mask (assumed angles)."""
+    phi = np.radians(extras.SADDLE_PHI_DEG[:len(mask)])[np.asarray(mask, dtype=bool)]
+    design = np.column_stack([np.ones(len(phi)), np.cos(phi), np.sin(phi)])
+    if len(phi) < 3:
+        return int(np.linalg.matrix_rank(design)) if len(phi) else 0, np.inf
+    return int(np.linalg.matrix_rank(design)), float(np.linalg.cond(design))
+
+
+def conditioning(channels, ids):
+    """G4: every finite-channel mask in the given shots, with its shots, rank and condition number."""
+    part = channels[channels["shot_id"].isin(ids)].sort_values(["shot_id", "index"])
+    masks = part.groupby("shot_id")["finite"].apply(lambda f: tuple(bool(x) for x in f))
+    rows = []
+    for mask, n in masks.value_counts().items():
+        rank, cond = design_condition(mask)
+        rows.append({"mask": "".join("1" if m else "0" for m in mask), "shots": int(n), "finite": sum(mask),
+                     "rank": rank, "cond": cond})
+    frame = pd.DataFrame(rows, columns=["mask", "shots", "finite", "rank", "cond"])
+    usable = frame[frame["finite"] >= extras.MIN_SADDLE_CHANNELS]
+    ok = bool(len(usable)) and bool(((usable["rank"] == 3) & (usable["cond"] <= MAX_COND)).all())
+    return frame, ok
+
+
+# ------------------------------------------------------------------ provenance P1, P2, P3, P5 and the mapping table
 
 def same_series(a, b, rel=REL_TOL):
     """True if a and b have the same NaN pattern and finite values equal within rel (relative)."""
@@ -232,22 +305,30 @@ def same_series(a, b, rel=REL_TOL):
     return bool(np.all(np.abs(a[ok] - b[ok]) <= rel * np.maximum(np.abs(a[ok]), np.abs(b[ok])) + 1e-30))
 
 
-def p1(lm, load=None):
-    """(shots compared, shots that agree, [disagreeing shots], shots without a cached file)."""
+def p1(lm, load=None, ids=None):
+    """{'compared', 'agree', 'differ': [...], 'no_cache', 'largest'}: today's lm_raw against our cached lm_n1, for the
+    shots in ids (all read shots if None). 'largest' is the largest relative difference among finite values."""
     load = load or (lambda s: extras.load_extras(int(s), allow_download=False))
-    compared, agree, differ, missing = 0, 0, [], 0
-    for shot, part in lm.groupby("shot_id", sort=True):
+    part_lm = lm if ids is None else lm[lm["shot_id"].isin(ids)]
+    out = {"compared": 0, "agree": 0, "differ": [], "no_cache": 0, "largest": 0.0}
+    for shot, part in part_lm.groupby("shot_id", sort=True):
         cached = load(shot)
         if cached is None:
-            missing += 1
+            out["no_cache"] += 1
             continue
-        compared += 1
-        ok = len(cached) == len(part) and np.allclose(cached["time"].to_numpy(), part["time"].to_numpy())
-        if ok and same_series(cached["lm_n1"].to_numpy(), part["lm_raw"].to_numpy()):
-            agree += 1
+        out["compared"] += 1
+        a, b = cached["lm_n1"].to_numpy(dtype=float), part["lm_raw"].to_numpy(dtype=float)
+        ok = len(cached) == len(part) and np.allclose(cached["time"].to_numpy(), part["time"].to_numpy(), rtol=0,
+                                                      atol=1e-9)
+        if ok and np.array_equal(np.isfinite(a), np.isfinite(b)) and np.isfinite(a).any():
+            f = np.isfinite(a)
+            rel = np.abs(a[f] - b[f]) / np.maximum(np.maximum(np.abs(a[f]), np.abs(b[f])), 1e-30)
+            out["largest"] = max(out["largest"], float(rel.max()))
+        if ok and same_series(a, b):
+            out["agree"] += 1
         else:
-            differ.append(int(shot))
-    return compared, agree, differ, missing
+            out["differ"].append(int(shot))
+    return out
 
 
 def p2(shots):
@@ -258,7 +339,7 @@ def p2(shots):
             dates = dates[dates != ""]
             lines.append(f"{col}: " + (f"{dates.min()} to {dates.max()}, {dates.nunique()} dates, {len(dates):,} shots"
                                        if len(dates) else "none stored"))
-    for col in ("mag_commit_url", "sum_commit_url"):
+    for col in ("mag_commit_url", "sum_commit_url", "field_units"):
         if col in shots:
             counts = shots[col].dropna().astype(str).value_counts()
             lines.append(f"{col}: " + "; ".join(f"{u or '(empty)'} x{n:,}" for u, n in counts.items()))
@@ -309,8 +390,8 @@ def p5(shots, campaigns):
     for camp, g in s.groupby("campaign", dropna=False):
         labels = g["labels"].value_counts()
         lines.append(f"- {camp}: {len(g):,} shots; labels " + "; ".join(f"[{k}] x{v}" for k, v in labels.items())
-                     + f"; finite {g['n_finite'].median():.0f} ({g['n_finite'].min()} to {g['n_finite'].max()}); "
-                     f"corrected {int(g['flip_applied'].sum()):,}")
+                     + f"; finite {g['n_finite'].median():.0f} ({g['n_finite'].min():.0f} to {g['n_finite'].max():.0f}); "
+                     f"corrected {int(g['flip_applied'].astype(bool).sum()):,}")
     if "mirnov_label" in shots:
         m = shots.merge(campaigns, on="shot_id", how="left")
         lines.append("Mirnov channel selected (first centre-column channel with data), by campaign:")
@@ -320,11 +401,64 @@ def p5(shots, campaigns):
     return lines
 
 
+def mapping_table(channels, shots, campaigns):
+    """Amendment 1, A3: stored label, assumed coil and angle, units, evidence, share of shots with data by campaign."""
+    part = channels.merge(campaigns, on="shot_id", how="left")
+    units = shots["field_units"].dropna().astype(str).value_counts().index[0] if "field_units" in shots and \
+        shots["field_units"].notna().any() else "?"
+    rows = []
+    for (index, label), g in part.groupby(["index", "label"], sort=True):
+        share = g.groupby("campaign", dropna=False)["finite"].mean()
+        rows.append({"stored label": label, "stored position": int(index), "assumed coil": f"middle row, coil {index + 1}",
+                     "assumed angle (deg)": float(extras.SADDLE_PHI_DEG[index]) if index < 12 else np.nan,
+                     "assumed extent (deg)": 20.0, "units": units,
+                     "evidence": "name and stored order only (not confirmed)",
+                     "with data, by campaign": "; ".join(f"{c} {v:.0%}" for c, v in share.items())})
+    return pd.DataFrame(rows)
+
+
+def write_gates(**new):
+    path = os.path.join(folder(), "gates.json")
+    gates = {}
+    if os.path.exists(path):
+        with open(path) as f:
+            gates = json.load(f)
+    gates.update(new)
+    os.makedirs(folder(), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(gates, f, indent=2)
+    return gates
+
+
+def read_gates():
+    path = os.path.join(folder(), "gates.json")
+    if not os.path.exists(path):
+        raise RuntimeError("no gates yet: run --check first")
+    with open(path) as f:
+        return json.load(f)
+
+
+def in_range_ids(shots_table):
+    s = shots_table["shot_id"]
+    return set(int(i) for i in s[(s >= saddle_fetch.FLIP_FROM) & (s <= saddle_fetch.FLIP_TO)])
+
+
+def med_line(label, r, c=None, flip=False, flip_c=False):
+    counts = lambda p: f"{r[p + '_pos']:.0f}+/{r[p + '_neg']:.0f}-/{r[p + '_unclear']:.0f}?"  # noqa: E731
+    line = (f"- {label}: B {r['B']:+.2f} ({r['B_shots']:.0f} shots, {counts('B')}), F {r['F']:+.2f} "
+            f"({r['F_shots']:.0f} shots, {counts('F')}){' FLIPS' if flip else ''}")
+    if c is not None:
+        line += f" | corrected F {c['F']:+.2f}{' FLIPS' if flip_c else ''}"
+    return line
+
+
 def check(say=print):
     sample = frozen_sample()
     channels, shots, lm = table("channels"), table("shots"), table("lm")
     windows, shot_table = experiment.load_tables()
-    out = ["Saddle-sign correction, validation and provenance (docs/preregistration_saddle_correction.md).", ""]
+    campaigns = shot_table[["shot_id", "campaign"]]
+    out = ["Saddle-sign correction, validation and provenance (docs/preregistration_saddle_correction.md, with "
+           "amendment 1).", ""]
     try:
         with open(os.path.join(data_folder(), "manifest.json")) as f:
             out.append(f"Relay: {json.load(f)}")
@@ -332,56 +466,80 @@ def check(say=print):
         pass
     statuses = shots["status"].value_counts().to_dict()
     out.append(f"Shots read: {statuses}; frozen sample {len(sample)} ({sample['group'].value_counts().to_dict()})")
+
     med = channel_medians(channels, sample, "r_raw")
     v = verdict(med)
     med_c = channel_medians(channels, sample, "r_corr")
     flip_raw, flip_corr = flips(med), flips(med_c)
-    out += ["", "V: median r (channel against the median of the others) over the frozen decision shots, as stored | "
-            "with the documented signs:"]
-    for label in med.index:
-        r, c = med.loc[label], med_c.loc[label] if label in med_c.index else None
-        out.append(f"- {label}: B {r['B']:+.2f} ({r['B_shots']:.0f} shots), F {r['F']:+.2f} ({r['F_shots']:.0f})"
-                   f"{' FLIPS' if flip_raw[label] else ''} | F {c['F']:+.2f}{' FLIPS' if flip_corr.get(label) else ''}"
-                   if c is not None else f"- {label}: B {r['B']:+.2f}, F {r['F']:+.2f}")
-    out.append({"V1": "V1: the documented reversal is present in our data; the correction is applied.",
-                "V2": "V2: the reversal is not present; no correction is applied.",
-                "V3": "V3: inconclusive; no correction is applied automatically."}[v])
-    diag = sample[sample["group"] == "diagnostic"]["shot_id"]
-    for s in diag:
+    out += ["", "V (registered): median r against the median of all other channels, frozen decision shots; counts "
+            "clear +/clear -/indeterminate | with the documented signs:"]
+    out += [med_line(k, med.loc[k], med_c.loc[k] if k in med_c.index else None, flip_raw[k], flip_corr.get(k, False))
+            for k in med.index]
+    out.append({"V1": "V1: the documented reversal pattern is present in our sampled data.",
+                "V2": "V2: no reversal pattern (not proof that the data were already corrected).",
+                "V3": "V3: inconclusive (not evidence that the documented correction is wrong)."}[v])
+    for s in sample[sample["group"] == "diagnostic"]["shot_id"]:
         part = channels[(channels["shot_id"] == s) & channels["label"].isin(saddle_fetch.FLIP)]
-        out.append(f"Diagnostic {s} (not in the decision): " + ", ".join(
-            f"{r.label} {r.r_raw:+.2f}" for r in part.itertuples()) if len(part) else f"Diagnostic {s}: no channels")
-    compared, agree, differ, missing = p1(lm)
-    out += ["", f"P1, cache against today's store: {agree:,} of {compared:,} shots give exactly our cached lm_n1 "
-            f"({missing} without a cached file)" + (f"; differing: {differ[:40]}{' ...' if len(differ) > 40 else ''}"
-                                                   if differ else "")]
+        out.append((f"Diagnostic {s} (not in the decision): " + ", ".join(f"{r.label} {r.r_raw:+.2f}"
+                                                                          for r in part.itertuples()))
+                   if len(part) else f"Diagnostic {s}: no channels")
+
+    try:
+        ref = reference_r(table("channel_bins"))
+        med_ref = channel_medians(ref, sample, "r_ref")
+        flip_ref = flips(med_ref)
+        a2 = a2_consistent(med_ref)
+        out += ["", "A2 (amendment 1): median r against the median of the documented-unaffected channels:"]
+        out += [med_line(k, med_ref.loc[k], flip=flip_ref[k]) for k in med_ref.index]
+        out.append("A2 is consistent with V1." if a2 else "A2 is NOT consistent with V1.")
+    except RuntimeError as error:
+        a2 = False
+        out += ["", f"A2: not computed ({error})"]
+
+    ids = in_range_ids(shot_table)
+    cond, g4 = conditioning(channels, ids)
+    out += ["", f"G4, fit conditioning, shots {saddle_fetch.FLIP_FROM} to {saddle_fetch.FLIP_TO} (finite-channel "
+            f"masks; fits need {extras.MIN_SADDLE_CHANNELS}):"]
+    out += [f"- {r.mask}: {r.shots:,} shots, {r.finite} channels, rank {r.rank}, condition {r.cond:.2f}"
+            for r in cond.itertuples()]
+    out.append(f"G4 {'passes' if g4 else 'FAILS'} (rank 3 and condition <= {MAX_COND} for every usable mask).")
+
+    every = p1(lm)
+    gated = p1(lm, ids=ids)
+    read = set(int(i) for i in lm["shot_id"].unique())
+    unread = sorted(ids - read)
+    g1 = not unread and gated["no_cache"] == 0 and not gated["differ"] and gated["compared"] == len(ids)
+    out += ["", f"P1, all read shots: {every['agree']:,} of {every['compared']:,} reproduce our cached lm_n1 "
+            f"({every['no_cache']} without a cached file; largest relative difference {every['largest']:.2e})"
+            + (f"; differing: {every['differ'][:40]}{' ...' if len(every['differ']) > 40 else ''}" if every["differ"]
+               else ""),
+            f"G1, shots {saddle_fetch.FLIP_FROM} to {saddle_fetch.FLIP_TO} of the window table ({len(ids):,}): "
+            f"{gated['agree']:,} reproduce, {len(gated['differ'])} differ, {len(unread)} not read"
+            + (f" {unread[:20]}" if unread else "") + f". G1 {'passes' if g1 else 'FAILS'}."]
     out += ["", "P2, ingestion attributes as stored (not used to identify a release):"] + ["- " + x for x in p2(shots)]
     out += ["", "P3, frozen sample, summary signals today against our cache:"]
     try:
         out += ["- " + x for x in p3(table("summary_sample"), sample, windows)]
     except RuntimeError as error:
         out.append(f"- {error}")
-    out += [""] + p5(shots, shot_table[["shot_id", "campaign"]])
+    out += [""] + p5(shots, campaigns)
+    mapping = mapping_table(channels, shots, campaigns)
+    mapping.to_csv(os.path.join(folder(), "channel_mapping.csv"), index=False)
+    out += ["", f"A3: channel-to-angle mapping table written to channel_mapping.csv ({len(mapping)} channels; evidence: "
+            "name and stored order only)."]
+    g3 = v == "V1" and a2
+    gates = write_gates(verdict=v, a2=a2, G1=g1, G3=g3, G4=g4)
+    out += ["", f"Gates so far: {gates}"]
     text = "\n".join(out)
     os.makedirs(folder(), exist_ok=True)
     with open(os.path.join(folder(), "check.txt"), "w") as f:
         f.write(text + "\n")
-    with open(os.path.join(folder(), "verdict.json"), "w") as f:
-        json.dump({"verdict": v, "p1_agree": agree, "p1_compared": compared}, f)
     say(text)
     notify.send("Saddle-sign check\n\n" + text[:3500])
-    return v
+    return gates
 
 
-def saved_verdict():
-    path = os.path.join(folder(), "verdict.json")
-    if not os.path.exists(path):
-        raise RuntimeError("no verdict yet: run --check first")
-    with open(path) as f:
-        return json.load(f)["verdict"]
-
-
-# ------------------------------------------------------------------ P4 and the corrected features
+# ------------------------------------------------------------------ G2 (P4) and the corrected features
 
 def rebuild(shot_row, lm_values, columns):
     """The lm window features of one shot with lm_n1 replaced by lm_values, as features.shot_windows builds them."""
@@ -392,57 +550,76 @@ def rebuild(shot_row, lm_values, columns):
     return win[["t_end"] + columns] if len(win) else win
 
 
+def compare_rebuild(mine, again, columns, rel=REBUILD_TOL):
+    """(same, largest relative difference): same window ends, same NaN pattern, values within rel."""
+    if len(mine) != len(again) or not np.array_equal(mine["t_end"].to_numpy(), again["t_end"].to_numpy()):
+        return False, np.inf
+    largest, same = 0.0, True
+    for c in columns:
+        a, b = mine[c].to_numpy(dtype=float), again[c].to_numpy(dtype=float)
+        if not np.array_equal(np.isfinite(a), np.isfinite(b)):
+            same = False
+            continue
+        f = np.isfinite(a)
+        if f.any():
+            d = np.abs(a[f] - b[f]) / np.maximum(np.maximum(np.abs(a[f]), np.abs(b[f])), 1e-30)
+            largest = max(largest, float(d.max()))
+            same = same and bool((d <= rel).all())
+    return same, largest
+
+
 def features_path():
     return os.path.join(data_folder(), "lm_features_corrected.parquet")
 
 
 def build_features(say=print):
-    v = saved_verdict()
+    gates = read_gates()
+    polarity = gates.get("G1") and gates.get("G3") and gates.get("G4")
     lm = table("lm")
     windows, shots = experiment.load_tables()
     columns = lm_columns(windows.columns)
-    in_range = shots[(shots["shot_id"] >= saddle_fetch.FLIP_FROM) & (shots["shot_id"] <= saddle_fetch.FLIP_TO)]
+    in_range = shots[shots["shot_id"].isin(in_range_ids(shots))]
     by_shot = dict(tuple(lm.groupby("shot_id")))
-    mismatched, missing, rows, start = [], [], [], time.time()
+    mismatched, missing, rows, largest, start = [], [], [], 0.0, time.time()
     for i, (_, row) in enumerate(in_range.iterrows(), 1):
         shot = int(row["shot_id"])
         part = by_shot.get(shot)
-        mine = windows[windows["shot_id"] == shot]
-        if part is None:
-            missing.append(shot)
-            continue
+        mine = windows[windows["shot_id"] == shot][["t_end"] + columns].sort_values("t_end").reset_index(drop=True)
         base = load_shot(shot)
-        if len(base) != len(part) or not np.allclose(base["time"].to_numpy(), part["time"].to_numpy()):
+        if part is None or len(base) != len(part) or not np.allclose(base["time"].to_numpy(), part["time"].to_numpy()):
             missing.append(shot)
             continue
         again = rebuild(row, part["lm_raw"].to_numpy(), columns)
-        merged = mine[["t_end"] + columns].merge(again, on="t_end", how="outer", suffixes=("", "_again"))
-        same = len(merged) == len(mine) == len(again) and all(
-            np.array_equal(merged[c].to_numpy(), merged[f"{c}_again"].to_numpy(), equal_nan=True) for c in columns)
+        again = again.sort_values("t_end").reset_index(drop=True) if len(again) else again
+        same, diff = compare_rebuild(mine, again, columns)
+        largest = max(largest, diff)
         if not same:
             mismatched.append(shot)
-        if v == "V1":
-            corrected = rebuild(row, part["lm_corr"].to_numpy(), columns)
-            rows.append(corrected.assign(shot_id=np.int64(shot)))
+        if polarity:
+            rows.append(rebuild(row, part["lm_corr"].to_numpy(), columns).assign(shot_id=np.int64(shot)))
         if i % 500 == 0:
             say(f"[{i}/{len(in_range)}] {(time.time() - start) / i:.2f} s per shot")
-    lines = [f"P4: lm window features rebuilt from today's lm_raw equal the window table's for "
-             f"{len(in_range) - len(missing) - len(mismatched):,} of {len(in_range) - len(missing):,} shots in "
-             f"{saddle_fetch.FLIP_FROM} to {saddle_fetch.FLIP_TO} ({len(missing)} not read or on another grid"
-             + (f": {missing[:20]}" if missing else "") + ")"
-             + (f"; differing: {mismatched[:40]}" if mismatched else "")]
-    if v == "V1" and rows:
+    g2 = not missing and not mismatched
+    lines = [f"G2 (P4): lm window features rebuilt from today's lm_raw reproduce the window table's for "
+             f"{len(in_range) - len(missing) - len(mismatched):,} of {len(in_range):,} shots in "
+             f"{saddle_fetch.FLIP_FROM} to {saddle_fetch.FLIP_TO} (tolerance {REBUILD_TOL:g} relative; largest "
+             f"{largest:.2e}); {len(missing)} not read or on another grid" + (f" {missing[:20]}" if missing else "")
+             + (f"; differing: {mismatched[:40]}" if mismatched else "") + f". G2 {'passes' if g2 else 'FAILS'}."]
+    if polarity and g2 and rows:
         table_c = pd.concat(rows, ignore_index=True)
         table_c.to_parquet(features_path(), index=False)
-        changed = 0
         both = windows[windows["shot_id"].isin(table_c["shot_id"])][["shot_id", "t_end"] + columns].merge(
             table_c, on=["shot_id", "t_end"], suffixes=("", "_c"))
-        for c in columns:
-            changed += int((~np.isclose(both[c], both[f"{c}_c"], equal_nan=True)).sum())
+        changed = sum(int((~np.isclose(both[c], both[f"{c}_c"], equal_nan=True)).sum()) for c in columns)
         lines.append(f"Corrected lm features written for {table_c['shot_id'].nunique():,} shots, {len(table_c):,} "
                      f"windows; {changed:,} feature values changed ({len(columns)} columns: {', '.join(columns)}).")
-    elif v != "V1":
-        lines.append(f"Verdict {v}: no corrected features are built (protocol).")
+    else:
+        if os.path.exists(features_path()):
+            os.remove(features_path())
+        lines.append("No corrected features: " + ", ".join(
+            k for k, ok in (("G1", gates.get("G1")), ("G2", g2), ("G3", gates.get("G3")), ("G4", gates.get("G4")))
+            if not ok) + " failed. The direct swap is not made (protocol, amendment 1).")
+    write_gates(G2=g2)
     text = "\n".join(lines)
     with open(os.path.join(folder(), "features.txt"), "w") as f:
         f.write(text + "\n")
@@ -451,10 +628,17 @@ def build_features(say=print):
     return text
 
 
+def gates_pass():
+    g = read_gates()
+    failed = [k for k in ("G1", "G2", "G3", "G4") if not g.get(k)]
+    return not failed, failed
+
+
 def load_tables():
-    """The window and shot tables with the corrected lm features swapped in (only for V1)."""
-    if saved_verdict() != "V1" or not os.path.exists(features_path()):
-        raise RuntimeError("no corrected features: the verdict is not V1, or --features has not run")
+    """The window and shot tables with the corrected lm features swapped in (only when G1 to G4 pass)."""
+    ok, failed = gates_pass()
+    if not ok or not os.path.exists(features_path()):
+        raise RuntimeError(f"no corrected training: gates failed {failed} or --features has not run (amendment 1)")
     windows, shots = experiment.load_tables()
     return swap(windows, pd.read_parquet(features_path())), shots
 
@@ -511,13 +695,17 @@ def pair_counts(main, lead=PRIMARY_LEAD):
     models = sorted({r for r, _ in sets})
     same = all(len({sets.get((m, s)) for m in models}) == 1 for s in {s for _, s in sets})
     counts = part.groupby("recipe").size().to_dict()
-    return f"Eligible pair-split rows at {lead} ms: {counts}; identical pairs for every model in every split: {same}"
+    return (f"G5: eligible pair-split rows at {lead} ms: {counts}; identical pairs for every model in every split: "
+            f"{'yes' if same else 'NO (the comparison is not fixed; stop and investigate)'}")
 
 
 def text(random, temporal):
     cells = fast_magnetics.difference_cells
-    lines = ["Saddle-sign correction (docs/preregistration_saddle_correction.md): A_c = the full model with the lm "
-             "features rebuilt from corrected saddle channels. Fixed-lead twin test, common cohort, splits 1 to 20.", ""]
+    lines = ["Saddle-sign correction (docs/preregistration_saddle_correction.md, amendment 1): A_c = the full model with "
+             "the first-harmonic saddle-array features (assumed geometry) rebuilt from sign-corrected channels; A = the "
+             "original representation; L = the no-lm sensitivity. Fixed-lead twin test, common cohort, splits 1 to 20.",
+             "A_c is the corrected full-model analysis whatever its result (A4); 10 ms was chosen after earlier work had "
+             "shown it to be the strongest lead.", ""]
     main = random[(random["kind"] == "main") & random["cohort"].astype(bool)] if len(random) else random
     if len(main):
         lines.append(pair_counts(main))
@@ -525,10 +713,10 @@ def text(random, temporal):
     if d:
         resolved = d[1] is not None and d[1] > 0
         lines.append(f"PRIMARY: C({PRIMARY_LEAD} ms) of A_c minus M: {cells(main, PRIMARY_LEAD, RECIPE, 'machine')}. "
-                     + ("Resolved and positive: with the documented sign correction the full model keeps its 10 ms lead "
-                        "over the machine-side model." if resolved else
-                        "Not resolved: with the correction the 10 ms lead is not shown; the uncorrected full model's "
-                        "lead is not presented as established."))
+                     + ("Resolved and positive: the corrected full model shows the 10 ms lead over the machine-side "
+                        "model." if resolved else
+                        "Not resolved: the corrected full model does not show the 10 ms lead; the uncorrected full "
+                        "model's lead is not presented as established, and the claim narrows to the sensitivities."))
     lines += ["", "Per lead (A_c minus M; A_c minus A; A_c minus L), over splits | pooled:"]
     for lead in how_early.COHORT_LEADS:
         lines.append(f"- {lead} ms: {cells(main, lead, RECIPE, 'machine')}; {cells(main, lead, RECIPE, 'baseline')}; "

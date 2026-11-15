@@ -3,12 +3,12 @@ docs/preregistration_saddle_correction.md. Per shot, from the store as it is tod
 src/extras.py computes it (lm_raw) and with the documented sign correction of saddle channels M02, M08 and M012 for
 shots 24782 to 30473 (lm_corr); per channel, its label, whether it has data, and its correlation with the median of the
 other channels; the selected Mirnov channel; the groups' ingestion attributes; and, for the frozen sample only, the
-summary signals as stored today. No outcome, model or label passes through.
+summary signals and offset-removed 1 ms channel bins as stored today. No outcome, model or label passes through.
 
     python scripts/saddle_fetch.py --ids <zlib+base64 list> --sample <list> --part 0 --parts 8
     python scripts/saddle_fetch.py --shots 27000,30421
 
-Writes DATA_DIR/saddle_fetch/{lm,channels,shots,summary_sample}.parquet and manifest.json.
+Writes DATA_DIR/saddle_fetch/{lm,channels,shots,summary_sample,channel_bins}.parquet and manifest.json.
 """
 import argparse
 import json
@@ -32,7 +32,7 @@ FLIP = ("M02", "M08", "M012")  # documented sign reversal (FAIR-MAST level 2, ch
 FLIP_FROM, FLIP_TO = 24782, 30473
 MIN_BINS = 20  # fewer common bins give no correlation
 GIVE_UP_AFTER = 20
-TABLES = ("lm", "channels", "shots", "summary_sample")
+TABLES = ("lm", "channels", "shots", "summary_sample", "channel_bins")
 
 
 def folder():
@@ -137,8 +137,12 @@ def shot_result(shot_id, open_group=programme_signals.open_group, sample=False):
     out["channels"] = pd.DataFrame({"shot_id": np.int32(shot_id), "index": np.arange(len(labels), dtype=np.int16),
                                     "label": labels, "finite": finite, "sign": signs,
                                     "r_raw": channel_r(raw, defined), "r_corr": channel_r(corr, defined)})
+    if sample:  # the frozen shots' channel inputs, kept so any later diagnostic uses the same frozen data
+        out["channel_bins"] = pd.DataFrame({
+            "shot_id": np.int32(shot_id), "label": np.repeat(labels, len(t_grid)),
+            "time": np.tile(t_grid, len(labels)), "defined": np.tile(defined, len(labels)), "delta": raw.ravel()})
     row.update(status="ok", n_channels=len(labels), n_finite=int(finite.sum()), labels=",".join(labels),
-               flip_applied=bool((signs < 0).any()))
+               flip_applied=bool((signs < 0).any()), field_units=str(arr.attrs.get("units", "")))
     out["shots"] = pd.DataFrame([row])
     return out, "ok"
 
