@@ -1734,3 +1734,29 @@ mask) and G5 (identical eligible pairs) pass. The feature is called "the first-h
 assumed geometry" until the channel-to-angle mapping is confirmed (mapping table published with the results). A_c is
 the corrected full-model analysis whatever its 10 ms result. Also fixed: `channel_medians` used a pandas join keyword
 that newer pandas deprecates (CI failed on it); now built without it.
+
+## 2026-11-15 - Saddle-sign check: V1 and A2 agree, G3 and G4 pass, G1 fails as implemented (no corrected training)
+
+`scripts/saddle_correction.py --check`, GitHub read 07:59 to 08:14 UTC 2026-11-15 (code at merge ee75da3): 11,471 shots
+requested, 10,547 with saddle data, 924 with no saddle field in the store ("no_saddle"), none unreachable or odd.
+- **V (registered) gives V1**: on the frozen decision shots (21 before, 22 from 24782 with a finite r), M02, M08 and M012
+  correlate positively with the other channels before 24782 (median r +0.96, +0.88, +0.92) and negatively from 24782
+  (-0.66, -0.74, -0.66); no other channel changes sign. Not uniform per shot: from 24782, M02 is clearly negative in
+  14 of 22 shots (4 positive, 4 indeterminate), M08 in 20 of 22, M012 in 12 of 22 (5 positive). Diagnostic shots
+  (outside the decision): 27000 M02 +0.05, M08 -0.67, M012 +0.53; 30421 all three about -1.00. With the documented
+  signs, the three are positive from 24782 (+0.66, +0.60, +0.47).
+- **A2 (fixed reference) agrees**: -0.66, -0.71, -0.53 from 24782; no reference channel changes sign. G3 passes.
+- **G4 passes**: every shot from 24782 to 30473 with saddle data has the same 11-channel mask (M09 empty), rank 3,
+  condition 1.52. This is numerical conditioning under the assumed geometry, not evidence that the geometry is right.
+- **P1**: all 10,547 shots with saddle data reproduce our cached lm_n1 (largest relative difference 4.1e-13).
+- **G1 FAILS as implemented**: of the 3,426 window-table shots from 24782 to 30473, 2,949 reproduce and 0 differ, but
+  477 have no saddle field in the store, and the gate counts them as not read. Diagnostic afterwards (not a gate): all
+  477 are "no_saddle" and their cached lm_n1 is entirely NaN (M8 447, M7 10, M9 4, unknown campaign 16), so cache and
+  store agree that these shots have no saddle data. The protocol did not define this case; the gate is left failed,
+  no corrected features are built, training is not started, and the question goes to an outside reviewer.
+- **P3**: the summary signals of all 50 frozen shots are identical today and in our cache.
+- **P5**: every shot stores the same 12 labels (M01..M012), 11 with data. The Mirnov channel selected differs by
+  campaign: M5 '201' 1,427, '210' 374; M6 '220' 2,619, '201' 56; M7 '201' 2,485, '220' 1,003; M8 and M9 '201'; a few
+  shots none. The earlier note "'201' in the shots checked" is narrowed accordingly.
+- A3: the mapping table (`results/saddle_correction/channel_mapping.csv`) keeps the evidence as "name and stored order
+  only (not confirmed)".
