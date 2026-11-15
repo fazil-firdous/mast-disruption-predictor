@@ -5,6 +5,7 @@
     python scripts/saddle_correction.py --check      # V, A2, gates G1 (cache), G3 (polarity), G4 (conditioning); P2, P3, P5;
                                                      # the channel mapping table (A3)
     python scripts/saddle_correction.py --features   # G2 (rebuild reproduced); the corrected lm features only if G1-G4 pass
+    python scripts/saddle_correction.py --g5         # G5 before training: same non-lm columns, same eligible pairs
     python scripts/saddle_correction.py --train      # A_c on splits 1 to 20 and the chronological split; refuses unless
                                                      # every gate passes (amendment 1)
     python scripts/saddle_correction.py --summary
@@ -17,6 +18,7 @@ import io
 import json
 import os
 import sys
+import shutil
 import time
 import warnings
 import zipfile
@@ -42,6 +44,7 @@ REL_TOL = 1e-9  # G1: same code, same stored data, different machines
 REBUILD_TOL = 1e-6  # G2: float32 storage of the window table
 MIN_SHOTS = 15  # amendment 1: shots with a finite r on each side
 MAX_COND = 10.0  # G4
+GATES = ("G1a", "G2a", "G3", "G4", "G5")  # amendment 2: all must pass before training
 
 
 def data_folder():
@@ -333,6 +336,16 @@ def p1(lm, load=None, ids=None):
 
 def p2(shots):
     lines = []
+    if "mag_ingested_at" in shots:
+        has_group = shots["mag_ingested_at"].notna()
+        states = {"saddle data": int((shots["status"] == "ok").sum()),
+                  "magnetics group without saddle field": int(((shots["status"] == "no_saddle") & has_group).sum()),
+                  "no magnetics group": int(((shots["status"] == "no_saddle") & ~has_group).sum()),
+                  "other": int((~shots["status"].isin(["ok", "no_saddle"])).sum())}
+        lines.append(f"states of the {len(shots):,} shots read: {states}")
+        for col in ("mag_commit_url", "sum_commit_url"):
+            if col in shots:
+                lines.append(f"{col} missing or empty: {int((shots[col].isna() | (shots[col].astype(str) == '')).sum())}")
     for col in ("mag_ingested_at", "sum_ingested_at"):
         if col in shots:
             dates = shots[col].dropna().astype(str).str[:10]
@@ -452,7 +465,52 @@ def med_line(label, r, c=None, flip=False, flip_c=False):
     return line
 
 
+def preserve_originals():
+    """Amendment 2: keep the first check's outputs unchanged, once, before anything is rewritten."""
+    for name in ("check.txt", "features.txt", "gates.json"):
+        src = os.path.join(folder(), name)
+        stem, ext = os.path.splitext(name)
+        dst = os.path.join(folder(), f"{stem}_original{ext}")
+        if os.path.exists(src) and not os.path.exists(dst):
+            shutil.copy2(src, dst)
+
+
+def absence_state(row):
+    """Amendment 2 (a): 'no magnetics group' or 'no saddle field' for a verified absence, None for anything else
+    (a shot missing from the read, a read error, an odd schema)."""
+    if row is None or row.get("status") != "no_saddle":
+        return None
+    attrs = row.get("mag_ingested_at")
+    return "no magnetics group" if attrs is None or (isinstance(attrs, float) and np.isnan(attrs)) else "no saddle field"
+
+
+def absence_cache_ok(cached, grid_len):
+    """Amendment 2 (b): the cached lm_n1 exists on the shot's own cached grid and is entirely NaN."""
+    if cached is None or "lm_n1" not in cached or len(cached) != grid_len:
+        return False, "no cached feature on the shot's grid"
+    if np.isfinite(cached["lm_n1"].to_numpy(dtype=float)).any():
+        return False, "cached feature has finite values"
+    return True, ""
+
+
+def absence_windows_ok(mine, again, columns):
+    """Amendment 2 (c) and (d): rebuilt with an all-NaN lm_n1, the window rows are reproduced exactly, and in the window
+    table has_lm is 0 and the other lm columns are NaN in every window."""
+    same, _ = compare_rebuild(mine, again, columns, rel=0.0)
+    if not same:
+        return False, "rebuilt window rows differ"
+    for c in columns:
+        x = mine[c].to_numpy(dtype=float)
+        if c == "has_lm":
+            if not np.array_equal(x, np.zeros(len(x))):
+                return False, "has_lm is not 0 in every window"
+        elif np.isfinite(x).any():
+            return False, f"{c} has finite values"
+    return True, ""
+
+
 def check(say=print):
+    preserve_originals()
     sample = frozen_sample()
     channels, shots, lm = table("channels"), table("shots"), table("lm")
     windows, shot_table = experiment.load_tables()
@@ -509,13 +567,40 @@ def check(say=print):
     read = set(int(i) for i in lm["shot_id"].unique())
     unread = sorted(ids - read)
     g1 = not unread and gated["no_cache"] == 0 and not gated["differ"] and gated["compared"] == len(ids)
+    rows = shots.drop_duplicates("shot_id").set_index("shot_id")
+    absent, absent_fail = {}, {}
+    for shot in unread:
+        state = absence_state(rows.loc[shot].to_dict() if shot in rows.index else None)
+        if state is None:
+            absent_fail[shot] = "not a verified absence (" + (str(rows.loc[shot, "status"]) if shot in rows.index
+                                                               else "missing from the read") + ")"
+            continue
+        try:
+            grid_len = len(load_shot(int(shot)))
+        except Exception as error:
+            absent_fail[shot] = f"no cached shot ({type(error).__name__})"
+            continue
+        ok, why = absence_cache_ok(extras.load_extras(int(shot), allow_download=False), grid_len)
+        if ok:
+            absent[shot] = state
+        else:
+            absent_fail[shot] = why
+    g1a = gated["no_cache"] == 0 and not gated["differ"] and not absent_fail and \
+        gated["compared"] + len(absent) == len(ids)
+    with open(os.path.join(folder(), "structural_absence.csv"), "w") as f:
+        f.write("shot_id,state\n" + "".join(f"{k},{v}\n" for k, v in sorted(absent.items())))
+    states = pd.Series(absent, dtype=object).value_counts().to_dict() if absent else {}
     out += ["", f"P1, all read shots: {every['agree']:,} of {every['compared']:,} reproduce our cached lm_n1 "
             f"({every['no_cache']} without a cached file; largest relative difference {every['largest']:.2e})"
             + (f"; differing: {every['differ'][:40]}{' ...' if len(every['differ']) > 40 else ''}" if every["differ"]
                else ""),
-            f"G1, shots {saddle_fetch.FLIP_FROM} to {saddle_fetch.FLIP_TO} of the window table ({len(ids):,}): "
-            f"{gated['agree']:,} reproduce, {len(gated['differ'])} differ, {len(unread)} not read"
-            + (f" {unread[:20]}" if unread else "") + f". G1 {'passes' if g1 else 'FAILS'}."]
+            f"G1 (as first written), shots {saddle_fetch.FLIP_FROM} to {saddle_fetch.FLIP_TO} of the window table "
+            f"({len(ids):,}): {gated['agree']:,} reproduce, {len(gated['differ'])} differ, {len(unread)} not read"
+            + (f" {unread[:20]}" if unread else "") + f". G1 {'passes' if g1 else 'FAILS'}.",
+            f"G1a (amendment 2): {gated['agree']:,} data-present shots reproduce numerically, {len(gated['differ'])} "
+            f"differ; {len(absent):,} structurally absent and verified ({states}); {len(absent_fail)} not verified"
+            + (f" {dict(list(absent_fail.items())[:20])}" if absent_fail else "")
+            + f". G1a {'passes' if g1a else 'FAILS'}. List: structural_absence.csv."]
     out += ["", "P2, ingestion attributes as stored (not used to identify a release):"] + ["- " + x for x in p2(shots)]
     out += ["", "P3, frozen sample, summary signals today against our cache:"]
     try:
@@ -528,7 +613,7 @@ def check(say=print):
     out += ["", f"A3: channel-to-angle mapping table written to channel_mapping.csv ({len(mapping)} channels; evidence: "
             "name and stored order only)."]
     g3 = v == "V1" and a2
-    gates = write_gates(verdict=v, a2=a2, G1=g1, G3=g3, G4=g4)
+    gates = write_gates(verdict=v, a2=a2, G1=g1, G1a=g1a, G3=g3, G4=g4)
     out += ["", f"Gates so far: {gates}"]
     text = "\n".join(out)
     os.makedirs(folder(), exist_ok=True)
@@ -572,27 +657,51 @@ def features_path():
     return os.path.join(data_folder(), "lm_features_corrected.parquet")
 
 
+def absent_list():
+    path = os.path.join(folder(), "structural_absence.csv")
+    return set(pd.read_csv(path)["shot_id"].astype(int)) if os.path.exists(path) else set()
+
+
 def build_features(say=print):
+    preserve_originals()
     gates = read_gates()
-    polarity = gates.get("G1") and gates.get("G3") and gates.get("G4")
+    polarity = gates.get("G1a") and gates.get("G3") and gates.get("G4")
     lm = table("lm")
     windows, shots = experiment.load_tables()
     columns = lm_columns(windows.columns)
     in_range = shots[shots["shot_id"].isin(in_range_ids(shots))]
     by_shot = dict(tuple(lm.groupby("shot_id")))
+    absent = absent_list()
     mismatched, missing, rows, largest, start = [], [], [], 0.0, time.time()
+    absent_ok, absent_bad, data_windows, absent_windows = [], {}, 0, 0
     for i, (_, row) in enumerate(in_range.iterrows(), 1):
         shot = int(row["shot_id"])
         part = by_shot.get(shot)
         mine = windows[windows["shot_id"] == shot][["t_end"] + columns].sort_values("t_end").reset_index(drop=True)
         base = load_shot(shot)
-        if part is None or len(base) != len(part) or not np.allclose(base["time"].to_numpy(), part["time"].to_numpy()):
+        if part is None:
             missing.append(shot)
+            if shot not in absent:
+                absent_bad[shot] = "not a verified structural absence (G1a)"
+                continue
+            again = rebuild(row, np.full(len(base), np.nan), columns)
+            again = again.sort_values("t_end").reset_index(drop=True) if len(again) else again
+            ok, why = absence_windows_ok(mine, again, columns)
+            if ok:
+                absent_ok.append(shot)
+                absent_windows += len(mine)
+            else:
+                absent_bad[shot] = why
+            continue
+        if len(base) != len(part) or not np.allclose(base["time"].to_numpy(), part["time"].to_numpy()):
+            missing.append(shot)
+            absent_bad[shot] = "read on another grid"
             continue
         again = rebuild(row, part["lm_raw"].to_numpy(), columns)
         again = again.sort_values("t_end").reset_index(drop=True) if len(again) else again
         same, diff = compare_rebuild(mine, again, columns)
         largest = max(largest, diff)
+        data_windows += len(mine)
         if not same:
             mismatched.append(shot)
         if polarity:
@@ -600,26 +709,34 @@ def build_features(say=print):
         if i % 500 == 0:
             say(f"[{i}/{len(in_range)}] {(time.time() - start) / i:.2f} s per shot")
     g2 = not missing and not mismatched
-    lines = [f"G2 (P4): lm window features rebuilt from today's lm_raw reproduce the window table's for "
-             f"{len(in_range) - len(missing) - len(mismatched):,} of {len(in_range):,} shots in "
-             f"{saddle_fetch.FLIP_FROM} to {saddle_fetch.FLIP_TO} (tolerance {REBUILD_TOL:g} relative; largest "
-             f"{largest:.2e}); {len(missing)} not read or on another grid" + (f" {missing[:20]}" if missing else "")
-             + (f"; differing: {mismatched[:40]}" if mismatched else "") + f". G2 {'passes' if g2 else 'FAILS'}."]
-    if polarity and g2 and rows:
+    g2a = not mismatched and not absent_bad and len(absent_ok) == len(missing)
+    present = len(in_range) - len(missing)
+    lines = [f"G2 (as first written): lm window features rebuilt from today's lm_raw reproduce the window table's for "
+             f"{present - len(mismatched):,} of {len(in_range):,} shots in {saddle_fetch.FLIP_FROM} to "
+             f"{saddle_fetch.FLIP_TO} (tolerance {REBUILD_TOL:g} relative; largest {largest:.2e}); {len(missing)} not read "
+             f"or on another grid" + (f"; differing: {mismatched[:40]}" if mismatched else "")
+             + f". G2 {'passes' if g2 else 'FAILS'}.",
+             f"G2a (amendment 2): data present: {present - len(mismatched):,} of {present:,} shots ({data_windows:,} "
+             f"windows) reproduced numerically; structurally absent: {len(absent_ok):,} shots ({absent_windows:,} windows) "
+             f"reproduced with matching missingness (has_lm 0, other lm columns NaN, window ends unchanged); "
+             f"{len(absent_bad)} failed" + (f" {dict(list(absent_bad.items())[:20])}" if absent_bad else "")
+             + f". G2a {'passes' if g2a else 'FAILS'}."]
+    if polarity and g2a and rows:
         table_c = pd.concat(rows, ignore_index=True)
         table_c.to_parquet(features_path(), index=False)
         both = windows[windows["shot_id"].isin(table_c["shot_id"])][["shot_id", "t_end"] + columns].merge(
             table_c, on=["shot_id", "t_end"], suffixes=("", "_c"))
         changed = sum(int((~np.isclose(both[c], both[f"{c}_c"], equal_nan=True)).sum()) for c in columns)
-        lines.append(f"Corrected lm features written for {table_c['shot_id'].nunique():,} shots, {len(table_c):,} "
-                     f"windows; {changed:,} feature values changed ({len(columns)} columns: {', '.join(columns)}).")
+        lines.append(f"Corrected lm features written for {table_c['shot_id'].nunique():,} data-present shots, "
+                     f"{len(table_c):,} windows; {changed:,} feature values changed ({len(columns)} columns: "
+                     f"{', '.join(columns)}). Structurally absent shots are left untouched.")
     else:
         if os.path.exists(features_path()):
             os.remove(features_path())
         lines.append("No corrected features: " + ", ".join(
-            k for k, ok in (("G1", gates.get("G1")), ("G2", g2), ("G3", gates.get("G3")), ("G4", gates.get("G4")))
-            if not ok) + " failed. The direct swap is not made (protocol, amendment 1).")
-    write_gates(G2=g2)
+            k for k, ok in (("G1a", gates.get("G1a")), ("G2a", g2a), ("G3", gates.get("G3")), ("G4", gates.get("G4")))
+            if not ok) + " failed. The direct swap is not made (protocol, amendments 1 and 2).")
+    write_gates(G2=g2, G2a=g2a)
     text = "\n".join(lines)
     with open(os.path.join(folder(), "features.txt"), "w") as f:
         f.write(text + "\n")
@@ -628,17 +745,74 @@ def build_features(say=print):
     return text
 
 
+# ------------------------------------------------------------------ G5 before training
+
+def manifest(windows, shots, main, seeds=SEEDS):
+    """Eligible (split, lost shot, twin, lead) of the twin test from the test windows with a constant score: what any
+    model scored on these windows could be compared on."""
+    keys = []
+    for seed in list(seeds) + [None]:
+        if seed is None:
+            win, column = dataset.labelled_windows(windows, shots), "split_temporal"
+        else:
+            split = dataset.random_split(shots, seed=seed)
+            win, column = dataset.labelled_windows(windows.assign(split=windows["shot_id"].map(split)), shots), "split"
+        test = experiment.split_frames(win, column)[2]
+        scores = pd.DataFrame({"shot_id": test["shot_id"].astype("int32"), "t_end": test["t_end"].astype("float32"),
+                               "score": 0.0})  # as the runs save them
+        mine = main[main["shot_id"].isin(test["shot_id"]) & main["other"].isin(test["shot_id"])]
+        got = how_early.landmark_wins(scores, mine)
+        keys += [(0 if seed is None else seed, int(a), int(b), int(c))
+                 for a, b, c in zip(got["shot_id"], got["other"], got["lead_ms"])]
+    return set(keys)
+
+
+def non_lm_equal(original, corrected):
+    """True if every column except the lm columns is identical (same rows, order, values and NaN pattern)."""
+    if list(original.columns) != list(corrected.columns) or len(original) != len(corrected):
+        return False
+    lm = set(lm_columns(original.columns))
+    for c in original.columns:
+        if c in lm:
+            continue
+        a, b = original[c].to_numpy(), corrected[c].to_numpy()
+        same = np.array_equal(a, b, equal_nan=True) if a.dtype.kind == "f" else np.array_equal(a, b)
+        if not same:
+            return False
+    return True
+
+
+def g5(say=print):
+    g = read_gates()
+    if not all(g.get(k) for k in ("G1a", "G2a", "G3", "G4")) or not os.path.exists(features_path()):
+        raise RuntimeError("G5 needs G1a, G2a, G3, G4 and the corrected features first")
+    windows, shots = experiment.load_tables()
+    corrected = swap(windows, pd.read_parquet(features_path()))
+    main = how_early.pair_frames()[0]
+    same_columns = non_lm_equal(windows, corrected)
+    a, b = manifest(windows, shots, main), manifest(corrected, shots, main)
+    ok = same_columns and a == b
+    text = (f"G5 (before training): non-lm columns identical: {same_columns}; eligible (split, pair, lead) entries "
+            f"original {len(a):,}, corrected {len(b):,}, only in one: {len(a ^ b)}. G5 {'passes' if ok else 'FAILS'}.")
+    write_gates(G5=ok)
+    with open(os.path.join(folder(), "g5.txt"), "w") as f:
+        f.write(text + "\n")
+    say(text)
+    notify.send("Saddle-sign correction\n\n" + text)
+    return ok
+
+
 def gates_pass():
     g = read_gates()
-    failed = [k for k in ("G1", "G2", "G3", "G4") if not g.get(k)]
+    failed = [k for k in GATES if not g.get(k)]
     return not failed, failed
 
 
 def load_tables():
-    """The window and shot tables with the corrected lm features swapped in (only when G1 to G4 pass)."""
+    """The window and shot tables with the corrected lm features swapped in (only when every gate passes)."""
     ok, failed = gates_pass()
     if not ok or not os.path.exists(features_path()):
-        raise RuntimeError(f"no corrected training: gates failed {failed} or --features has not run (amendment 1)")
+        raise RuntimeError(f"no corrected training: gates failed {failed} or --features has not run (amendments 1, 2)")
     windows, shots = experiment.load_tables()
     return swap(windows, pd.read_parquet(features_path())), shots
 
@@ -773,7 +947,7 @@ def train_all(say=print):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    for flag in ("sample", "relay", "check", "features", "train", "summary"):
+    for flag in ("sample", "relay", "check", "features", "g5", "train", "summary"):
         parser.add_argument(f"--{flag}", action="store_true")
     args = parser.parse_args()
     say = lambda line: print(line, flush=True)  # noqa: E731
@@ -786,12 +960,15 @@ def main():
         check(say)
     elif args.features:
         build_features(say)
+    elif args.g5:
+        if not g5(say):
+            sys.exit(1)
     elif args.train:
         train_all(say)
     elif args.summary:
         say(summary())
     else:
-        parser.error("give one of --sample, --relay, --check, --features, --train, --summary")
+        parser.error("give one of --sample, --relay, --check, --features, --g5, --train, --summary")
 
 
 if __name__ == "__main__":

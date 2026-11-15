@@ -1762,8 +1762,8 @@ requested, 10,547 with saddle data, 924 with no saddle field in the store ("no_s
   only (not confirmed)".
 - **P2, provenance reconciled**: every group's `commit_url` is
   `https://github.com/ukaea/fair-mast-ingestion/tree/ed6ea4e2a81f2317ae474f7c5421071994220948`, so the "...0948" seen
-  before and the release history's "ed6ea4e" are the same ingestion commit. 9,420 magnetics groups are marked "(dirty)"
-  (uncommitted changes in the ingestion code when they were written), 2,050 are not; summary groups the same (9,421 and
+  before and the release history's "ed6ea4e" are the same ingestion commit. 9,420 magnetics groups carry a "(dirty)" suffix
+  (its precise significance has been asked; see the amendment-2 entry), 2,050 do not; summary groups the same (9,421 and
   2,050). `ingested_at` runs from 2026-09-21 to 2026-10-05 (13 dates), wider than the release history's 23 to 29
   September. Units of the saddle field: T in every shot with data. Our cache is still described as consistent with this
   ingestion (P1 and P3 reproduce it exactly), not proven to be it.
@@ -1773,3 +1773,19 @@ requested, 10,547 with saddle data, 924 with no saddle field in the store ("no_s
 - Predetermined examples (cached lm_n1 = today's lm_raw to the printed digits in all four): 24781 (before the range)
   lm_corr = lm_raw; 24785, 27000 and 30421 lm_corr differs (27000: about 2 to 3 times larger at mid-shot; 30421: within
   about 40% at 0.128 s and a few per cent later).
+
+## 2026-11-15 - Saddle-sign protocol, amendment 2 (after the first check): structural-absence branch, G5 before training
+
+Outside review: G1/G2 failed on structurally missing data, not on observed disagreements; an explicit change of rule is
+legitimate if it does not relabel the first run. Recorded three ways: the original gates failed as implemented
+(outputs kept as `*_original`); the post-read diagnostic (477 no-saddle shots, all-NaN cached feature); the amended
+gates G1a and G2a, which accept "structural absence with matching downstream missingness" only under four conditions
+(verified absence in the read; all-NaN cached feature on its own grid; window rows rebuilt exactly with an all-NaN
+signal; has_lm 0 and the other seven lm columns NaN in the table), reported separately from numerical reproduction,
+with shot and window counts. G5 is now checked before training (identical non-lm columns and identical eligible
+pair/lead manifest from the test windows with a constant score). Not yet independently reviewed.
+Wording corrections from the review: "commit_url values carry a (dirty) suffix; its precise significance and any
+recoverable changes have been requested" (not "uncommitted changes"); the provenance denominators now separate shots
+with no magnetics group from shots whose magnetics group has no saddle field (9,420 + 2,050 = 11,470 of 11,471);
+positive corrected correlations are not an independent validation (reversing a sign reverses the correlation with an
+unchanged reference); no shot-specific sign decisions.

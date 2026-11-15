@@ -163,4 +163,41 @@ corrected.
 
 ## Changes after the first result
 
-(none yet)
+### Amendment 2 (2026-11-15, after the first check; a change of rule, not a relabelling)
+
+**What happened under the rules as written (kept unchanged):** G1 and G2 FAILED as implemented. Of the 3,426
+window-table shots from 24782 to 30473, 2,949 have saddle data and reproduce exactly (G1: 0 differ, largest relative
+difference 4.1e-13 over all 10,547 shots with data; G2: all 2,949 rebuilt exactly, largest difference 0). The other
+477 were counted as "not read". G3 and G4 passed; G5 was not assessed; no corrected model was trained. The original
+outputs are preserved as `check_original.txt`, `features_original.txt` and `gates_original.json`.
+
+**Post-read diagnostic (not a gate):** all 477 have status "no_saddle" in the read and an entirely NaN cached feature.
+The rules above did not define shots whose saddle data are absent in both the store and the cache.
+
+**The change.** G1 and G2 are replaced by G1a and G2a, which add one narrowly defined equivalence state, "structural
+absence with matching downstream missingness", reported separately from numerical reproduction of finite data. A shot
+from 24782 to 30473 is in this state only if all of:
+- (a) the read returned a verified absence: the store answered and the magnetics group is absent ("no magnetics
+  group") or present without `b_field_tor_probe_saddle_field` ("no saddle field"); a timeout, read exception, odd
+  schema or a shot missing from the read never qualifies;
+- (b) our cached `lm_n1` exists on the shot's own cached time grid and is entirely NaN;
+- (c) every window row of the shot in the window table is reproduced by rebuilding with an all-NaN `lm_n1`: same window
+  ends, and all eight lm columns with the same missingness and values (exactly);
+- (d) in the window table those eight columns carry no information: `has_lm` is 0 in every window and the other seven
+  are NaN in every window. The correction is not applied to these shots (their rows are left untouched by the swap),
+  so it introduces no finite value, placeholder, eligibility or flag change.
+No source time grid is invented for an absent signal.
+- **G1a** passes if every data-present shot reproduces as in G1 and every other shot satisfies (a) and (b).
+- **G2a** passes if every data-present shot's rebuild reproduces as in G2 and every other shot satisfies (c) and (d).
+Both are reported with shot and window counts, and the list of structurally absent shots is kept.
+
+**G5 before training.** G5 is checked before any model is trained: for splits 1 to 20 and the chronological split, the
+eligible twin-pair and landmark manifest (pair, lead) is built from the test windows with a constant score for the
+original and the corrected tables, and must be identical; every non-lm column of the corrected table must equal the
+original. It is checked again after training from the scored runs.
+
+**Order.** Training starts only if G1a, G2a, G3, G4 and G5 pass. Independent review of this amendment is requested and
+its status is reported with the results; at the time of writing it has not been independently reviewed. The geometry
+stays assumed: A_c is a polarity-corrected version of the first-harmonic saddle-array feature under an assumed
+geometry, not a validated locked-mode diagnostic. A4 (A_c is the corrected representation whatever its result) is
+unchanged.
