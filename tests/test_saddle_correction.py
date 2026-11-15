@@ -163,8 +163,10 @@ def test_compare_rebuild():
 
 def test_training_refuses_without_gates(tmp_path, monkeypatch):
     monkeypatch.setattr(sc, "folder", lambda: str(tmp_path))
-    sc.write_gates(G1=True, G2=True, G3=False, G4=True)
-    assert sc.gates_pass() == (False, ["G3"])
+    sc.write_gates(G1=False, G2=False, G1a=True, G2a=True, G3=False, G4=True, G5=True)
+    assert sc.gates_pass() == (False, ["G3"])  # the original G1/G2 failures stay recorded but no longer gate
+    sc.write_gates(G3=True, G5=False)
+    assert sc.gates_pass() == (False, ["G5"])
     with pytest.raises(RuntimeError):
         sc.load_tables()
 
@@ -197,3 +199,75 @@ def test_swap_replaces_only_lm_columns_of_corrected_shots():
     assert out["ip_abs_mean"].equals(windows["ip_abs_mean"]) and out[lm[0]].dtype == np.float32
     with pytest.raises(RuntimeError):
         sc.swap(windows, corrected.iloc[:1])
+
+
+# ------------------------------------------------------------------ amendment 2: structural absence, G5
+
+LM8 = ["has_lm", "lm_mean", "lm_std", "lm_last", "lm_slope", "lm_delta", "lm_rel", "lm_slope_long"]
+
+
+def absent_windows(n=3, t0=0.1):
+    frame = pd.DataFrame({"t_end": t0 + 0.01 * np.arange(n)})
+    for c in LM8:
+        frame[c] = np.float32(0.0) if c == "has_lm" else np.float32(np.nan)
+    return frame
+
+
+def test_absence_state_only_for_verified_absence():
+    assert sc.absence_state({"status": "no_saddle", "mag_ingested_at": "2026-09-25"}) == "no saddle field"
+    assert sc.absence_state({"status": "no_saddle", "mag_ingested_at": np.nan}) == "no magnetics group"
+    assert sc.absence_state({"status": "no_saddle"}) == "no magnetics group"
+    for bad in ({"status": "unreachable"}, {"status": "odd"}, {"status": "absent"}, {"status": "ok"}, None):
+        assert sc.absence_state(bad) is None  # a read error or a shot missing from the read never qualifies
+
+
+def test_absence_cache_must_be_all_nan_on_its_grid():
+    assert sc.absence_cache_ok(pd.DataFrame({"lm_n1": [np.nan] * 5}), 5)[0]
+    assert not sc.absence_cache_ok(pd.DataFrame({"lm_n1": [np.nan, 1e-4, np.nan, np.nan, np.nan]}), 5)[0]
+    assert not sc.absence_cache_ok(pd.DataFrame({"lm_n1": [np.nan] * 4}), 5)[0]
+    assert not sc.absence_cache_ok(None, 5)[0]
+
+
+def test_absence_windows_broken_cases_fail():
+    mine = absent_windows()
+    assert sc.absence_windows_ok(mine, mine.copy(), LM8)[0]
+    shifted = mine.assign(t_end=mine["t_end"] + 0.001)
+    assert not sc.absence_windows_ok(mine, shifted, LM8)[0]
+    assert not sc.absence_windows_ok(mine, mine.iloc[:2], LM8)[0]
+    finite = mine.copy()
+    finite.loc[1, "lm_mean"] = np.float32(2e-4)
+    assert not sc.absence_windows_ok(finite, finite.copy(), LM8)[0]  # the table itself carries an lm value
+    assert not sc.absence_windows_ok(mine, finite, LM8)[0]  # wrong NaN pattern
+    flag = mine.assign(has_lm=np.float32(1.0))
+    assert not sc.absence_windows_ok(flag, flag.copy(), LM8)[0]
+
+
+def test_absence_end_to_end_rebuild():
+    """A shot whose lm is all NaN rebuilds to has_lm 0 and NaN lm features, which the branch accepts."""
+    t = np.round(np.arange(0.0, 0.4, 0.001), 6)
+    shot = pd.DataFrame({"time": t, "ip": np.where(t > 0.02, 5e5, 0.0), "power_radiated": 1e5,
+                         "neutron_rates_total": 1e12, "power_nbi": 0.0})
+    for column in extras.COLUMNS[1:]:
+        shot[column] = np.nan
+    win = features.shot_windows(shot)
+    columns = [c for c in win.columns if features.uses_signal(c, "lm")]
+    assert sorted(columns) == sorted(LM8)
+    assert sc.absence_windows_ok(win[["t_end"] + columns], win[["t_end"] + columns].copy(), columns)[0]
+
+
+def test_non_lm_equal():
+    w = pd.DataFrame({"shot_id": [1, 2], "t_end": [0.1, 0.2], "lm_mean": np.float32([1, 2]),
+                      "ip_abs_mean": np.float32([3, np.nan]), "split": ["train", "test"]})
+    assert sc.non_lm_equal(w, w.assign(lm_mean=np.float32([5, 6])))
+    assert not sc.non_lm_equal(w, w.assign(ip_abs_mean=np.float32([3, 4])))
+    assert not sc.non_lm_equal(w, w.assign(split=["test", "test"]))
+    assert not sc.non_lm_equal(w, w.iloc[:1])
+
+
+def test_originals_are_kept_once(tmp_path, monkeypatch):
+    monkeypatch.setattr(sc, "folder", lambda: str(tmp_path))
+    (tmp_path / "check.txt").write_text("first")
+    sc.preserve_originals()
+    (tmp_path / "check.txt").write_text("second")
+    sc.preserve_originals()
+    assert (tmp_path / "check_original.txt").read_text() == "first"
