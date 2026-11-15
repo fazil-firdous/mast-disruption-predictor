@@ -1789,3 +1789,25 @@ recoverable changes have been requested" (not "uncommitted changes"); the proven
 with no magnetics group from shots whose magnetics group has no saddle field (9,420 + 2,050 = 11,470 of 11,471);
 positive corrected correlations are not an independent validation (reversing a sign reverses the correlation with an
 unchanged reference); no shot-specific sign decisions.
+
+## 2026-11-15 - Saddle-sign gates under amendment 2: all pass; corrected training started
+
+- G1 and G2 as first written: FAILED (kept, with the original outputs).
+- G1a passes: 2,949 data-present shots from 24782 to 30473 reproduce numerically, 0 differ; 477 structurally absent and
+  verified (all "magnetics group without saddle field"), 0 unverified. List kept (`structural_absence.csv`).
+- Provenance denominators: of 11,471 shots read, 10,547 have saddle data, 923 have a magnetics group without the saddle
+  field, 1 has no magnetics group (hence the 11,470 magnetics attributes; its commit_url is missing).
+- G2a passes: data present 2,949 of 2,949 shots (236,339 windows) rebuilt exactly (largest difference 0); structurally
+  absent 477 shots (31,597 windows) rebuilt with matching missingness (has_lm 0, other lm columns NaN, window ends
+  unchanged); 0 failed.
+- Corrected lm features: 2,949 shots, 236,339 windows, 1,641,720 feature values changed over the 8 columns; absent shots
+  untouched.
+- G5 passes before training: non-lm columns identical; eligible (split, pair, lead) entries 17,094 original and 17,094
+  corrected, none only in one.
+- Amendment 2 not yet independently reviewed. Geometry still assumed: A_c is the polarity-corrected first-harmonic
+  saddle-array feature under an assumed geometry.
+
+Literature: Chen et al., "FusionCLIP" (arXiv:2611.09493, 6 Nov 2026), EAST videos and 38 diagnostic signals, each kept
+at its own timestamps and sampling rate (no common grid), with a time-aware query encoder; disruption-prediction labels
+from time to disruption. Relevant to the technical note: an encoder given native observation times can use an
+outcome-associated schedule if one exists in its data. We have not examined their data and claim nothing about them.
