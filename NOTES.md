@@ -1837,3 +1837,20 @@ polarity-corrected first-harmonic saddle-array feature under an assumed coil geo
 twin-concordance advantage over the machine-side model was +0.120 (+0.047 to +0.192) over 20 splits; the correction
 changed the full model's concordance little and not resolvably (+0.001, -0.062 to +0.064). In the single chronological
 split the corresponding difference was +0.043 (-0.012 to +0.096), not resolved."
+
+## 2026-11-16 - Saddle-sign accounting (`scripts/saddle_ledger.py`, after the result; clarifications and one labelled post-hoc contrast)
+
+- Feature accounting, 2,949 corrected shots, 236,339 windows x 8 columns = 1,890,712 cells: finite values that differ
+  1,641,892; finite to missing 0; missing to finite 0; unchanged finite 236,352 (has_lm 236,339 of them, lm_std 13);
+  unchanged missing 12,468 (mostly lm_rel, 10,795). **has_lm changed in 0 windows**, as a polarity-only correction
+  should. The earlier 1,641,720 used numpy.isclose (172 cells differ by less than its default tolerance).
+- Denominators at 10 ms, A_c (same pairs for every model, G5): 2,490 pair-split rows over 20 splits (per split 105 to
+  162, median 122); 1,716 unique pairs = 1,716 unique lost shots (one twin each at this lead); 999 unique twins (a twin
+  serves several lost shots). Subgroups 1,189 + 527 = 1,716 unique lost shots. The 17,094 G5 entries are every
+  (split, pair, lead) row before the cohort filter: 21 splits (20 + chronological), leads 10, 30, 50, 100, 200 ms.
+  Rows are not independent observations: shots recur across splits and twins recur across pairs.
+- **Post-hoc secondary, labelled (asked for after the result, no new model): chronological split, paired on 844 common
+  pairs, conditional on the one fitted model of each: A_c minus L -0.040 (-0.080 to -0.003) at 10 ms; -0.018 (-0.055 to
+  +0.022) at 30 ms.** In the time-separated test, the model with the corrected lm features scored lower at 10 ms than
+  the one without them. Not a test fixed in advance; one fit each; it does not show that lm features hurt in general,
+  but it is a reason to report the chronological limitation prominently and not to present the lm family as helping.
