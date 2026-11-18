@@ -8,6 +8,7 @@ outside review AFTER the result; a diagnostic only: it changes no reading and fi
 4. The window count under I: how many slices of the 300 ms window lie in the injected last 300 ms.
 5. R2 identity: per shot, the sparse-grid points, the ages of the slices behind them, and the 36 features under U and
    under I. Where they differ, why.
+6. Time-stamp precision: whether sub-0.1 ms jitter makes U's grid points miss U's own slices, and grid-origin shifts.
 
     python scripts/schedule_injection_check.py /root/dv/var/www/html/reports/20JA/20JA72/20ja072_fig4_data/C_Mod_for_nn.mat
 
@@ -45,6 +46,13 @@ def shot_compare(gu, gi, signals):
     in_window = (ti > cut - hm.WINDOW_S + 1e-9) & (ti <= cut + 1e-9)
     injected = ti >= ti[-1] - si.DENSE_S - 1e-9
     out.update(window_i=int(in_window.sum()), window_i_injected=int((in_window & injected).sum()))
+    # grid points of U's R2 (as hm.grid_points builds them) and how far the next U slice lies after each point:
+    # a slice a hair after a grid point is missed by the 1e-9 s tolerance and the point takes the slice 50 ms older
+    g = tu[0] + si.DELTA_S * np.arange(int(np.floor((tu[-1] - sa.CUT_S - tu[0]) / si.DELTA_S + 1e-9)) + 1)
+    g = g[g > tu[-1] - sa.CUT_S - hm.WINDOW_S + 1e-9]
+    nxt = np.searchsorted(tu, g + 1e-9, side="right")
+    ahead = np.where(nxt < len(tu), tu[np.clip(nxt, 0, len(tu) - 1)] - g, np.inf)
+    out.update(near_miss=int(((ahead > 1e-9) & (ahead < 1e-4)).sum()), origin_shift=bool(tu[0] != ti[0]))
     pu, au = hm.grid_points(tu, vu, tu[-1] - sa.CUT_S, si.DELTA_S, max_age=si.DELTA_S)
     pi, ai = hm.grid_points(ti, vi, cut, si.DELTA_S, max_age=si.DELTA_S)
     out.update(points_u=len(au), points_i=len(ai), r2_same=same(hm.feature_row(pu), hm.feature_row(pi)) if len(pu) and
@@ -125,6 +133,21 @@ def run(path):
     if same_all:
         lines.append("- All identical: R2 gives the same inputs under U and I for every shot, so an AUC difference under R2 "
                      "would have to come from the fitting procedure, not from the inputs; to be explained before reading.")
+    dev = np.abs(native - 0.005)
+    lines += ["", f"6. Time-stamp precision: native steps deviate from 5 ms by median {np.median(dev) * 1e6:.3f} us, 99th "
+              f"percentile {np.percentile(dev, 99) * 1e6:.3f} us, max {dev.max() * 1e6:.3f} us; share above 1e-9 s "
+              f"{np.mean(dev > 1e-9):.1%}."]
+    if "near_miss" in d:
+        miss = d["near_miss"].fillna(0)
+        lines.append(f"- U grid points in the window with the next U slice less than 0.1 ms after them (missed by the "
+                     f"1e-9 s tolerance, so the point takes the slice 50 ms older or is empty): {int(miss.sum()):,} points "
+                     f"in {int((miss > 0).sum()):,} disrupted shots; in shots whose R2 differs: "
+                     f"{int(miss[~d['r2_same']].sum()):,} points in {int((miss[~d['r2_same']] > 0).sum()):,} shots.")
+        shift = d["origin_shift"].fillna(False).astype(bool)
+        lines.append(f"- disrupted shots whose first slice differs between U and I (the grid origin moves): "
+                     f"{int(shift.sum()):,}; of them with different R2: {int((shift & ~d['r2_same']).sum()):,}; shots with "
+                     f"different R2 that have neither a near miss nor an origin shift: "
+                     f"{int((~d['r2_same'] & ~shift & (miss == 0)).sum()):,}.")
     split = tm.our_split(t.rename(columns={"shot": "shot"}), seed=si.SEED)
     part = t["shot"].map(split)
     for p in ("train", "test"):
