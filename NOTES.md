@@ -1930,3 +1930,30 @@ shots. The kept values are the same measurements; only the schedule differs.
   step boundaries and may be affected by sub-microsecond offsets in C-Mod only.
 - The registered harmonisation code is left as it was (its outputs are kept); this entry records which of its numbers
   depend on the tolerance.
+
+## 2026-11-18 - Dependency ledger of the 1e-9 s time boundaries (after the outside review; closure of the timing note)
+
+Every reported number whose computation uses a time comparison with a 1e-9 s tolerance or an exact step boundary, and
+its status. Checked: C-Mod stored times deviate from their 5 ms steps by up to 0.124 us (median 0.005 us); EAST and
+DIII-D steps are exact multiples to within the stored precision (their R2 grid points did not change between 1e-9 and
+1e-6 s). The near-miss count used a detection bound of 0.1 ms; the offsets actually found are at most 0.124 us, so
+the misses are representation offsets of nominally aligned samples, not sub-grid arrivals.
+
+| Number | Helper / boundary | EAST, DIII-D | C-Mod |
+|---|---|---|---|
+| S1 spacing, C3, C5 (within-bin, from S1) | differences of stamps; window ends at 1e-9 s | not affected by the grid mapping; window edges checked only through S1's median | window-edge slice may flip; S1 median not expected to move (not re-run) |
+| C1 occupancy, timing-only occ | exact 5 ms step boundaries from the first slice | exact stamps | **not evaluated** (boundary implementation under correction) |
+| S2 change pattern after 5 ms fill | `change_rate`, 1e-9 s | exact stamps | **not evaluated** |
+| Timing-only predictor (occ, gap, maxgap) | as C1 for occ | exact stamps | **not evaluated** (0.613 withdrawn) |
+| Harmonisation R2 ages and residual timing | `grid_points`, 1e-9 s | unaffected by this tolerance change on the checked points (0 changed) | withdrawn (0.504) |
+| Harmonisation R1 (5 ms fill) | `grid_points`, 1e-9 s | not checked separately; exact stamps make a change unlikely, to verify | withdrawn |
+| Values-only AUCs on R1, R2 | as above | as above | withdrawn |
+| Injection R0 primary (+0.069) | window ends at 1e-9 s; no grid | - | the slice at the cut can flip in I only (at most one of 52); not re-run; stated as a limitation |
+| Injection R1, R2 | `grid_points` | - | withdrawn: implementation and origin differences prevented the intended comparison |
+| Injection timing checks | occ as C1 | - | reported, not relied on |
+| `resample_array` equivalence test | synthetic exact times | unit test, unaffected | - |
+
+Boundary semantics of `grid_points` are now documented by tests (exact tick taken; a slice 0.1 us late not available at
+its point; within 1e-9 s available; maximum-age boundary inclusive, older points empty; origin follows the first
+slice; repeated stamps take the last row). No corrected implementation is run: a larger tolerance would need a
+source/dtype justification and admits a limited look-ahead on the literal stamps.
