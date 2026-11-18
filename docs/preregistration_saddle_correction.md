@@ -201,3 +201,13 @@ its status is reported with the results; at the time of writing it has not been 
 stays assumed: A_c is a polarity-corrected version of the first-harmonic saddle-array feature under an assumed
 geometry, not a validated locked-mode diagnostic. A4 (A_c is the corrected representation whatever its result) is
 unchanged.
+
+### Amendment 3 (2026-11-18, after the corrected result; an extension, not a new test)
+
+The twin paper's registered tests use splits 21 to 50 and several of its tables use all 50 splits, all with the
+original representation A. So that those numbers can be reported with the corrected representation, A_c is trained on
+splits 21 to 50 by exactly the frozen procedure of Step 3 (same corrected features, gates, code and settings;
+`--train --confirm-splits`). No reading changes: the primary above (splits 1 to 20) stays as computed, and the
+50-split numbers are reported as the corrected counterparts of the paper's existing analyses, each labelled with its
+representation. Analyses not rerun with A_c stay labelled as original-representation results.
+
