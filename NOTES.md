@@ -1854,3 +1854,25 @@ split the corresponding difference was +0.043 (-0.012 to +0.096), not resolved."
   +0.022) at 30 ms.** In the time-separated test, the model with the corrected lm features scored lower at 10 ms than
   the one without them. Not a test fixed in advance; one fit each; it does not show that lm features hurt in general,
   but it is a reason to report the chronological limitation prominently and not to present the lm family as helping.
+
+## 2026-11-18 - Schedule injection: on identical C-Mod measurements, an EAST-like schedule raises a values-only AUC from 0.90 to 0.97 (as pre-registered, 59b1acc)
+
+`scripts/schedule_injection.py`, C_Mod_for_nn.mat (Dataverse doi:10.7910/DVN/XIOHW1 v2). 4,469 shots (935 disrupted);
+test 187 disrupted, 707 not. U = every tenth slice in every shot; I = U plus every slice in the last 300 ms of disrupted
+shots. The kept values are the same measurements; only the schedule differs.
+- Injection check: timing-only AUC under I 1.000 (1.000 to 1.000): passes. Median slices in the window, disrupted | not:
+  U 6 | 6, I 52 | 6.
+- Control check: timing-only AUC under U 0.586 (0.542 to 0.631): the range excludes 0.5, so U itself carries some timing
+  information (C-Mod's own record irregularities; the timing-only model reached 0.613 on the original C-Mod files). As
+  fixed, the primary is read relative to that control.
+- **Primary, R0: inflation AUC(I) - AUC(U) = +0.069 (+0.046 to +0.093); values-only AUC 0.901 (0.873 to 0.927) under U,
+  0.971 (0.960 to 0.980) under I.** Reading as fixed: relative to a control that itself carries some timing information,
+  a label-associated schedule of this shape, on identical measurements, raises a values-only predictor's test AUC by
+  0.069.
+- R1 5 ms forward-fill: +0.050 (+0.029 to +0.075), 0.900 to 0.950.
+- **R2, the class-independent sparse grid (50 ms, maximum age 50 ms; our approximation of the released correction):
+  +0.031 (+0.011 to +0.051), 0.879 to 0.910: reduced, not removed.**
+- Time-aware variant (values + three timing features): +0.087 (+0.064 to +0.112), 0.913 to 1.000.
+- Not claimed: what the schedule did in any published model, or in EAST or DIII-D; this is C-Mod with an imposed
+  schedule. It shows what a schedule of this shape can do to a values-only predictor on identical measurements, and that
+  a grid correction of this kind leaves part of it.
