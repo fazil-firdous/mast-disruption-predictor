@@ -1890,3 +1890,24 @@ shots. The kept values are the same measurements; only the schedule differs.
   representation and downstream performance separately. R2 is our tested transformation inspired by an inspected
   function, not a reproduction of the authors' correction. Requested diagnostic: `scripts/schedule_injection_check.py`
   (eligibility, nesting, cadence, window count, and whether R2's inputs are identical under U and I).
+
+## 2026-11-18 - Injection diagnostic: the R2 difference between U and I is an implementation artefact (time tolerance and grid origin)
+
+`scripts/schedule_injection_check.py` (diagnostic after the result, no model):
+- Eligibility: 4,510 shots; 41 left out of both conditions (40 disrupted: records too short for 2 slices under U; 1
+  non-disrupted under I). The rule is common, but the exclusions are almost all disrupted shots: to report.
+- U is nested in I in all 4,469 shots, values equal at common time stamps; same last slice in all; the first slice
+  differs in 184 (short disrupted records whose injected 300 ms reach the start, so R2's grid origin moves).
+- Native spacing is 5 ms with offsets of at most 0.124 us (median 0.005 us), but every step deviates by more than
+  1e-9 s; U is exactly every 50 ms to within that.
+- Window count under I: 52 = the window's last 260 ms inside the injected segment, at 5 ms.
+- **R2 identity: only 142 of 935 disrupted shots have identical R2 inputs under U and I. Every one of the other 793 is
+  explained: 724 by near misses (1,833 grid points whose own U slice lies less than 0.1 ms after the point, missed by
+  `grid_points`' 1e-9 s tolerance, so the point takes the slice 50 ms older or is empty) and 184 by the moved origin
+  (overlapping); none by anything else.** So the +0.031 on R2 in the injection study measures this implementation
+  detail, not what a class-independent grid leaves: it is withdrawn as a statement about the correction. R0 and R1
+  are not affected by the grid tolerance in this way (R1's 5 ms grid uses the same function and is checked next).
+- The same function built R2 (and R1) in the harmonisation study on the real EAST and DIII-D files, whose residual
+  observation-age results (EAST 0.938, DIII-D raw age 0.981) are in the technical note. Whether they are partly the same
+  artefact is checked before the note is used: `scripts/grid_tolerance_check.py` (ages at 1e-9 s and at 1e-6 s; no
+  model).
