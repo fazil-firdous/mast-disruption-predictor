@@ -35,6 +35,7 @@ from src.data import load_shot
 
 RECIPE = "saddle_corr"
 SEEDS = range(1, 21)
+CONFIRM_SEEDS = range(21, 51)  # amendment 3: the confirmation splits of the twin paper
 PRIMARY_LEAD = 10
 WORKFLOW, ARTIFACT, PARTS = "fetch_saddle.yml", "mast-saddle", 8
 N_SPREAD, N_EDGE = 20, 5
@@ -931,15 +932,23 @@ def summary(load=None):
     return out
 
 
-def train_all(say=print):
+def train_all(say=print, seeds=None):
+    """A_c on splits 1 to 20 and the chronological split; with seeds given (amendment 3: splits 21 to 50), only those,
+    by the same frozen procedure, and the primary summary is not changed."""
     tables = load_tables()
-    todo = [s for s in list(SEEDS) + [None] if not server.result_saved(os.path.join(run_dir(s), "metrics.json"))]
+    wanted = list(SEEDS) + [None] if seeds is None else list(seeds)
+    todo = [s for s in wanted if not server.result_saved(os.path.join(run_dir(s), "metrics.json"))]
     say(f"{len(todo)} runs to do")
     for i, seed in enumerate(todo, 1):
         start = time.time()
         m = run(seed, tables)
         say(f"[{i}/{len(todo)}] {'chronological' if seed is None else f'seed {seed}'}: pAUC {m['test']['pauc']:.3f}, "
             f"{(time.time() - start) / 60:.1f} min")
+    if seeds is not None:
+        msg = f"Saddle-sign correction: A_c on splits {min(wanted)} to {max(wanted)} done ({len(todo)} new runs)."
+        say(msg)
+        notify.send(msg)
+        return
     out = summary()
     say(out)
     notify.send("Saddle-sign correction: the runs are done\n\n" + out)
@@ -949,6 +958,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     for flag in ("sample", "relay", "check", "features", "g5", "train", "summary"):
         parser.add_argument(f"--{flag}", action="store_true")
+    parser.add_argument("--confirm-splits", action="store_true",
+                        help="with --train: A_c on splits 21 to 50 only (amendment 3), for the 50-split tables")
     args = parser.parse_args()
     say = lambda line: print(line, flush=True)  # noqa: E731
     if args.sample:
@@ -964,7 +975,7 @@ def main():
         if not g5(say):
             sys.exit(1)
     elif args.train:
-        train_all(say)
+        train_all(say, CONFIRM_SEEDS if args.confirm_splits else None)
     elif args.summary:
         say(summary())
     else:
