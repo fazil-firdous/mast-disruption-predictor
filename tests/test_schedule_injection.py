@@ -54,3 +54,15 @@ def test_reading():
     assert "not shown" in si.reading((0.01, -0.01, 0.03), ok_i, ok_u)
     assert "nothing is read" in si.reading((0.05, 0.02, 0.08), (0.7, 0.6, 0.8), ok_u)
     assert si.reading((0.05, 0.02, 0.08), ok_i, (0.6, 0.55, 0.65)).startswith("(relative")
+
+
+def test_check_nesting_and_r2_identity(tmp_path):
+    from scripts import schedule_injection_check as c
+    f = frame(40, seed=1)
+    path = tmp_path / "C_Mod_for_nn.mat"
+    scipy.io.savemat(path, {k: f[k].to_numpy() for k in f.columns})
+    out = c.run(str(path))
+    assert "U is a subset of I in 40 of 40 shots" in out
+    assert "non-disrupted shots with identical R2 features 30 of 30" in out
+    # exactly uniform 5 ms records: every grid point falls on a U slice, so R2 is identical in every disrupted shot
+    assert "identical 36 features under U and I: 10 of 10" in out

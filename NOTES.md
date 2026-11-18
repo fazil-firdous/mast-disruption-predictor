@@ -1876,3 +1876,17 @@ shots. The kept values are the same measurements; only the schedule differs.
 - Not claimed: what the schedule did in any published model, or in EAST or DIII-D; this is C-Mod with an imposed
   schedule. It shows what a schedule of this shape can do to a values-only predictor on identical measurements, and that
   a grid correction of this kind leaves part of it.
+- **Wording corrected after the outside review (same day):** the measurements presented to the model are NOT
+  identical: I reveals additional real observations for disrupted shots, while the source records are the same. The
+  +0.069 is the total effect of an imposed, label-dependent observation policy on this fitted pipeline ("AUC increase"
+  or "schedule-policy sensitivity", not "inflation" or pure shortcut exploitation): it does not separate direct use of
+  the schedule from fresher observations, more coverage, different weighting or more information about real dynamics.
+  U is "the sparse control policy", not a schedule-free control (its timing AUC 0.586 excludes 0.5; and an interval
+  including 0.5 would not have shown neutrality either). The single split's ranges resample the fixed test shots and
+  condition on the fitted models and the one partition; they do not cover split or training variation. The
+  recommendation "a correction should remove the gain" is withdrawn: a correction can rightly leave a difference if
+  dense observations carry real fast dynamics, and equal AUC can hide residual policy information. Instead: use
+  controlled observation-policy perturbations as stress tests, and assess timing predictiveness, the transformed
+  representation and downstream performance separately. R2 is our tested transformation inspired by an inspected
+  function, not a reproduction of the authors' correction. Requested diagnostic: `scripts/schedule_injection_check.py`
+  (eligibility, nesting, cadence, window count, and whether R2's inputs are identical under U and I).
