@@ -1863,7 +1863,7 @@ shots. The kept values are the same measurements; only the schedule differs.
 - Injection check: timing-only AUC under I 1.000 (1.000 to 1.000): passes. Median slices in the window, disrupted | not:
   U 6 | 6, I 52 | 6.
 - Control check: timing-only AUC under U 0.586 (0.542 to 0.631): the range excludes 0.5, so U itself carries some timing
-  information (C-Mod's own record irregularities; the timing-only model reached 0.613 on the original C-Mod files). As
+  information (source not identified; the timing-only model reached 0.613 on the original C-Mod files). As
   fixed, the primary is read relative to that control.
 - **Primary, R0: inflation AUC(I) - AUC(U) = +0.069 (+0.046 to +0.093); values-only AUC 0.901 (0.873 to 0.927) under U,
   0.971 (0.960 to 0.980) under I.** Reading as fixed: relative to a control that itself carries some timing information,
