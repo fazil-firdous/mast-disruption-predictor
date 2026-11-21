@@ -8,7 +8,7 @@ pairs; the only change is that the model list includes A_c ('saddle_corr').
     python scripts/paper2_corrected.py            # the 50-split tables
     python scripts/paper2_corrected.py --extra    # fixed leads over 50 splits, and the chronological split
 
-Writes RESULTS_DIR/saddle_correction/paper2_tables.txt (and .json), paper2_extra.txt. Outside every stamp.
+Writes RESULTS_DIR/saddle_correction/paper2_tables.txt (and .json), paper2_pairs.parquet, paper2_extra.txt. Outside every stamp.
 """
 import json
 import os
@@ -103,6 +103,34 @@ def deltas(main, placebo):
                          "over splits": over, "pooled": d[:3] if d else None, "pooled pairs": d[3] if d else None})
     g = {m: v3_explore.pooled_group_difference(main, m) for m in ("baseline", sc.RECIPE, "machine")}
     return rows, g
+
+
+def plan_lines(main):
+    """Plan twins and field-and-shape twins (scripts/plan_twins.py flags, fixed before any score on these pairs), with
+    A_c among the models: same-time C over splits and pooled, and A_c minus M on identical pairs."""
+    from scripts import plan_twins, programme_signals
+    path = os.path.join(programme_signals.folder(), "pairs.csv")
+    if not os.path.exists(path):
+        return [f"== Plan twins: {path} missing (run scripts/programme_signals.py)"]
+    plan = plan_twins.flags(pd.read_csv(path))
+    keyed = main.merge(plan, on=["shot_id", "other"], how="inner")
+    lines = []
+    for column, _, label in plan_twins.sets(plan):
+        part = keyed[keyed[column].astype(bool)]
+        if not len(part):
+            continue
+        table = v3_explore.c_table(part, value="win_common").set_index("recipe")
+        lines.append(f"== {label}: {part[['shot_id', 'other']].drop_duplicates().shape[0]:,} pairs (same-time statistic)")
+        for m in MODELS:
+            if m in table.index:
+                lines.append(f"  {NAMES[m]}: {v3_explore.cell(table.loc[m])}")
+        for a, b in ((sc.RECIPE, "machine"), ("baseline", "machine")):
+            per = part[part["recipe"].isin([a, b])].groupby(["recipe", "seed"])["win_common"].mean().unstack("recipe")
+            over = corrected_interval((per[a] - per[b]).dropna().to_numpy(dtype=float)) if a in per and b in per \
+                else None
+            d = v3_explore.pooled_delta(part, a, b, "win_common")
+            lines.append(f"  {NAMES[a]} minus {NAMES[b]}: {fmt(over)} | pooled {fmt(d[:3]) if d else 'n/a'}")
+    return lines
 
 
 def fmt(r):
@@ -231,7 +259,10 @@ def main():
     t, main_pairs = tables(pairs, skill, placebo)
     reg = registered(main_pairs)
     rows, group = deltas(main_pairs, placebo)
-    out = text(t, reg, rows, group)
+    out = text(t, reg, rows, group) + "\n\n" + "\n".join(plan_lines(main_pairs))
+    os.makedirs(sc.folder(), exist_ok=True)
+    pairs.to_parquet(os.path.join(sc.folder(), "paper2_pairs.parquet"), index=False)
+    placebo.to_parquet(os.path.join(sc.folder(), "paper2_placebo.parquet"), index=False)
     os.makedirs(sc.folder(), exist_ok=True)
     with open(os.path.join(sc.folder(), "paper2_tables.txt"), "w") as f:
         f.write(out + "\n")
