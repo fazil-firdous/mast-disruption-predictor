@@ -2070,3 +2070,27 @@ programme time (P) or at its own end minus h (E; detected current quench, or end
   new general idea; the contribution here is its size in a matched-programme fusion evaluation, including a
   programme-and-clock baseline, and a reproducible test. Also: the sepsis early-prediction systematic review (2021,
   PMC8193357) on case-control alignment; Sherman et al. (arXiv:1811.12520).
+
+## 2026-11-21 - Endpoint follow-up diagnostic 1: the twin's end point is mostly still flat-top; the plan-and-clock jump is tie-breaking
+
+`scripts/endpoint_diagnostic.py` (written into the protocol after the first result, before computing; descriptive).
+- **Ties explain the programme-and-time result.** Share of tied pairs, P | E: programme-and-time 83.3% | 6.1% at 10 ms
+  (82.8% | 6.7% at 100 ms); machine-side 6.5% | 0.1%; A_c 0.0% | 0.0%. At the same programme time the plan-and-clock
+  model mostly cannot tell the two discharges apart (ties count one half, hence C_P near 0.5); moved to the twin's own
+  end, it sees a different time and programme position and breaks the ties, mostly in the case's favour (C_E 0.802).
+  So its 0.802 measures that the two evaluation points differ in clock and programme position, not any reading of the
+  discharge. This is the mechanism the result is reported with.
+- **Phase from the requested programme only (90% rule):** the twin's end point is still in the programmed flat-top in
+  91% of rows at 10 ms (ramp-down 9%) and 97% at 100 ms; the case point and the twin at P are flat-top in 99%. **The
+  earlier reading ("the natural-end point is a different plasma phase, often the ramp-down") is not supported for most
+  pairs and is withdrawn**: by the programme, both points are mostly in the flat-top, the end point ~90 ms later in it.
+- Common cohort (4,898 pair-split rows at both leads; 1,407 only at 10 ms, 1,043 only at 100 ms): A_c Delta +0.121
+  (+0.061 to +0.180) at 10 ms, pooled +0.120; at 100 ms -0.102 (-0.174 to -0.029), pooled -0.099 (-0.129 to -0.070).
+  On this post-hoc intersection the 100 ms difference excludes zero over splits; on the registered cohort it did not
+  (-0.066, -0.142 to +0.011). Reported as a cohort-dependent descriptive result, not an established reversal.
+- Timing: the nominal gap E - P is the same at both leads (median 88 ms, quartiles 39 to 145), as it must be; the
+  selected windows are within 5 ms of nominal.
+- Orderings (A_c, intersection): at 10 ms the twin's score falls from P to E in 72% of rows (mean -0.123), 849 rows go
+  from twin-higher to case-higher and 256 the other way; at 100 ms the twin's score rises slightly (mean +0.055, falls
+  in 41%), 551 rows go to case-higher and 1,058 to twin-higher, while the case's own score is lower (mean 0.18 against
+  0.42 at 10 ms). The sign change comes with both the twin's change and the case's lower score at 100 ms.
