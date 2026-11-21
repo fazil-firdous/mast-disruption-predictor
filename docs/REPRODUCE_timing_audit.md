@@ -19,7 +19,7 @@ Put both zips in one folder `DATA/` and unzip them there, so that it holds the t
 ## Environment
 
 The reported numbers were computed with Python 3.12.3, numpy 2.5.4, pandas 3.0.6, scipy 1.18.1, scikit-learn 1.9.1
-(`requirements.txt` lists the packages; pin these versions to reproduce exactly). No GPU, no network after the
+(`requirements.txt` lists the packages; `requirements-lock.txt` pins the exact versions of the research server). No GPU, no network after the
 download. Each script below runs in minutes on a laptop.
 
 ## Splits
