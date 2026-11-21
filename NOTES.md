@@ -2056,3 +2056,17 @@ programme time (P) or at its own end minus h (E; detected current quench, or end
   information entered the model. It shows that an endpoint-aligned evaluation with natural-end negatives can credit a
   plan-and-clock model with discrimination it does not have against phase-matched negatives; the twin paper's
   phase-matched design avoids this.
+- **Outside review of the endpoint result (same day).** The 0.509 -> 0.802 programme-and-time result is a fair hook
+  only as a secondary next to the primary (A_c 0.752 -> 0.867, +0.115). Wording: "matched concordance", "same programme
+  time" (not "same plasma phase"), "near 0.5", and the 100 ms sign change is not an established reversal (over-split
+  range includes zero; the pooled range is a different uncertainty). The nominal gap between the two twin points is
+  t_twin_end - t_case_quench, the same at every lead for a pair, so a lead-dependence comes from where both points fall
+  in the trajectory, window selection or a changed cohort. A follow-up diagnostic was written into the protocol before
+  computing it (common cohort, timing, order transitions, phase from the requested programme only, ties;
+  `scripts/endpoint_diagnostic.py`).
+- **Prior work, closest analogue:** Do et al., "The impact of evaluation strategy on sepsis prediction model performance
+  metrics in intensive care data", J Med Internet Res 28, e72083 (2026), doi:10.2196/72083 (verified): control anchors
+  at discharge/last data against onset-matched pseudo-onsets for pretrained models. So the endpoint contrast is not a
+  new general idea; the contribution here is its size in a matched-programme fusion evaluation, including a
+  programme-and-clock baseline, and a reproducible test. Also: the sepsis early-prediction systematic review (2021,
+  PMC8193357) on case-control alignment; Sherman et al. (arXiv:1811.12520).
