@@ -64,4 +64,36 @@ weights).
 
 ## Changes after the first result
 
-(none yet)
+### Amendment 1 (2026-11-21, written AFTER the registered result had been seen; post-result sensitivities)
+
+The registered run finished and its full output was read before this amendment (NOTES.md 2026-11-21: EAST Delta
++0.003, +0.000 to +0.007, not material; DIII-D +0.009; C-Mod +0.036, material by the rule). An outside review of the
+design (received after the run had started) suggested verification items and at most two sensitivities. Everything
+below is a post-result sensitivity, not part of the confirmatory test; the registered output is kept unchanged and
+remains the result.
+
+**Verification (before any interpretation).** EAST: number of IDs in each of the release's lists; duplicates within a
+list; IDs in more than one list; listed IDs not in the fig4 file and file shots in no list; whether the lists hold shot
+numbers (all matched IDs are present as `shot` values). All machines: shots with repeated or unsorted timestamps. The
+features use only slices at or before the landmark (`at`: slices in (L - 300 ms, L]); no fill, interpolation or
+whole-record transform. Bootstrap clarification: within a resample a case enters with its multiplicity, its eligible
+controls with theirs; a sampled case with no sampled eligible control is left out of that resample's average (as the
+code already did); the share of such case draws is now reported. The model uses no validation data. The AUC line is
+"ordinary AUC, one score per shot, controls at E"; no M AUC is defined.
+
+**S1, common recorded history (no refit).** From the registered eligible pairs, keep those where the case, E and M
+each have at least 300 ms of record before their landmark (landmark minus the shot's first slice >= 300 ms); same frozen
+scores, same Delta and bootstrap. Report cases, unique controls and combinations before and after. No other cutoff.
+
+**S2, mixed-landmark training (one additional fit per machine).** Same training shots, features, algorithm and
+settings. Training cases stay at last slice - 40 ms. Each training control, with probability 1/2 (numpy
+default_rng(20261121), drawn in shot order), is moved to an M-like landmark t0_k + e, with e drawn uniformly from the
+training cases' rounded elapsed times that are eligible for that control under the registered rule (a slice in the
+300 ms before, at least 40 ms of record after); with no eligible e it stays at E (counted). One row per training shot.
+The refit is frozen and evaluated on the exact registered test pairs and landmarks: C_E, C_M, Delta with the same
+bootstrap, beside the registered model's. Report how many controls moved and how far. No other seed, proportion or
+tuning.
+
+Scope: EAST stays primary; DIII-D and C-Mod are run with the same rules and reported as descriptive (C-Mod is where the
+registered rule read "material", so leaving it out would hide the most relevant check). Reading: if the Deltas of the
+two models differ, that is dependence on the training landmark choice, not evidence about which model is better.

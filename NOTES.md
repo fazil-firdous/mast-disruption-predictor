@@ -2094,3 +2094,36 @@ programme time (P) or at its own end minus h (E; detected current quench, or end
   from twin-higher to case-higher and 256 the other way; at 100 ms the twin's score rises slightly (mean +0.055, falls
   in 41%), 551 rows go to case-higher and 1,058 to twin-higher, while the case's own score is lower (mean 0.18 against
   0.42 at 10 ms). The sign change comes with both the twin's change and the case's lower score at 100 ms.
+
+## 2026-11-21 - Endpoint module 2 (public Zhu files): no material end-versus-elapsed-time dependence on EAST (primary); C-Mod crosses the line
+
+`scripts/endpoint_zhu.py`, protocol `docs/preregistration_endpoint_zhu.md` (02b7e4e, before any statistic). Frozen
+values-only boosting trained at last slice - 40 ms; each control at its own end (E) or at the case's elapsed time since
+its first slice (M); matched concordance; bootstrap over cases and controls.
+- **Primary, EAST (release's own lists; 0 listed shots missing from the fig4 file):** 503 cases, 1,203 controls,
+  531,148 eligible combinations, no case or control lost. C_E 0.994, C_M 0.991, **Delta +0.003 (+0.000 to +0.007): no
+  material dependence shown (not shown equivalent).** The two control points are far apart (median 3.5 s), so this is
+  not two near-identical windows.
+- **But EAST is saturated by the observation process:** in the 300 ms window the cases have a median 23 slices, the
+  controls 3 at both E and M; a score equal to the slice count alone gives concordance 0.997 (E) and 0.998 (M). With
+  both arms at the ceiling, the null says little about how an unsaturated predictor would behave. Same picture on
+  DIII-D (41 vs 12 slices; slice count 0.996 and 1.000).
+- DIII-D (seeded split, descriptive): Delta +0.009 (+0.004 to +0.014): excludes 0, below 0.03, not material.
+- C-Mod (seeded split, descriptive): C_E 0.910, C_M 0.874, **Delta +0.036 (+0.025 to +0.049), material by the
+  registered rule.** Here the cadence is the same for both classes (60 slices each) and the slice count does not
+  separate them (0.332 at E, 0.475 at M), so the values carry the discrimination. The two points are close (median 35 ms
+  apart, 51% within 40 ms); the age of the last slice differs (5 ms at E, 0 at M), and C-Mod's sub-microsecond time
+  offsets make window edges uncertain by one slice (the same issue that withdrew earlier C-Mod numbers). Reported with
+  that caveat, not as a finding about C-Mod.
+- Control score E - M: mean -0.067 EAST, -0.005 DIII-D, -0.060 C-Mod, median about 0 everywhere: a minority of
+  controls score much higher at M than at their own end.
+- Outside review of the design (received while the run was going): keep the registered run; an end-trained model is a
+  fair instrument for "how sensitive is this model's reported ranking to the control window", not for "E is better" or
+  "all values-only models would do this". Suggested verification items and two sensitivities; written into the
+  protocol as amendment 1, explicitly after the result was seen (`scripts/endpoint_zhu_sensitivity.py`): S1 common
+  300 ms history (no refit), S2 mixed-landmark training (half the training controls moved to an M-like landmark, seed
+  20261121), all three machines, EAST primary.
+- Suggested wording for the MAST result (adopted): "holding the cases, twin pairs and fitted models fixed, scoring each
+  twin 10 ms before its own recorded end rather than at the case's programme time increased the corrected full model's
+  matched concordance from 0.752 to 0.867 (+0.115; +0.062 to +0.168 over splits), demonstrating sensitivity to the
+  twin-scoring landmark without identifying its cause."

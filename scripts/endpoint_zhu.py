@@ -48,14 +48,20 @@ def eligible(t, landmark):
     return bool(((t > landmark - WINDOW + TOL) & (t <= landmark + TOL)).any()) and t[-1] >= landmark + CUT - TOL
 
 
-def build(shots, split):
+def fit(shots, train, landmarks=None):
+    """The registered values-only model on the training shots, each at landmarks[shot] (default: last slice - CUT)."""
+    from sklearn.ensemble import HistGradientBoostingClassifier
+    landmarks = landmarks or {}
+    x = np.array([at(shots[s][0], shots[s][1], landmarks.get(s, shots[s][0][-1] - CUT))[0] for s in train])
+    y = np.array([shots[s][2] for s in train])
+    return HistGradientBoostingClassifier(max_iter=200, learning_rate=0.1, random_state=SEED).fit(x, y)
+
+
+def build(shots, split, model=None):
     """Frozen model and the score matrices: (case scores, control scores at E, control scores at M per (case, control)
     with NaN where ineligible), the timing-only analogues, and descriptive arrays."""
-    from sklearn.ensemble import HistGradientBoostingClassifier
-    train = [s for s in shots if split.get(s) == "train"]
-    x = np.array([at(shots[s][0], shots[s][1], shots[s][0][-1] - CUT)[0] for s in train])
-    y = np.array([shots[s][2] for s in train])
-    model = HistGradientBoostingClassifier(max_iter=200, learning_rate=0.1, random_state=SEED).fit(x, y)
+    if model is None:
+        model = fit(shots, [s for s in shots if split.get(s) == "train"])
     test = [s for s in shots if split.get(s) == "test"]
     cases = [s for s in test if shots[s][2]]
     controls = [s for s in test if not shots[s][2]]
@@ -93,7 +99,7 @@ def build(shots, split):
     col = np.searchsorted(grid_e, e_case)
     return {"s_case": s_case, "n_case": n_case, "s_end": s_end, "n_end": n_end, "age_end": age_end,
             "s_m": s_m[:, col].T, "n_m": n_m[:, col].T, "age_m": age_m[:, col].T, "sep": sep[:, col].T,
-            "cases": cases, "controls": controls, "model": model}
+            "cases": cases, "controls": controls, "model": model, "e_case": e_case}
 
 
 def win_matrix(case_vals, control_vals):
