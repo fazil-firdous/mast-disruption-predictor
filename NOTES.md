@@ -1982,3 +1982,20 @@ representation, A_c = polarity-corrected first-harmonic saddle-array feature und
   numbers by at most about 0.01 (0.014 at the 200 ms lead, 77 pairs per split). The paper's revision reports A_c as
   the full model, with A as the original representation in the correction section. The chronological limitation
   (A_c minus M +0.043, unresolved; post-hoc A_c minus L -0.040) is reported prominently.
+
+## 2026-11-21 - Twin paper, corrected part 2: fixed leads over 50 splits and the chronological split with A_c
+
+`scripts/paper2_corrected.py --extra` (saved runs only).
+- **Fixed leads, common cohort (124 pairs per split), 50 random splits, A_c minus M:** 10 ms +0.131 (+0.069 to +0.193),
+  pooled +0.133 (+0.110 to +0.156); 30 ms +0.063 (-0.010 to +0.136); **50 ms +0.066 (-0.004 to +0.137)**; 100 ms
+  +0.052 (-0.033 to +0.138). A minus M at the same leads: +0.133, +0.060, **+0.071 (+0.007 to +0.135)**, +0.047.
+  The how-early protocol's primary (full minus machine-side at 50 ms) was resolved "only just" with the original
+  representation; **with the corrected inputs it is not resolved over splits** (the pooled range, conditional on the
+  fitted models, excludes zero). The revision must say so: the 50 ms advantage is not established with A_c. Full model
+  C at 10, 30, 50, 100 ms: A_c 0.747, 0.671, 0.636, 0.583 (A 0.749, 0.668, 0.640, 0.578). Placebo for A_c at the four
+  leads 0.543, 0.547, 0.538, 0.511, each range including 0.5.
+- **Chronological split, same-time statistic (1,085 pairs, one split, conditional on the fitted model):** A_c 0.594
+  (0.550 to 0.638), A 0.627, M 0.522, programme-only 0.499. A_c minus M +0.073 (+0.007 to +0.132), resolved; same
+  heating +0.079 (-0.011 to +0.167). A_c minus A -0.032 (-0.069 to +0.006), not resolved. So on the chronological
+  split the corrected full model keeps a resolved advantage over M with the registered-style same-time statistic, while
+  at the 10 ms fixed lead it does not (+0.043, -0.012 to +0.096; NOTES 2026-11-15).
