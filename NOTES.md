@@ -2020,3 +2020,9 @@ pairs, programme-only | M | A | A_c; A_c minus M over splits | pooled:
 - Field-and-shape twins (1,424, 67): 0.501 | 0.571 | 0.673 | 0.678; +0.107 (+0.000 to +0.215, the lower end at zero
   to three decimals) | +0.115 (+0.082 to +0.149).
 The programme-only model is at chance on every plan-matched set; the corrected full model is where it is on all twins.
+
+## 2026-11-21 - Check: the identical pooled fixed-lead differences at 30 and 50 ms are a coincidence
+
+Raised by the outside review. Unrounded, on the same 2,663 pairs (12,440 rows per model): 30 ms +0.072176 (+0.050048 to
++0.096163), mean win A_c 0.672347 and M 0.606511; 50 ms +0.072359 (+0.049649 to +0.095688), A_c 0.635691 and M
+0.567765. Different values and different model means; they agree only to three decimals. No bug.
