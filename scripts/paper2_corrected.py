@@ -5,9 +5,10 @@ v3_explore/ is written. A_c = the polarity-corrected first-harmonic saddle-array
 The statistics are those of scripts/v3_explore.py and scripts/v3_runs.py, computed by their own functions on the same
 pairs; the only change is that the model list includes A_c ('saddle_corr').
 
-    python scripts/paper2_corrected.py
+    python scripts/paper2_corrected.py            # the 50-split tables
+    python scripts/paper2_corrected.py --extra    # fixed leads over 50 splits, and the chronological split
 
-Writes RESULTS_DIR/saddle_correction/paper2_tables.txt and paper2_tables.json. Outside every stamp.
+Writes RESULTS_DIR/saddle_correction/paper2_tables.txt (and .json), paper2_extra.txt. Outside every stamp.
 """
 import json
 import os
@@ -18,7 +19,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts import saddle_correction as sc, v3_explore, v3_runs
+from scripts import how_early, saddle_correction as sc, twin_differences, v3_explore, v3_runs
 from src import config, notify
 from src.stats import corrected_interval
 
@@ -144,6 +145,87 @@ def text(t, reg, rows, group):
     return "\n".join(lines)
 
 
+def fixed_leads():
+    """The fixed-lead twin test (scripts/how_early.py) over the 50 random splits, with A_c among the models."""
+    v3_explore.run_folders = folders
+    try:
+        random, _ = how_early.collect(models=["programme", "machine", "baseline", sc.RECIPE])
+    finally:
+        v3_explore.run_folders = _RUN_FOLDERS
+    main = random[(random["kind"] == "main") & random["cohort"].astype(bool)]
+    placebo = random[random["kind"] == "placebo"]
+    lines = ["== Fixed leads, common cohort, 50 random splits (both shots scored at one time before the loss)"]
+    for lead in how_early.COHORT_LEADS:
+        split = how_early.over_splits(main, lead)
+        cells = "; ".join(f"{NAMES[m]} {how_early.rng(*split[m][:3])}" for m in ("programme", "machine", "baseline",
+                                                                                  sc.RECIPE) if m in split)
+        d = how_early.split_difference(main, lead, sc.RECIPE, "machine")
+        a = how_early.split_difference(main, lead, "baseline", "machine")
+        pp = v3_explore.pooled_delta(main[main["lead_ms"] == lead], sc.RECIPE, "machine")
+        n = split.get(sc.RECIPE, (None,) * 4)[3]
+        lines.append(f"- {lead} ms ({f'{n:.0f}' if n else '?'} pairs per split): {cells}")
+        lines.append(f"    A_c minus M {fmt(d[:3]) if d else 'n/a'} (pooled {fmt(pp[:3]) if pp else 'n/a'}); "
+                     f"A minus M {fmt(a[:3]) if a else 'n/a'}")
+    for lead in how_early.COHORT_LEADS:
+        sp = how_early.over_splits(placebo, lead)
+        if sc.RECIPE in sp:
+            lines.append(f"  placebo at {lead} ms, A_c: {how_early.rng(*sp[sc.RECIPE][:3])}")
+    return lines
+
+
+def chronological(load=None):
+    """The chronological split (trained on M5-M7, tested on M8-M9), same-time statistic, one split: ranges from
+    resampling groups of pairs that share a twin (conditional on the one fitted model)."""
+    from src import extras, server
+    load = load or (lambda shot: extras.load_extras(int(shot), allow_download=False))
+    twins = pd.read_csv(v3_runs.TWINS)
+    labels = pd.read_csv(os.path.join(config.RESULTS_DIR, "auto_labels", "per_shot.csv"))
+    t_quench = labels.set_index("shot_id")["t_quench"].to_dict()
+    paths = {m: v3_explore.temporal_dir(m) for m in ("programme", "machine", "baseline")}
+    paths[sc.RECIPE] = sc.run_dir(None)
+    starts, frames, same = {}, [], None
+    for model, base in paths.items():
+        if not server.result_saved(os.path.join(base, "metrics.json")):
+            continue
+        scores = pd.read_parquet(os.path.join(base, "test_scores.parquet"))
+        ids = set(scores["shot_id"])
+        mine = twins[twins["shot_id"].isin(ids) & twins["other"].isin(ids)]
+        for shot in mine["shot_id"]:
+            if shot not in starts:
+                starts[shot] = v3_runs.flat_top_start(load(shot))
+        wins = v3_explore.pair_wins(scores, mine, t_quench, starts, leads_ms=(config.MIN_WARNING_MS,))
+        if same is None:
+            pair_ids = list(mine[["shot_id", "other"]].itertuples(index=False, name=None))
+            shots_in = {shot for pair in pair_ids for shot in pair}
+            same = v3_explore.heating(pair_ids, v3_explore.beam_power(shots_in), t_quench, starts)
+        wins["heating"] = [same.get(k, "unknown") for k in zip(wins["shot_id"], wins["other"])]
+        frames.append(wins.assign(recipe=model, seed=0))
+    frame = pd.concat(frames, ignore_index=True)
+    lines = ["== Chronological split (M5-M7 train, M8-M9 test), same-time statistic, one split"]
+    for model in paths:
+        part = frame[(frame["recipe"] == model) & frame["win_common"].notna()]
+        if len(part):
+            r = twin_differences.cluster_range(part["win_common"].to_numpy(dtype=float), part["other"].to_numpy(),
+                                               np.random.default_rng(config.RANDOM_SEED), v3_explore.N_BOOT)
+            lines.append(f"  {NAMES[model]}: {r[0]:.3f} ({r[1]:.3f} to {r[2]:.3f}), {r[3]:,} pairs")
+    for a, b in ((sc.RECIPE, "machine"), ("baseline", "machine"), (sc.RECIPE, "baseline")):
+        for label, part in (("all test twins", frame), ("same heating", frame[frame["heating"] == "same"])):
+            d = v3_explore.pooled_delta(part, a, b, "win_common")
+            lines.append(f"  {NAMES[a]} minus {NAMES[b]}, {label}: {fmt(d[:3]) if d else 'n/a'}"
+                         + (f" ({d[3]:,} pairs)" if d else ""))
+    return lines
+
+
+def extra_main():
+    lines = ["Twin paper, corrected counterparts, part 2 (amendment 3): fixed leads and the chronological split.", ""]
+    lines += fixed_leads() + [""] + chronological()
+    out = "\n".join(lines)
+    with open(os.path.join(sc.folder(), "paper2_extra.txt"), "w") as f:
+        f.write(out + "\n")
+    print(out)
+    notify.send("Twin paper, corrected part 2 is ready (paper2_extra.txt)\n\n" + out[:3300])
+
+
 def main():
     pairs, skill, placebo = collect()
     t, main_pairs = tables(pairs, skill, placebo)
@@ -161,4 +243,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    extra_main() if "--extra" in sys.argv[1:] else main()

@@ -46,3 +46,16 @@ def test_collect_swaps_the_folders_without_recursion(monkeypatch):
     assert p.collect() == "ok"
     assert sc.RECIPE in seen["folders"] and "baseline" in seen["folders"]
     assert v3_explore.run_folders is p._RUN_FOLDERS  # restored afterwards
+
+
+def test_fixed_leads_lines(monkeypatch):
+    from scripts import how_early
+    main = fake_main()
+    rows = []
+    for lead in how_early.COHORT_LEADS:
+        rows.append(main.assign(lead_ms=lead))
+    frame = pd.concat(rows, ignore_index=True).assign(kind="main", cohort=True)
+    monkeypatch.setattr(how_early, "collect", lambda models=None, **k: (frame, frame.iloc[:0]))
+    lines = p.fixed_leads()
+    assert any(line.startswith("- 10 ms") for line in lines)
+    assert any("A_c minus M +" in line for line in lines)
