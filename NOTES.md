@@ -1957,3 +1957,28 @@ Boundary semantics of `grid_points` are now documented by tests (exact tick take
 its point; within 1e-9 s available; maximum-age boundary inclusive, older points empty; origin follows the first
 slice; repeated stamps take the last row). No corrected implementation is run: a larger tolerance would need a
 source/dtype justification and admits a limited look-ahead on the literal stamps.
+
+## 2026-11-21 - Twin paper with the corrected full model A_c on all 50 splits: every registered verdict unchanged (amendment 3)
+
+`scripts/paper2_corrected.py` (saved runs only; same statistics and pairs as v3_explore and v3_runs). A = original
+representation, A_c = polarity-corrected first-harmonic saddle-array feature under an assumed geometry.
+
+- **Registered tests on the confirmation splits 21 to 50 (registered statistic):** A_c H1a, C - 0.5: +0.199 (+0.139 to
+  +0.260), one-sided p < 0.0001; H1b, C - C(M): +0.091 (+0.021 to +0.161), one-sided p 0.0064. (A: +0.201 and +0.093,
+  p 0.0039.) Both registered verdicts hold with the corrected representation.
+- 50 splits, A_c | A: registered C 0.699 | 0.697; same-time C 0.677 | 0.679; same heating 0.646 | 0.642 (55 pairs per
+  split); heating and height matched 0.617 | 0.612 (41); last shared window 0.753 | 0.757; pooled same-time 0.681 |
+  0.683 (3,349 pairs); placebo 0.562 | 0.567 (pooled 0.536 | 0.542); lead curve at 30, 50, 100, 200 ms 0.629, 0.599,
+  0.550, 0.527 | 0.630, 0.597, 0.554, 0.541; candidates 0.661 | 0.663, recorded 0.756 | 0.756; usual metrics pAUC
+  0.329 | 0.331, caught 35.3% | 35.4%.
+- **A_c minus A on identical pairs:** same-time -0.002 (-0.046 to +0.043) over splits, pooled -0.002 (-0.013 to
+  +0.009); registered +0.001 (-0.045 to +0.048), pooled +0.001 (-0.009 to +0.012); same heating +0.004. Not resolved
+  in either direction; the pooled ranges, conditional on the fitted models, are within about 0.01.
+- **A_c minus M:** same-time +0.087 (+0.014 to +0.160), pooled +0.090 (+0.064 to +0.115); same heating +0.111 (+0.007
+  to +0.215; A's was +0.106, -0.004 to +0.217, so the same-heating lead is borderline either way and is not presented
+  as a change); registered +0.096 (+0.025 to +0.166).
+- Recorded minus candidate (same-time, pooled): A_c +0.088 (+0.046 to +0.127), A +0.090, M +0.022 (unresolved).
+- Reading: on every statistic of the twin paper, the documented saddle-sign correction changes the full model's
+  numbers by at most about 0.01 (0.014 at the 200 ms lead, 77 pairs per split). The paper's revision reports A_c as
+  the full model, with A as the original representation in the correction section. The chronological limitation
+  (A_c minus M +0.043, unresolved; post-hoc A_c minus L -0.040) is reported prominently.
