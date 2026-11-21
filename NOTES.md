@@ -2008,3 +2008,15 @@ exactly (check True). D = share of triplets with |L-K1| > |K1-K2|, original -> c
 100 ms 0.516 -> 0.518; 200 ms 0.503 -> 0.504; 300 ms 0.471 -> 0.456 (412 triplets). The share with the lost shot above
 its twin at 10 ms 0.565 -> 0.580. The correction leaves the locked-mode line of the model-free comparison as it was:
 separated only close to the loss.
+
+## 2026-11-21 - Plan twins with the corrected full model (same-time statistic, 50 splits)
+
+`scripts/paper2_corrected.py` (plan flags of scripts/plan_twins.py, fixed before any score on these pairs). Tested
+pairs, programme-only | M | A | A_c; A_c minus M over splits | pooled:
+- Plan twins (1,874 tested, 88 per split): 0.503 | 0.574 | 0.673 | 0.677; +0.104 (+0.005 to +0.202) | +0.102 (+0.072
+  to +0.132).
+- Full-plan twins (1,127, 53 per split): 0.504 | 0.586 | 0.691 | 0.692; +0.106 (-0.023 to +0.236) | +0.106.
+- Field-plan twins (1,759, 83): 0.502 | 0.572 | 0.670 | 0.674; +0.102 (+0.004 to +0.200) | +0.103.
+- Field-and-shape twins (1,424, 67): 0.501 | 0.571 | 0.673 | 0.678; +0.107 (+0.000 to +0.215, the lower end at zero
+  to three decimals) | +0.115 (+0.082 to +0.149).
+The programme-only model is at chance on every plan-matched set; the corrected full model is where it is on all twins.
