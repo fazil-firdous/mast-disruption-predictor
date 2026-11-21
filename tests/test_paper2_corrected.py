@@ -59,3 +59,16 @@ def test_fixed_leads_lines(monkeypatch):
     lines = p.fixed_leads()
     assert any(line.startswith("- 10 ms") for line in lines)
     assert any("A_c minus M +" in line for line in lines)
+
+
+def test_plan_lines(monkeypatch, tmp_path):
+    from scripts import plan_twins, programme_signals
+    main = fake_main()
+    pairs = main[["shot_id", "other"]].drop_duplicates()
+    monkeypatch.setattr(programme_signals, "folder", lambda: str(tmp_path))
+    pairs.to_csv(tmp_path / "pairs.csv", index=False)
+    flags = pairs.assign(plan=pairs["shot_id"] % 2 == 0, full_plan=False)
+    monkeypatch.setattr(plan_twins, "flags", lambda compared: flags)
+    lines = p.plan_lines(main)
+    assert lines[0].startswith("== plan twins: 30 pairs")
+    assert any("full, corrected (A_c) minus machine-side" in line for line in lines)
