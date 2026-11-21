@@ -32,3 +32,17 @@ def test_registered_and_deltas():
     assert group[sc.RECIPE] is not None
     out = p.text({}, reg, rows, group)
     assert "Registered tests on the confirmation splits" in out
+
+
+def test_collect_swaps_the_folders_without_recursion(monkeypatch):
+    from scripts import v3_explore
+    seen = {}
+
+    def fake_collect():
+        seen["folders"] = v3_explore.run_folders()
+        return "ok"
+
+    monkeypatch.setattr(v3_explore, "collect", fake_collect)
+    assert p.collect() == "ok"
+    assert sc.RECIPE in seen["folders"] and "baseline" in seen["folders"]
+    assert v3_explore.run_folders is p._RUN_FOLDERS  # restored afterwards

@@ -27,8 +27,11 @@ NAMES = {"programme": "programme-only", "solenoid": "solenoid-only", "machine": 
          "baseline": "full, original (A)", sc.RECIPE: "full, corrected (A_c)"}
 
 
+_RUN_FOLDERS = v3_explore.run_folders  # the original, kept before collect() swaps it
+
+
 def folders():
-    base = v3_explore.run_folders()
+    base = _RUN_FOLDERS()
     out = {m: base[m] for m in MODELS if m in base}
     out[sc.RECIPE] = os.path.join(sc.folder(), sc.RECIPE)
     return out
@@ -36,12 +39,11 @@ def folders():
 
 def collect():
     """v3_explore.collect with A_c among the models (its run_folders swapped for this call only)."""
-    original = v3_explore.run_folders
     v3_explore.run_folders = folders
     try:
         return v3_explore.collect()
     finally:
-        v3_explore.run_folders = original
+        v3_explore.run_folders = _RUN_FOLDERS
 
 
 def tables(pairs, skill, placebo):
