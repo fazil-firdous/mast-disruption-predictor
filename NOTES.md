@@ -2127,3 +2127,19 @@ its first slice (M); matched concordance; bootstrap over cases and controls.
   twin 10 ms before its own recorded end rather than at the case's programme time increased the corrected full model's
   matched concordance from 0.752 to 0.867 (+0.115; +0.062 to +0.168 over splits), demonstrating sensitivity to the
   twin-scoring landmark without identifying its cause."
+
+## 2026-11-21 - Endpoint module 2, post-result sensitivities (amendment 1): EAST null holds; the C-Mod crossing halves with full history
+
+`scripts/endpoint_zhu_sensitivity.py` (amendment 1, written after the registered result was seen; the registered
+output stays the result).
+- Verification: EAST lists 8,530 / 1,137 / 1,706 IDs, none repeated, none in two lists, all in the fig4 file (2,974 file
+  shots are in no list and are unused); no unsorted or repeated timestamps on any machine; bootstrap case draws with no
+  eligible control 0.00% EAST, 0.80% DIII-D, 1.56% C-Mod (left out of that draw, as specified). Repeat of the
+  registered run identical on all three machines.
+- **EAST (primary):** S1 common 300 ms history (467 cases, 1,203 controls) Delta +0.001 (-0.002 to +0.003); S2
+  mixed-landmark model (3,047 of 6,016 training controls moved, median 3.45 s) Delta -0.002 (-0.004 to +0.000), its
+  ordinary AUC 0.992. The null holds under both, still at the sampling ceiling.
+- DIII-D: S1 +0.007 (+0.002 to +0.013); S2 -0.005 (-0.008 to -0.001); all below 0.03.
+- **C-Mod:** S1 (146 of 192 cases kept) Delta +0.019 (+0.010 to +0.029), below 0.03: about half of the registered
+  +0.036 comes with the pairs where a 300 ms window runs into the start of a record, so short recorded history (and the
+  changed cohort) is part of it. S2: output cut off in the Telegram message; to be read from the log.
