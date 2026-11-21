@@ -2026,3 +2026,12 @@ The programme-only model is at chance on every plan-matched set; the corrected f
 Raised by the outside review. Unrounded, on the same 2,663 pairs (12,440 rows per model): 30 ms +0.072176 (+0.050048 to
 +0.096163), mean win A_c 0.672347 and M 0.606511; 50 ms +0.072359 (+0.049649 to +0.095688), A_c 0.635691 and M
 0.567765. Different values and different model means; they agree only to three decimals. No bug.
+
+## 2026-11-21 - Held-out scores deposited on Zenodo
+
+`scripts/export_scores.py`: 23,282,591 rows, 6,485 discharges, 254 runs (five models x 50 random splits, and the
+chronological split for four), with the pair-level results, placebo pairs, twin list, README and manifest. Deposited as
+doi:10.5281/zenodo.24415182 (`export_scores.zip`, 74,824,033 bytes, MD5 2822e862e8a75b5bb9025e6b061ed561, matching
+the file on the server). Related identifiers: supplement to doi:10.5281/zenodo.24133737, supplemented by the GitHub
+repository, references doi:10.5281/zenodo.24081241. Licence to be set to CC BY-SA 4.0 (missing in the first published
+metadata).
