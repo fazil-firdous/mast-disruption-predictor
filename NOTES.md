@@ -2033,5 +2033,5 @@ Raised by the outside review. Unrounded, on the same 2,663 pairs (12,440 rows pe
 chronological split for four), with the pair-level results, placebo pairs, twin list, README and manifest. Deposited as
 doi:10.5281/zenodo.24415182 (`export_scores.zip`, 74,824,033 bytes, MD5 2822e862e8a75b5bb9025e6b061ed561, matching
 the file on the server). Related identifiers: supplement to doi:10.5281/zenodo.24133737, supplemented by the GitHub
-repository, references doi:10.5281/zenodo.24081241. Licence to be set to CC BY-SA 4.0 (missing in the first published
-metadata).
+repository, references doi:10.5281/zenodo.24081241. Licence CC BY-SA 4.0, set in a metadata edit the same day (it was missing from the first published metadata; the file
+is unchanged).
