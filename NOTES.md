@@ -1999,3 +1999,12 @@ representation, A_c = polarity-corrected first-harmonic saddle-array feature und
   heating +0.079 (-0.011 to +0.167). A_c minus A -0.032 (-0.069 to +0.006), not resolved. So on the chronological
   split the corrected full model keeps a resolved advantage over M with the registered-style same-time statistic, while
   at the 10 ms fixed lead it does not (+0.043, -0.012 to +0.096; NOTES 2026-11-15).
+
+## 2026-11-21 - Model-free twin differences, locked-mode signal with the corrected features
+
+`scripts/twin_differences_corrected.py`: same triplets and code; the original column reproduces the saved leads.csv
+exactly (check True). D = share of triplets with |L-K1| > |K1-K2|, original -> corrected: 10 ms 0.575 (0.549 to
+0.604) -> 0.582 (0.557 to 0.608), 2,230 triplets; 30 ms 0.562 -> 0.567; 50 ms 0.532 -> 0.530 (0.502 to 0.555);
+100 ms 0.516 -> 0.518; 200 ms 0.503 -> 0.504; 300 ms 0.471 -> 0.456 (412 triplets). The share with the lost shot above
+its twin at 10 ms 0.565 -> 0.580. The correction leaves the locked-mode line of the model-free comparison as it was:
+separated only close to the loss.
