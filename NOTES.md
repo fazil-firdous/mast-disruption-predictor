@@ -2035,3 +2035,24 @@ doi:10.5281/zenodo.24415182 (`export_scores.zip`, 74,824,033 bytes, MD5 2822e862
 the file on the server). Related identifiers: supplement to doi:10.5281/zenodo.24133737, supplemented by the GitHub
 repository, references doi:10.5281/zenodo.24081241. Licence CC BY-SA 4.0, set in a metadata edit the same day (it was missing from the first published metadata; the file
 is unchanged).
+
+## 2026-11-21 - Endpoint module: scoring the kept twin near its own end makes a programme-and-time model look like a predictor (as pre-registered, e5c7eb3)
+
+`scripts/endpoint_audit.py` (saved runs, 50 splits, same pairs in both arms). Case scored at t_q - h; twin at the same
+programme time (P) or at its own end minus h (E; detected current quench, or end of its last window for smooth ends).
+- **Primary, A_c at 10 ms: C_P 0.752, C_E 0.867; Delta +0.115 (+0.062 to +0.168) over splits, pooled +0.114 (+0.096 to
+  +0.133).** Reading as fixed: the matched comparison depends materially on where the negative window is taken; the
+  twin scores lower near its own end (mean twin score 0.236 at P, 0.116 at E; median 102 ms between the two points,
+  quartiles 47 to 167 ms).
+- **Programme-and-time model: C_P 0.509, C_E 0.802 at 10 ms (+0.293, +0.244 to +0.342)**; 30 ms 0.514 -> 0.741; 50 ms
+  0.510 -> 0.667. Machine-side: 0.618 -> 0.876 at 10 ms (+0.258). A model that knows only the programme and the clock
+  is at chance with phase-matched negatives and looks like a good predictor with natural-end negatives.
+- The gain shrinks with the lead and reverses at 100 ms (A_c -0.066, -0.142 to +0.011 over splits, pooled -0.063,
+  -0.087 to -0.036; programme-and-time -0.028, unresolved).
+- By the twin's ending (A_c, 10 ms): flux exhausted +0.081 (+0.019 to +0.143, 2,022 pairs), smooth end +0.204 (+0.113 to
+  +0.295, 853), programmed ramp-down -0.017 (-0.399 to +0.366, 107).
+- Interpretation, bounded as fixed: the natural-end point is a different plasma phase (often the programmed ramp-down or
+  the approach to flux exhaustion), so the difference measures sensitivity to the evaluation point, not that future
+  information entered the model. It shows that an endpoint-aligned evaluation with natural-end negatives can credit a
+  plan-and-clock model with discrimination it does not have against phase-matched negatives; the twin paper's
+  phase-matched design avoids this.
