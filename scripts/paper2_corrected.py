@@ -194,6 +194,11 @@ def fixed_leads():
         lines.append(f"- {lead} ms ({f'{n:.0f}' if n else '?'} pairs per split): {cells}")
         lines.append(f"    A_c minus M {fmt(d[:3]) if d else 'n/a'} (pooled {fmt(pp[:3]) if pp else 'n/a'}); "
                      f"A minus M {fmt(a[:3]) if a else 'n/a'}")
+        if pp:
+            part = main[(main["lead_ms"] == lead) & main["recipe"].isin([sc.RECIPE, "machine"])]
+            lines.append(f"    unrounded pooled A_c minus M {pp[0]:+.6f} ({pp[1]:+.6f} to {pp[2]:+.6f}), {pp[3]:,} pairs; "
+                         f"rows {len(part):,}, mean win A_c {part.loc[part['recipe'] == sc.RECIPE, 'win'].mean():.6f}, "
+                         f"M {part.loc[part['recipe'] == 'machine', 'win'].mean():.6f}")
     for lead in how_early.COHORT_LEADS:
         sp = how_early.over_splits(placebo, lead)
         if sc.RECIPE in sp:
