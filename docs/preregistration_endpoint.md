@@ -61,4 +61,27 @@ Delta for A_c at h = 10 ms, over the 50 splits (corrected range, as in the twin 
 
 ## Changes after the first result
 
-(none yet)
+### Follow-up diagnostic 1 (2026-11-21, after the first result; it explains nothing it was not written to check)
+
+The first result (NOTES.md 2026-11-21) showed Delta +0.115 at 10 ms and a negative point estimate at 100 ms
+(-0.066, -0.142 to +0.011 over splits; pooled -0.063). An outside review suggested one small, saved-score diagnostic,
+specified now, before it is computed. No refit, no threshold search, no tuned phase proxy.
+
+1. **Common cohort.** The pair-split rows eligible at both 10 and 100 ms; exclusions by lead; Delta at 10 and 100 ms
+   recomputed on this intersection (over splits and pooled), reported separately from the original.
+2. **Timing.** The nominal gap between the two twin points (it is the same at every lead for a pair) and the actual
+   gap between the selected window ends, by lead.
+3. **Orderings.** On the intersection, the twin's score change s_E - s_P, and the counts of pairs whose order against
+   the case changes in each direction (win to loss, loss to win, into and out of ties), by lead.
+4. **Phase from the requested programme only.** Phase of a time point from the discharge's own programmed plasma
+   current (not from any diagnostic): ramp-up before the first time it reaches 90% of its peak (the twin paper's
+   flat-top start), ramp-down after the last time it is at or above 90% of its peak, flat-top in between. Tabulated for
+   the case point, the twin at P and the twin at E, by lead. The 90% rule is the one already used for the flat-top start;
+   it is not tuned here.
+5. **Ties.** The share of tied pairs in each arm, by model (for the programme-and-time model, ties are expected where
+   the two discharges' inputs coincide).
+
+Reading: descriptive. If the phase tables differ between leads, that is reported as consistent with a phase
+difference, not as its proof; if they do not, the mechanism is left unresolved. Wording rules from the review: "same
+programme time", not "same plasma phase"; "matched concordance", not AUC; the 100 ms sign change is not called an
+established reversal.

@@ -34,6 +34,15 @@ def twin_end(t_quench, scores_of_twin):
     return float(times.max()) if len(times) else np.nan
 
 
+def latest(times, scores, t):
+    """(score, window end) of the window how_early.score_at selects at t, or (NaN, NaN)."""
+    ok = (times <= t + EPS) & (times > t - how_early.STRIDE_S - EPS)
+    if not ok.any():
+        return np.nan, np.nan
+    i = int(np.argmax(np.where(ok, times, -np.inf)))
+    return float(scores[i]), float(times[i])
+
+
 def win(a, b):
     return 1.0 if a > b else 0.5 if a == b else 0.0
 
@@ -56,13 +65,14 @@ def endpoint_wins(scores, pairs, t_quench, leads_ms=LEADS_MS):
             if np.isfinite(row.t_start) and t < row.t_start - EPS:
                 continue
             te = end - lead / 1000
-            a = how_early.score_at(*lost, t)
-            kp, ke = how_early.score_at(*kept, t), how_early.score_at(*kept, te)
+            a, sel_l = latest(*lost, t)
+            (kp, sel_p), (ke, sel_e) = latest(*kept, t), latest(*kept, te)
             if np.isfinite(a) and np.isfinite(kp) and np.isfinite(ke):
                 rows.append({"shot_id": row.shot_id, "other": row.other, "lead_ms": lead, "win_p": win(a, kp),
-                             "win_e": win(a, ke), "twin_p": kp, "twin_e": ke, "gap_s": te - t, "t_p": t, "t_e": te})
-    return pd.DataFrame(rows, columns=["shot_id", "other", "lead_ms", "win_p", "win_e", "twin_p", "twin_e", "gap_s",
-                                       "t_p", "t_e"])
+                             "win_e": win(a, ke), "case": a, "twin_p": kp, "twin_e": ke, "gap_s": te - t, "t_p": t,
+                             "t_e": te, "sel_l": sel_l, "sel_p": sel_p, "sel_e": sel_e})
+    return pd.DataFrame(rows, columns=["shot_id", "other", "lead_ms", "win_p", "win_e", "case", "twin_p", "twin_e",
+                                       "gap_s", "t_p", "t_e", "sel_l", "sel_p", "sel_e"])
 
 
 def collect(load=None):

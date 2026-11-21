@@ -2035,3 +2035,38 @@ doi:10.5281/zenodo.24415182 (`export_scores.zip`, 74,824,033 bytes, MD5 2822e862
 the file on the server). Related identifiers: supplement to doi:10.5281/zenodo.24133737, supplemented by the GitHub
 repository, references doi:10.5281/zenodo.24081241. Licence CC BY-SA 4.0, set in a metadata edit the same day (it was missing from the first published metadata; the file
 is unchanged).
+
+## 2026-11-21 - Endpoint module: scoring the kept twin near its own end makes a programme-and-time model look like a predictor (as pre-registered, e5c7eb3)
+
+`scripts/endpoint_audit.py` (saved runs, 50 splits, same pairs in both arms). Case scored at t_q - h; twin at the same
+programme time (P) or at its own end minus h (E; detected current quench, or end of its last window for smooth ends).
+- **Primary, A_c at 10 ms: C_P 0.752, C_E 0.867; Delta +0.115 (+0.062 to +0.168) over splits, pooled +0.114 (+0.096 to
+  +0.133).** Reading as fixed: the matched comparison depends materially on where the negative window is taken; the
+  twin scores lower near its own end (mean twin score 0.236 at P, 0.116 at E; median 102 ms between the two points,
+  quartiles 47 to 167 ms).
+- **Programme-and-time model: C_P 0.509, C_E 0.802 at 10 ms (+0.293, +0.244 to +0.342)**; 30 ms 0.514 -> 0.741; 50 ms
+  0.510 -> 0.667. Machine-side: 0.618 -> 0.876 at 10 ms (+0.258). A model that knows only the programme and the clock
+  is at chance with phase-matched negatives and looks like a good predictor with natural-end negatives.
+- The gain shrinks with the lead and reverses at 100 ms (A_c -0.066, -0.142 to +0.011 over splits, pooled -0.063,
+  -0.087 to -0.036; programme-and-time -0.028, unresolved).
+- By the twin's ending (A_c, 10 ms): flux exhausted +0.081 (+0.019 to +0.143, 2,022 pairs), smooth end +0.204 (+0.113 to
+  +0.295, 853), programmed ramp-down -0.017 (-0.399 to +0.366, 107).
+- Interpretation, bounded as fixed: the natural-end point is a different plasma phase (often the programmed ramp-down or
+  the approach to flux exhaustion), so the difference measures sensitivity to the evaluation point, not that future
+  information entered the model. It shows that an endpoint-aligned evaluation with natural-end negatives can credit a
+  plan-and-clock model with discrimination it does not have against phase-matched negatives; the twin paper's
+  phase-matched design avoids this.
+- **Outside review of the endpoint result (same day).** The 0.509 -> 0.802 programme-and-time result is a fair hook
+  only as a secondary next to the primary (A_c 0.752 -> 0.867, +0.115). Wording: "matched concordance", "same programme
+  time" (not "same plasma phase"), "near 0.5", and the 100 ms sign change is not an established reversal (over-split
+  range includes zero; the pooled range is a different uncertainty). The nominal gap between the two twin points is
+  t_twin_end - t_case_quench, the same at every lead for a pair, so a lead-dependence comes from where both points fall
+  in the trajectory, window selection or a changed cohort. A follow-up diagnostic was written into the protocol before
+  computing it (common cohort, timing, order transitions, phase from the requested programme only, ties;
+  `scripts/endpoint_diagnostic.py`).
+- **Prior work, closest analogue:** Do et al., "The impact of evaluation strategy on sepsis prediction model performance
+  metrics in intensive care data", J Med Internet Res 28, e72083 (2026), doi:10.2196/72083 (verified): control anchors
+  at discharge/last data against onset-matched pseudo-onsets for pretrained models. So the endpoint contrast is not a
+  new general idea; the contribution here is its size in a matched-programme fusion evaluation, including a
+  programme-and-clock baseline, and a reproducible test. Also: the sepsis early-prediction systematic review (2021,
+  PMC8193357) on case-control alignment; Sherman et al. (arXiv:1811.12520).

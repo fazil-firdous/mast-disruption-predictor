@@ -40,3 +40,27 @@ def test_summary_and_reading():
     out = ea.text(frame)
     assert "PRIMARY, A_c at 10 ms" in out and "depends materially" in out
     assert "no material" in ea.reading((0.01, -0.02, 0.04))
+
+
+def test_programme_phases_and_phase():
+    from scripts import endpoint_diagnostic as ed
+    t = np.linspace(0, 0.5, 501)
+    ref = np.interp(t, [0, 0.1, 0.4, 0.5], [0, 1.0, 1.0, 0.0])
+    t0, t1 = ed.programme_phases(t, ref)
+    assert abs(t0 - 0.09) < 0.002 and abs(t1 - 0.41) < 0.002
+    assert ed.phase(0.05, (t0, t1)) == "ramp-up" and ed.phase(0.2, (t0, t1)) == "flat-top"
+    assert ed.phase(0.45, (t0, t1)) == "ramp-down" and ed.phase(np.nan, (t0, t1)) == "unknown"
+
+
+def test_diagnostic_text_runs():
+    from scripts import endpoint_diagnostic as ed
+    rows = []
+    for seed in range(1, 6):
+        for k in range(10):
+            for lead in (10, 100):
+                rows.append({"model": sc.RECIPE, "seed": seed, "shot_id": k, "other": 100 + k, "lead_ms": lead,
+                             "win_p": 1.0, "win_e": 0.0 if lead == 10 else 1.0, "case": 0.5, "twin_p": 0.2,
+                             "twin_e": 0.6, "gap_s": 0.1, "t_p": 0.2, "t_e": 0.3, "sel_l": 0.2, "sel_p": 0.2,
+                             "sel_e": 0.3, "ending": "flux_exhausted"})
+    out = ed.text(pd.DataFrame(rows), {k: (0.1, 0.25) for k in list(range(10)) + [100 + k for k in range(10)]})
+    assert "both 50" in out and "ramp-down" in out and "transitions" in out
