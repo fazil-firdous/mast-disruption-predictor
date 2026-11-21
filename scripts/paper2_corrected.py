@@ -19,7 +19,7 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from scripts import saddle_correction as sc, v3_explore, v3_runs
-from src import config
+from src import config, notify
 from src.stats import corrected_interval
 
 MODELS = ("programme", "solenoid", "machine", "baseline", sc.RECIPE)
@@ -157,6 +157,7 @@ def main():
         json.dump({name: table.to_dict(orient="records") for name, table in t.items()} |
                   {"registered": reg.to_dict(orient="records")}, f, indent=1, default=str)
     print(out)
+    notify.send("Twin paper, corrected tables are ready (paper2_tables.txt)\n\n" + out[:3300])
 
 
 if __name__ == "__main__":
