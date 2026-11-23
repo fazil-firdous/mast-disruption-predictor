@@ -59,12 +59,12 @@ def generator_checks(shots):
     return float((kept["label"] == 1).mean()), float(np.corrcoef(t, x1)[0, 1])
 
 
-def run(seeds=SEEDS):
+def run(seeds=SEEDS, families=FAMILIES, early_stopping=False):
     out = []
-    for family in FAMILIES:
+    for family in families:
         for seed in seeds:
             shots = generate(family, seed)
-            r = au.landmark_stats(shots, **SETTINGS)
+            r = au.landmark_stats(shots, **SETTINGS, early_stopping=early_stopping)
             share, corr = generator_checks(shots)
             out.append({"family": family, "seed": seed, "gain": r["gain"][0], "low": r["gain"][1],
                         "high": r["gain"][2], "flag_gain": bool(r["flag_gain"]), "delta": r["delta"][0],
@@ -102,7 +102,26 @@ def table(frame):
     return "\n".join(lines), ok
 
 
+def investigation_1():
+    """Exploratory, after the first table: families N and P, seeds 1-20, early stopping in both learners."""
+    frame = run(families=("N", "P"), early_stopping=True)
+    lines = ["Investigation 1 (after the first table; exploratory): N and P with early stopping in both learners", "",
+             "family | gain > 0 | median gain (low, high) | decision AUC baseline, with values"]
+    for family, part in frame.groupby("family"):
+        lines.append(f"{family} | {int(part['flag_gain'].sum())}/{len(part)} | {part['gain'].median():+.5f} "
+                     f"({part['low'].median():+.5f}, {part['high'].median():+.5f}) | {part['a_base'].median():.3f}, "
+                     f"{part['a_aug'].median():.3f}")
+    out = "\n".join(lines)
+    folder = os.path.join(config.RESULTS_DIR, "toolkit")
+    frame.to_csv(os.path.join(folder, "planted_landmark_inv1.csv"), index=False)
+    with open(os.path.join(folder, "planted_landmark_inv1.txt"), "w") as f:
+        f.write(out + "\n")
+    print(out)
+
+
 def main():
+    if "--investigation-1" in sys.argv:
+        return investigation_1()
     frame = run()
     body, _ = table(frame)
     out = ("All-disruptive landmark primary, validation (docs/preregistration_landmark_mode.md). Synthetic only; a "

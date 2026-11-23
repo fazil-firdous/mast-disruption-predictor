@@ -249,7 +249,8 @@ def cluster_gain(diff, shot, n_boot=N_BOOT, seed=SEED):
     return float(diff.mean()), float(np.percentile(draws, 2.5)), float(np.percentile(draws, 97.5))
 
 
-def landmark_stats(shots, window, step, horizon, lead, tol, prog=None, n_boot=N_BOOT, resolution=None):
+def landmark_stats(shots, window, step, horizon, lead, tol, prog=None, n_boot=N_BOOT, resolution=None,
+                   early_stopping=False):
     from sklearn.ensemble import HistGradientBoostingClassifier
     rows = landmark_rows(shots, window, step, horizon, lead, resolution, prog)
     if rows.empty:
@@ -267,7 +268,9 @@ def landmark_stats(shots, window, step, horizon, lead, tol, prog=None, n_boot=N_
         return np.c_[base, np.array(frame["features"].tolist(), dtype=float)] if values else base
 
     y_tr, y_te = tr["label"].to_numpy(), te["label"].to_numpy()
-    fit = lambda x: HistGradientBoostingClassifier(max_iter=200, learning_rate=0.1, random_state=SEED).fit(x, y_tr)  # noqa: E731
+    stop = dict(early_stopping=True, validation_fraction=0.1, n_iter_no_change=10) if early_stopping else {}
+    fit = lambda x: HistGradientBoostingClassifier(max_iter=200, learning_rate=0.1, random_state=SEED,  # noqa: E731
+                                                   **stop).fit(x, y_tr)
     p_b = fit(design(tr, False)).predict_proba(design(te, False))[:, 1]
     p_a = fit(design(tr, True)).predict_proba(design(te, True))[:, 1]
     diff = (p_b - y_te) ** 2 - (p_a - y_te) ** 2
