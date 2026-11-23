@@ -145,7 +145,43 @@ def power_study(seeds=range(21, 41)):
     notify.send(out[:3400])
 
 
+def v3(seeds=range(41, 61)):
+    """docs/preregistration_landmark_v3.md: early stopping, strength 1, seeds 41-60; clock-matched reported only."""
+    rows = []
+    for family in FAMILIES:
+        for seed in seeds:
+            shots = generate(family, seed, strength=1.0)
+            r = au.landmark_stats(shots, **SETTINGS, early_stopping=True)
+            rows.append({"family": family, "seed": seed, "gain": r["gain"][0], "low": r["gain"][1], "high": r["gain"][2],
+                         "fired": bool(r["flag_gain"]), "delta": r["delta"][0], "clock_flag": bool(r["flag_clock_match"]),
+                         "a_base": r["a_base"], "a_aug": r["a_aug"], "observed": r["observed"], "mean_a": r["mean_a"]})
+        print(f"{family} done", flush=True)
+    frame = pd.DataFrame(rows)
+    lines = ["Landmark primary v3 validation (docs/preregistration_landmark_v3.md). Synthetic only.", "",
+             "family | primary fired | median gain (low, high) | decision AUC base, values | clock-matched (reported only)"]
+    ok = True
+    for family in FAMILIES:
+        part = frame[frame["family"] == family]
+        k = int(part["fired"].sum())
+        exp = family in EXPECTED_GAIN
+        passed = k >= 18 if exp else k <= 2
+        ok &= passed
+        lines.append(f"{family} | {k}/20{'*' if exp else ''}{'' if passed else ' FAIL'} | {part['gain'].median():+.5f} "
+                     f"({part['low'].median():+.5f}, {part['high'].median():+.5f}) | {part['a_base'].median():.3f}, "
+                     f"{part['a_aug'].median():.3f} | {int(part['clock_flag'].sum())}/20 ({part['delta'].median():+.3f})")
+    lines += ["", f"Validation {'PASSED' if ok else 'FAILED'} (expected >= 18/20, unexpected <= 2/20)."]
+    out = "\n".join(lines)
+    folder = os.path.join(config.RESULTS_DIR, "toolkit")
+    frame.to_csv(os.path.join(folder, "planted_landmark_v3.csv"), index=False)
+    with open(os.path.join(folder, "planted_landmark_v3.txt"), "w") as f:
+        f.write(out + "\n")
+    print(out)
+    notify.send(out[:3400])
+
+
 def main():
+    if "--v3" in sys.argv:
+        return v3()
     if "--power" in sys.argv:
         return power_study()
     if "--investigation-1" in sys.argv:
