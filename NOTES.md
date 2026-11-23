@@ -2212,3 +2212,73 @@ before the run). Synthetic only.
 - Lesson for the toolkit and for any ADITYA-U-style study: when every shot disrupts, any signal that trends with time
   is a route to the clock, and the clock is informative by construction. The clock-matched concordance, not the
   ordinary window AUC, is the number to lead with.
+
+## 2026-11-23 - Outside review of the toolkit: wording corrections, and the all-disruptive primary to change
+
+Corrections to the entries above (kept as written; these supersede their wording):
+- Mixed-mode validation: "false alarms" should read **"unexpected flags"**. Without an E shortcut the population
+  contrast is not known to be null (a duration change alters the negative windows, their history and which pairs are
+  eligible), so E may respond to a real induced contrast. The 7/160: 5 from the first table (L0 1/20, L_T 1/20, L_D
+  3/20; seeds 1-20) plus 2 from investigation 1 (L0, seeds 101-200, no overlap).
+- "SD 0.032 against half-width 0.073, the range is not too narrow" compared different things: a normal 95% half-width
+  is about 1.96 SE, so 1.96 x 0.032 = 0.063 against 0.073 means roughly calibrated, slightly wide. "Smallest
+  detectable difference" is withdrawn: a detection limit needs a power simulation for a stated effect. The toolkit now
+  prints the **bootstrap interval half-widths** (below and above) instead.
+- Endpoint module 2: the supported primary conclusion is **"little change under the tested file-relative anchor swap
+  in EAST"**. A slice-count AUC near 1 shows near-separation for that baseline, not that the values model's matched
+  concordance is at its ceiling. C-Mod wording adopted: "The exploratory C-Mod contrast was smaller in the full-history
+  subset and near zero with the mixed-landmark fit; neither sensitivity was part of the registered EAST primary." S1
+  changes the cohort, so it does not identify a short-history mechanism; S2 shows sensitivity to the training-landmark
+  recipe, not a decomposition.
+- Float fix: replaced by a clock-resolution parameter (default 0.1 us for synthetic data; for real data, the precision
+  documented by the data owner) and regression tests: exact sample membership, counts, ages and gaps on integer ticks,
+  unchanged under cumulative-sum and 1e-12 s jitter; identical timing vectors give tied scores and AUC 0.5.
+
+All-disruptive mode, reviewer's recommendation (to be written as a protocol before any change is run): the primary
+should be a **fixed-horizon landmark comparison**: on a forward grid of decision times, does adding past diagnostic
+values to a flexible elapsed-time (and programme, where known) baseline improve the prediction of an event in the next
+H ms? Paired Brier gain on held-out shots, resampling shots as clusters; calibration and alarm counts alongside.
+C_all - C_clock stays as a secondary measure of sensitivity to the comparison rule, not of leakage. Matching on
+realised duration is ruled out (it is future information and fixes the label). Validation to include a constant-hazard
+null (every shot eventually disrupts, but the next-H risk does not depend on elapsed time) with and without a
+readable drift, paired within replicate; A_W stays a registered failure. Prior work to cite: Croonen 2023 (Plasma 6:89,
+all-disruptive JET selection, split by sample), Zhong et al. 2024 (NF 64 096012, HL-2A), Shen et al. 2023
+(arXiv:2309.05361), Agarwal et al. 2026 (arXiv:2608.22515, ADITYA fixed windows from initiation), Banerjee et al.
+2026 (NF, ADITYA-U ramp-down disruptions), Keith et al. 2024 (JFE, survival analysis), van Houwelingen 2007 and Suresh
+et al. 2022 (landmarking, discrete-time models). To be checked before citing.
+
+## 2026-11-23 - Landmark primary, validation: FAILED (no power where the precursor is; negative Brier gain everywhere)
+
+`scripts/planted_leaks_landmark.py`, protocol `docs/preregistration_landmark_mode.md` (fd13323; code 0f02103; both
+before the run). Synthetic only.
+- Primary (Brier gain of values over an elapsed-time baseline, range above 0): 0/20 in all six families, including
+  P and P+D where a precursor was planted (expected 18+): FAIL. The values model ranks better there (decision AUC 0.63
+  vs 0.47) but its probabilities are worse: the gain is negative in every family (N -0.011, V -0.025), so the extra
+  12 features cost calibration even when they carry nothing.
+- Secondary clock-matched flag: N+D 1/20 (pass: a readable but uninformative clock does not trigger it); V+D 16/20
+  (expected 18: FAIL); V without any drift 14/20: under a rising hazard the contrast moves with no clock proxy. So it
+  is not a leakage detector, as the review said.
+- Generator as intended (next-30 ms share 0.133 vs analytic 0.131; drift-time correlation 0.99 / 0.94).
+- Investigation 1 specified before running: same N and P families with early stopping in both learners.
+- **Investigation 1 result** (exploratory, early stopping in both learners, N and P, seeds 1-20): N 0/20, median gain
+  -0.0049 (was -0.011): the penalty from overfitting halves; P 3/20, median gain **+0.0031** (-0.0043 to +0.0127),
+  decision AUC 0.469 -> 0.643. So overfitting was part of the failure, and the remaining problem is power: with 200
+  shots (40 test) and this weak precursor the paired Brier gain is positive but rarely resolved. A primary that cannot
+  see a planted precursor at this size cannot be used on a few hundred real shots without a stated power. Next: a
+  power study on fresh seeds before any v3 claim.
+
+## 2026-11-23 - Landmark primary, power study: it sees a moderate precursor at 200 shots, a weak one needs more than 500
+
+`scripts/planted_leaks_landmark.py --power` (specified in the protocol before running; early stopping; fresh seeds
+21-40; design study, not a validation).
+- No precursor (N): fired 0/20 at 200 and at 500 shots (median gain -0.0083 and -0.0028): conservative, the extra
+  features still cost a little.
+- Precursor strength 0.5 (values model decision AUC about 0.62-0.65): 1/20 at 200 shots, 13/20 at 500 (below 80%).
+- Strength 1 (AUC about 0.78-0.80): 20/20 at both sizes (median gain +0.026, +0.030). Strength 2 (AUC about 0.89-0.90):
+  20/20 at both.
+- Reading for the toolkit: with a few hundred shots the primary reliably detects a precursor that lifts the decision
+  AUC to about 0.78; a weak one (about 0.63) needs more than 500 shots. A "no improvement shown" on a small machine
+  must be read against this: it is not evidence of no precursor. To be printed with every all-disruptive result.
+- Still open: the registered landmark validation stays FAILED; a v3 validation with early stopping needs its own
+  protocol on seeds 41 onwards (the clock-matched secondary also failed V+D 16/20 and should be described only as a
+  sensitivity measure).

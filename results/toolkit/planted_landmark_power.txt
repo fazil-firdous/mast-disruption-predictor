@@ -1,0 +1,11 @@
+Power study (protocol, after investigation 1; design, not validation): landmark primary with early stopping, seeds 21-40
+
+shots | family | strength | fired | median gain | median decision AUC
+200 | N | 0.0 | 0/20 | -0.00831 | 0.502
+200 | P | 0.5 | 1/20 | +0.00030 | 0.621
+200 | P | 1.0 | 20/20 | +0.02610 | 0.776
+200 | P | 2.0 | 20/20 | +0.07137 | 0.891
+500 | N | 0.0 | 0/20 | -0.00282 | 0.497
+500 | P | 0.5 | 13/20 | +0.00454 | 0.652
+500 | P | 1.0 | 20/20 | +0.03046 | 0.797
+500 | P | 2.0 | 20/20 | +0.06873 | 0.902

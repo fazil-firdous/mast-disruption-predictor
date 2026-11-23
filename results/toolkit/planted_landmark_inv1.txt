@@ -1,0 +1,5 @@
+Investigation 1 (after the first table; exploratory): N and P with early stopping in both learners
+
+family | gain > 0 | median gain (low, high) | decision AUC baseline, with values
+N | 0/20 | -0.00490 (-0.01097, -0.00047) | 0.469, 0.484
+P | 3/20 | +0.00311 (-0.00427, +0.01273) | 0.469, 0.643

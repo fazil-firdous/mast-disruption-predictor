@@ -37,7 +37,7 @@ def test_mixed_mode_runs(tmp_path):
     path = tmp_path / "t.csv"
     pd.DataFrame(rows).to_csv(path, index=False)
     out = au.main([str(path)])
-    assert "Mixed mode" in out and "T  timing alone" in out and "smallest detectable" in out
+    assert "Mixed mode" in out and "T  timing alone" in out and "bootstrap interval half-widths" in out
     assert (tmp_path / "audit_report.txt").exists()
 
 
@@ -46,3 +46,35 @@ def test_demo_flags_the_clock(tmp_path, monkeypatch):
     out = au.main(["--demo"])
     assert "FLAG: the window label can largely be read off the clock" in out
     assert "FLAG: part of the discrimination is the clock" in out
+
+
+def _shots(times_list):
+    return {i: (t, np.zeros((len(t), 2)), True, float(t[-1])) for i, t in enumerate(times_list)}
+
+
+def test_float_regression_membership_and_features_exact():
+    """Integer ticks of 1 ms, landmarks on the tick grid: exact sample membership, count, age and gap, also when the
+    stored times carry sub-tick representation errors (cumulative sums, tiny jitter)."""
+    exact = np.round(np.arange(0, 200) * 0.001, 6)
+    cumsum = np.cumsum(np.r_[0.0, np.full(199, 0.001)])  # accumulates float error
+    jitter = exact + np.random.default_rng(0).uniform(-1e-12, 1e-12, 200)
+    rows = {k: au.windows(_shots([t]), 0.020, 0.005, 0.030, 0.002) for k, t in
+            (("exact", exact), ("cumsum", cumsum), ("jitter", jitter))}
+    base = rows["exact"]
+    for t in (exact,):
+        for landmark, timing in zip(base["landmark"], base["timing"]):
+            idx = np.where((t > landmark - 0.020 + 1e-9) & (t <= landmark + 1e-9))[0]
+            assert len(idx) == 20 and idx[-1] == int(round(landmark / 0.001))
+            assert timing == [20, 0.0, 0.001]
+    for k in ("cumsum", "jitter"):
+        assert rows[k]["timing"].tolist() == base["timing"].tolist()
+        assert np.allclose(np.array(rows[k]["landmark"]), np.array(base["landmark"]))
+
+
+def test_identical_timing_vectors_give_tied_scores():
+    x_tr = np.tile([20, 0.0, 0.001], (50, 1))
+    y_tr = np.r_[np.ones(10), np.zeros(40)].astype(bool)
+    s = au.logistic_scores(x_tr, y_tr, np.tile([20, 0.0, 0.001], (30, 1)))
+    assert np.ptp(s) == 0
+    from scripts import sampling_audit as sa
+    assert sa.auc(s, np.r_[np.ones(10), np.zeros(20)].astype(bool)) == 0.5

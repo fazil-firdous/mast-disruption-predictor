@@ -1,0 +1,14 @@
+All-disruptive landmark primary, validation (docs/preregistration_landmark_mode.md). Synthetic only; a software validation, not evidence about any machine.
+
+Fire counts out of 20; * = expected to fire; (median statistic)
+
+family | primary: Brier gain > 0 | secondary: clock-matched flag | elapsed-time AUC | next-30 ms share | drift corr
+N | 0/20 (-0.01085) | 1/20 (+0.000) reported only | 0.518 | 0.133 | -0.00
+N+D | 0/20 (-0.01262) | 1/20 (+0.005) | 0.518 | 0.133 | 0.99
+V | 0/20 (-0.02516) | 14/20 (+0.062) reported only | 0.643 | 0.187 | -0.01
+V+D | 0/20 (-0.02512) | 16/20* (+0.074) FAIL | 0.643 | 0.187 | 0.94
+P | 0/20* (-0.00222) FAIL | 0/20 (+0.001) reported only | 0.518 | 0.133 | -0.00
+P+D | 0/20* (-0.00341) FAIL | 0/20 (-0.006) reported only | 0.518 | 0.133 | 0.99
+
+Analytic next-window share under constant hazard (events 2-30 ms ahead): 0.131
+Validation FAILED (expected in >= 18/20, unexpected in <= 2/20).
