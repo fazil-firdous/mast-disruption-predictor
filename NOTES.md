@@ -2178,3 +2178,22 @@ history): a model that has also seen mid-record negative windows shows no depend
 end-versus-elapsed-time dependence on EAST (primary) under the registered run and both sensitivities; the one crossing
 (C-Mod) goes away under both sensitivities. Reported as dependence on the training landmark choice, not as evidence
 that either model is better.
+
+## 2026-11-23 - Audit toolkit, first one-command version (`scripts/audit.py`)
+
+Built after a conversation with an ADITYA-U researcher: on ADITYA-U and SST-1 every shot ends in a disruption (no
+controlled ramp-down), disruption details come from a hand-edited logbook, and the data have missing, noisy and
+uncalibrated signals. On such machines the task is "when", and the usual set-up (last tens of ms positive, earlier
+windows negative) lets a model learn "the shot is about to end" instead of a precursor.
+- Mixed mode: T, D, E as validated on planted leaks, with E's smallest detectable difference printed.
+- All-disruptive mode: clock-only AUC, sampling-only AUC, and a clock-matched concordance: each positive window against
+  negative windows of other shots within 10 ms of the same elapsed time; Delta = C_all - C_clock, bootstrap over shots.
+- Demo (synthetic, 150 all-disruptive shots of 180-240 ms, weak precursor on one signal, a slow drift on another): the
+  values model's ordinary window AUC is 0.906, but the clock alone gives 0.963 and, against clock-matched negatives,
+  the model's concordance falls from 0.905 to 0.629 (Delta +0.276, +0.189 to +0.374): most of its apparent skill is the
+  clock read through the drifting signal. This is the failure mode the mode is built to show.
+- Found while building it: with constant timing features (uniform sampling), floating-point noise of order 1e-17 s in
+  "age of the last slice" was standardised into a usable signal (sampling-only AUC 0.749 on data where it must be
+  0.5). Timing features are now rounded to 0.1 us. The registered planted-leak run was not affected (T stayed at
+  0.46-0.49 on every family without a sampling shortcut).
+- Next: a planted-leak protocol for the all-disruptive mode before it is used on any real data.
