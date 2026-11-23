@@ -43,7 +43,8 @@ def load(path):
     missing = {"shot", "time"} - set(frame.columns)
     if missing:
         sys.exit(f"missing column(s): {', '.join(sorted(missing))}")
-    signals = [c for c in frame.columns if c not in RESERVED and pd.api.types.is_numeric_dtype(frame[c])]
+    signals = [c for c in frame.columns if c not in RESERVED and not c.startswith("prog_")
+               and pd.api.types.is_numeric_dtype(frame[c])]
     if not signals:
         sys.exit("no numeric signal columns")
     return frame, signals
@@ -213,6 +214,97 @@ def all_disruptive(shots, window, step, horizon, lead, tol):
             "  (all-disruptive mode is not yet validated on planted leaks; read it as a screen, not a verdict)"]
 
 
+# ---------------------------------------------------------------- all-disruptive mode v2 (landmark primary)
+
+
+def landmark_rows(shots, window, step, horizon, lead, resolution=None, prog=None):
+    """Forward decision grid (docs/preregistration_landmark_mode.md). One row per decision before the event:
+    shot, elapsed, label (1 positive, 0 negative, -1 too late), value features, timing features, programme."""
+    rows = []
+    prog = prog or {}
+    for shot, (t, v, _, td) in shots.items():
+        for landmark in np.arange(t[0] + window, td - 1e-9, step):
+            keep = (t > landmark - window + 1e-9) & (t <= landmark + 1e-9)
+            n = int(keep.sum())
+            if not n:
+                continue
+            to_go = td - landmark
+            label = -1 if to_go <= lead + 1e-9 else 1 if to_go <= horizon + 1e-9 else 0
+            rows.append({"shot": shot, "elapsed": landmark - t[0], "label": label,
+                         "features": hm.feature_row(v[keep]), "prog": list(prog.get(shot, [])),
+                         "timing": [n, quantise(landmark - t[keep][-1], resolution),
+                                    quantise(tm.max_gap(t, landmark, span=window), resolution)]})
+    return pd.DataFrame(rows)
+
+
+def cluster_gain(diff, shot, n_boot=N_BOOT, seed=SEED):
+    """Mean of diff with a 95% range from resampling shots as clusters (equal weight per decision)."""
+    ids, codes = np.unique(shot, return_inverse=True)
+    sums, counts = np.bincount(codes, weights=diff, minlength=len(ids)), np.bincount(codes, minlength=len(ids))
+    rng = np.random.default_rng(seed)
+    draws = []
+    for _ in range(n_boot):
+        w = np.bincount(rng.integers(0, len(ids), len(ids)), minlength=len(ids))
+        draws.append(float(w @ sums / (w @ counts)))
+    return float(diff.mean()), float(np.percentile(draws, 2.5)), float(np.percentile(draws, 97.5))
+
+
+def landmark_stats(shots, window, step, horizon, lead, tol, prog=None, n_boot=N_BOOT, resolution=None):
+    from sklearn.ensemble import HistGradientBoostingClassifier
+    rows = landmark_rows(shots, window, step, horizon, lead, resolution, prog)
+    if rows.empty:
+        return None
+    n_late = int((rows["label"] == -1).sum())
+    rows = rows[rows["label"] >= 0]
+    if rows["label"].nunique() < 2:
+        return None
+    split = split_by_shot(list(shots), [True] * len(shots))
+    part = rows["shot"].map(split)
+    tr, te = rows[part == "train"], rows[part == "test"]
+
+    def design(frame, values):
+        base = np.c_[frame["elapsed"].to_numpy(dtype=float), np.array(frame["prog"].tolist(), dtype=float).reshape(len(frame), -1)]
+        return np.c_[base, np.array(frame["features"].tolist(), dtype=float)] if values else base
+
+    y_tr, y_te = tr["label"].to_numpy(), te["label"].to_numpy()
+    fit = lambda x: HistGradientBoostingClassifier(max_iter=200, learning_rate=0.1, random_state=SEED).fit(x, y_tr)  # noqa: E731
+    p_b = fit(design(tr, False)).predict_proba(design(te, False))[:, 1]
+    p_a = fit(design(tr, True)).predict_proba(design(te, True))[:, 1]
+    diff = (p_b - y_te) ** 2 - (p_a - y_te) ** 2
+    gain = cluster_gain(diff, te["shot"].to_numpy(), n_boot=n_boot)
+    s_time = logistic_scores(np.array(tr["timing"].tolist(), dtype=float), y_tr, np.array(te["timing"].tolist(), dtype=float))
+    c_all, c_clock, d, matched, n_neg = matched_concordance(p_a, y_te.astype(bool), te["shot"].to_numpy(),
+                                                             te["elapsed"].to_numpy(), tol, n_boot=n_boot)
+    return {"gain": gain, "flag_gain": gain[1] > 0, "brier_b": float(np.mean((p_b - y_te) ** 2)),
+            "brier_a": float(np.mean((p_a - y_te) ** 2)), "mean_b": float(p_b.mean()), "mean_a": float(p_a.mean()),
+            "observed": float(y_te.mean()), "n_dec": len(te), "n_pos": int(y_te.sum()), "n_late": n_late,
+            "n_test_shots": te["shot"].nunique(), "a_clock": sa.auc(te["elapsed"].to_numpy(dtype=float), y_te),
+            "a_time": sa.auc(s_time, y_te), "a_aug": sa.auc(p_a, y_te), "a_base": sa.auc(p_b, y_te),
+            "c_all": c_all, "c_clock": c_clock, "delta": d, "matched": matched,
+            "flag_clock_match": abs(d[0]) >= WORTH and (d[1] > 0 or d[2] < 0),
+            "has_prog": bool(len(rows["prog"].iloc[0]))}
+
+
+def landmark_text(r, window, step, horizon, lead, tol):
+    if r is None:
+        return ["Landmark analysis: not evaluable (no decisions, or decisions of one kind only)."]
+    g, d = r["gain"], r["delta"]
+    base = "elapsed time" + (" + programme columns" if r["has_prog"] else " only (no programme columns given)")
+    return [f"PRIMARY, fixed-horizon landmark comparison: decisions every {step * 1e3:.0f} ms from {window * 1e3:.0f} ms "
+            f"after the first slice; positive = event in the next {lead * 1e3:.0f}-{horizon * 1e3:.0f} ms. Test: "
+            f"{r['n_test_shots']} shots, {r['n_dec']:,} decisions ({r['n_pos']:,} positive); too-late decisions left out "
+            f"(all shots) {r['n_late']:,}.",
+            f"  baseline: {base}. Brier baseline {r['brier_b']:.5f}, with diagnostic values {r['brier_a']:.5f}; "
+            f"gain {g[0]:+.5f} ({g[1]:+.5f} to {g[2]:+.5f}, shots resampled) -> "
+            f"{'the diagnostic values improve the next-' + format(horizon * 1e3, '.0f') + ' ms risk beyond the baseline' if r['flag_gain'] else 'no improvement shown (not shown absent)'}",
+            f"  calibration in the large: observed {r['observed']:.4f}; mean predicted baseline {r['mean_b']:.4f}, "
+            f"with values {r['mean_a']:.4f}",
+            f"  secondary: decision AUC baseline {r['a_base']:.3f}, with values {r['a_aug']:.3f}; elapsed time alone "
+            f"{r['a_clock']:.3f}; sampling alone {r['a_time']:.3f}; clock-matched C_all {r['c_all']:.3f}, C_clock "
+            f"{r['c_clock']:.3f}, Delta {d[0]:+.3f} ({d[1]:+.3f} to {d[2]:+.3f}) (sensitivity to the comparison rule, "
+            f"not a leakage measure)"]
+
+
 # ---------------------------------------------------------------- demo data
 
 
@@ -258,8 +350,10 @@ def main(argv=None):
     head = [f"Audit of {a.path or 'demo data'}: {len(shots):,} shots, {len(signals)} signals "
             f"({', '.join(signals[:8])}{', ...' if len(signals) > 8 else ''})."]
     if a.all_disrupt:
-        body = all_disruptive(shots, a.window_ms / 1e3, a.step_ms / 1e3, a.horizon_ms / 1e3, a.lead_ms / 1e3,
-                              a.tolerance_ms / 1e3)
+        prog_cols = [c for c in frame.columns if c.startswith("prog_")]
+        prog = frame.groupby("shot")[prog_cols].first().apply(list, axis=1).to_dict() if prog_cols else None
+        args = (a.window_ms / 1e3, a.step_ms / 1e3, a.horizon_ms / 1e3, a.lead_ms / 1e3, a.tolerance_ms / 1e3)
+        body = landmark_text(landmark_stats(shots, *args, prog=prog), *args) + [""] + all_disruptive(shots, *args)
     else:
         body = mixed(shots)
     out = "\n".join(head + body)

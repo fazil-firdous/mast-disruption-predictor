@@ -1,0 +1,120 @@
+"""Validation of the all-disruptive landmark primary (docs/preregistration_landmark_mode.md, fixed before any code):
+constant- and time-varying-hazard synthetic shots, each family with and without a readable drift built from the same
+random draws. Needs no data.
+
+    python scripts/planted_leaks_landmark.py
+
+Writes RESULTS_DIR/toolkit/planted_landmark.txt and .csv. Outside every stamp.
+"""
+import os
+import sys
+
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from scripts import audit as au, planted_leaks as pl
+from src import config, notify
+
+N_SHOTS, N_SIG, TICK, BURN = 200, 4, 0.001, 20
+P_CONST = 0.005
+FAMILIES = ("N", "N+D", "V", "V+D", "P", "P+D")
+SETTINGS = dict(window=0.020, step=0.005, horizon=0.030, lead=0.002, tol=0.010)
+EXPECTED_GAIN = {"P", "P+D"}
+CLOCK_RULE = {"N+D": False, "V+D": True}  # the secondary expectations; others reported only
+SEEDS = range(1, 21)
+
+
+def hazard(family, k):
+    t = k * TICK
+    return 0.002 * (1 + t / 0.05) if family.startswith("V") else P_CONST
+
+
+def generate(family, seed):
+    """{shot: (t, values, True, t_event)}; the drift is added after all random draws, so X and X+D share them."""
+    base = family.replace("+D", "")
+    rng = np.random.default_rng(seed)
+    shots = {}
+    for i in range(N_SHOTS):
+        k = BURN
+        while rng.random() >= hazard(base, k):
+            k += 1
+        t = np.round(np.arange(k + 1) * TICK, 6)
+        x = pl.ar1(rng, len(t))[:, :N_SIG]
+        if base == "P":
+            x[:, 0] += 0.5 * np.clip(1 - (t[-1] - t) / 0.030, 0, None)
+        if family.endswith("+D"):
+            x[:, 1] += 10.0 * t
+        shots[90000 + i] = (t, x, True, float(t[-1]))
+    return shots
+
+
+def generator_checks(shots):
+    """(next-30 ms positive share over the decision grid, correlation of signal 1 with elapsed time)."""
+    rows = au.landmark_rows(shots, **{k: v for k, v in SETTINGS.items() if k != "tol"})
+    kept = rows[rows["label"] >= 0]
+    t = np.concatenate([v[0] for v in shots.values()])
+    x1 = np.concatenate([v[1][:, 1] for v in shots.values()])
+    return float((kept["label"] == 1).mean()), float(np.corrcoef(t, x1)[0, 1])
+
+
+def run(seeds=SEEDS):
+    out = []
+    for family in FAMILIES:
+        for seed in seeds:
+            shots = generate(family, seed)
+            r = au.landmark_stats(shots, **SETTINGS)
+            share, corr = generator_checks(shots)
+            out.append({"family": family, "seed": seed, "gain": r["gain"][0], "low": r["gain"][1],
+                        "high": r["gain"][2], "flag_gain": bool(r["flag_gain"]), "delta": r["delta"][0],
+                        "flag_clock_match": bool(r["flag_clock_match"]), "a_clock": r["a_clock"],
+                        "a_base": r["a_base"], "a_aug": r["a_aug"], "pos_share": share, "drift_corr": corr,
+                        "n_dec": r["n_dec"]})
+            print(f"{family} seed {seed} done", flush=True)
+    return pd.DataFrame(out)
+
+
+def table(frame):
+    n = frame["seed"].nunique()
+    analytic = 1 - (1 - P_CONST) ** 28  # events in (L + 2 ms, L + 30 ms]: 28 ticks
+    lines = [f"Fire counts out of {n}; * = expected to fire; (median statistic)", "",
+             "family | primary: Brier gain > 0 | secondary: clock-matched flag | elapsed-time AUC | "
+             "next-30 ms share | drift corr"]
+    ok = True
+    for family in FAMILIES:
+        part = frame[frame["family"] == family]
+        g = int(part["flag_gain"].sum())
+        exp = family in EXPECTED_GAIN
+        g_ok = g >= 18 * n / 20 if exp else g <= 2 * n / 20
+        c = int(part["flag_clock_match"].sum())
+        if family in CLOCK_RULE:
+            c_ok = c >= 18 * n / 20 if CLOCK_RULE[family] else c <= 2 * n / 20
+            c_cell = f"{c}/{n}{'*' if CLOCK_RULE[family] else ''} ({part['delta'].median():+.3f}){'' if c_ok else ' FAIL'}"
+        else:
+            c_ok, c_cell = True, f"{c}/{n} ({part['delta'].median():+.3f}) reported only"
+        ok &= g_ok and c_ok
+        lines.append(f"{family} | {g}/{n}{'*' if exp else ''} ({part['gain'].median():+.5f}){'' if g_ok else ' FAIL'} | "
+                     f"{c_cell} | {part['a_clock'].median():.3f} | {part['pos_share'].median():.3f} | "
+                     f"{part['drift_corr'].median():.2f}")
+    lines += ["", f"Analytic next-window share under constant hazard (events 2-30 ms ahead): {analytic:.3f}",
+              f"Validation {'PASSED' if ok else 'FAILED'} (expected in >= 18/20, unexpected in <= 2/20)."]
+    return "\n".join(lines), ok
+
+
+def main():
+    frame = run()
+    body, _ = table(frame)
+    out = ("All-disruptive landmark primary, validation (docs/preregistration_landmark_mode.md). Synthetic only; a "
+           "software validation, not evidence about any machine.\n\n" + body)
+    folder = os.path.join(config.RESULTS_DIR, "toolkit")
+    os.makedirs(folder, exist_ok=True)
+    frame.to_csv(os.path.join(folder, "planted_landmark.csv"), index=False)
+    with open(os.path.join(folder, "planted_landmark.txt"), "w") as f:
+        f.write(out + "\n")
+    print(out)
+    notify.send(out[:3400])
+
+
+if __name__ == "__main__":
+    main()
