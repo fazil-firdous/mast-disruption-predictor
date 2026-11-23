@@ -1,0 +1,11 @@
+Planted-leak validation (docs/preregistration_planted_leaks.md). Synthetic records only; a software validation, not evidence about any machine.
+Strength s chosen on L0 seed 0 before any check: s=0.25: AUC 0.573, s=0.5: AUC 0.744, s=1.0: AUC 0.945, s=2.0: AUC 1.000 -> s = 0.5 (none in 0.75-0.90; closest used)
+Fire counts out of 20 (median statistic: AUC for T and D, Delta for E); * = expected to fire
+
+family | T | D | E
+L0 | 0/20 (0.493) | 0/20 (0.492) | 1/20 (0.015)
+L_T | 20/20* (1.000) | 0/20 (0.492) | 1/20 (0.005)
+L_D | 0/20 (0.464) | 20/20* (1.000) | 3/20 (-0.005) FAIL
+L_E | 0/20 (0.493) | 0/20 (0.492) | 20/20* (0.134)
+
+Validation FAILED (expected flags in >= 18/20, unexpected in <= 2/20).
