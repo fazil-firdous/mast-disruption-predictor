@@ -161,11 +161,12 @@ def matched_concordance(score, positive, shot, elapsed, tol, n_boot=N_BOOT, seed
     return point["all"], point["clock"], delta, matched, len(ni)
 
 
-def all_disruptive(shots, window, step, horizon, lead, tol):
+def all_disruptive_stats(shots, window, step, horizon, lead, tol, n_boot=N_BOOT):
+    """The numbers behind the all-disruptive report, or None if not evaluable."""
     from sklearn.ensemble import HistGradientBoostingClassifier
     w = windows(shots, window, step, horizon, lead)
     if w.empty or w["positive"].all() or not w["positive"].any():
-        return ["All-disruptive mode: not evaluable (no windows, or windows of only one kind)."]
+        return None
     split = split_by_shot(list(shots), [True] * len(shots))
     part = w["shot"].map(split)
     tr, te = w[part == "train"], w[part == "test"]
@@ -175,23 +176,32 @@ def all_disruptive(shots, window, step, horizon, lead, tol):
     s_val = model.predict_proba(x_te)[:, 1]
     s_clock = logistic_scores(tr[["elapsed"]].to_numpy(), y_tr, te[["elapsed"]].to_numpy())
     s_time = logistic_scores(np.array(tr["timing"].tolist(), dtype=float), y_tr, np.array(te["timing"].tolist(), dtype=float))
-    a_val, a_clock, a_time = (sa.auc(s, y_te) for s in (s_val, s_clock, s_time))
     c_all, c_clock, d, matched, n_neg = matched_concordance(s_val, y_te, te["shot"].to_numpy(), te["elapsed"].to_numpy(),
-                                                             tol)
-    flag_d = abs(d[0]) >= WORTH and (d[1] > 0 or d[2] < 0)
-    n_te = te["shot"].nunique()
-    return [f"All-disruptive mode: {len(shots)} shots ({n_te} test); windows of {window * 1e3:.0f} ms every "
+                                                             tol, n_boot=n_boot)
+    return {"a_val": sa.auc(s_val, y_te), "a_clock": sa.auc(s_clock, y_te), "a_time": sa.auc(s_time, y_te),
+            "c_all": c_all, "c_clock": c_clock, "delta": d, "matched": matched, "n_neg": n_neg,
+            "n_test_shots": te["shot"].nunique(), "n_test": len(te), "n_pos": int(y_te.sum()),
+            "flag_time": sa.auc(s_time, y_te) >= AUC_LINE,
+            "flag_clock_match": abs(d[0]) >= WORTH and (d[1] > 0 or d[2] < 0)}
+
+
+def all_disruptive(shots, window, step, horizon, lead, tol):
+    r = all_disruptive_stats(shots, window, step, horizon, lead, tol)
+    if r is None:
+        return ["All-disruptive mode: not evaluable (no windows, or windows of only one kind)."]
+    d = r["delta"]
+    return [f"All-disruptive mode: {len(shots)} shots ({r['n_test_shots']} test); windows of {window * 1e3:.0f} ms every "
             f"{step * 1e3:.0f} ms; positive = ending within {horizon * 1e3:.0f} ms of the disruption (and at least "
-            f"{lead * 1e3:.0f} ms before it); test windows {len(te):,} ({int(y_te.sum()):,} positive).",
-            f"  values-only model, ordinary window AUC: {a_val:.3f}",
-            f"  clock alone (elapsed time since the first slice): AUC {a_clock:.3f} -> "
-            f"{'FLAG: the window label can largely be read off the clock' if a_clock >= AUC_LINE else 'no flag'}",
-            f"  sampling alone (slices, age, gap in the window): AUC {a_time:.3f} -> "
-            f"{'FLAG: the recording schedule alone separates near-disruption windows' if a_time >= AUC_LINE else 'no flag'}",
+            f"{lead * 1e3:.0f} ms before it); test windows {r['n_test']:,} ({r['n_pos']:,} positive).",
+            f"  values-only model, ordinary window AUC: {r['a_val']:.3f}",
+            f"  clock alone (elapsed time since the first slice): AUC {r['a_clock']:.3f} -> "
+            f"{'FLAG: the window label can largely be read off the clock' if r['a_clock'] >= AUC_LINE else 'no flag'}",
+            f"  sampling alone (slices, age, gap in the window): AUC {r['a_time']:.3f} -> "
+            f"{'FLAG: the recording schedule alone separates near-disruption windows' if r['flag_time'] else 'no flag'}",
             f"  clock-matched concordance (negatives of other shots within {tol * 1e3:.0f} ms of the same elapsed time): "
-            f"C_all {c_all:.3f}, C_clock {c_clock:.3f}; Delta = C_all - C_clock {d[0]:+.3f} ({d[1]:+.3f} to {d[2]:+.3f}); "
-            f"positives with a match {matched:,} of {int(y_te.sum()):,}; negatives used {n_neg:,} -> "
-            f"{'FLAG: part of the discrimination is the clock' if flag_d else 'no flag'}",
+            f"C_all {r['c_all']:.3f}, C_clock {r['c_clock']:.3f}; Delta = C_all - C_clock {d[0]:+.3f} ({d[1]:+.3f} to "
+            f"{d[2]:+.3f}); positives with a match {r['matched']:,} of {r['n_pos']:,}; negatives used {r['n_neg']:,} -> "
+            f"{'FLAG: part of the discrimination is the clock' if r['flag_clock_match'] else 'no flag'}",
             "  (all-disruptive mode is not yet validated on planted leaks; read it as a screen, not a verdict)"]
 
 
