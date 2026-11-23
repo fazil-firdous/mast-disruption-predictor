@@ -2127,3 +2127,88 @@ its first slice (M); matched concordance; bootstrap over cases and controls.
   twin 10 ms before its own recorded end rather than at the case's programme time increased the corrected full model's
   matched concordance from 0.752 to 0.867 (+0.115; +0.062 to +0.168 over splits), demonstrating sensitivity to the
   twin-scoring landmark without identifying its cause."
+
+## 2026-11-21 - Endpoint module 2, post-result sensitivities (amendment 1): EAST null holds; the C-Mod crossing halves with full history
+
+`scripts/endpoint_zhu_sensitivity.py` (amendment 1, written after the registered result was seen; the registered
+output stays the result).
+- Verification: EAST lists 8,530 / 1,137 / 1,706 IDs, none repeated, none in two lists, all in the fig4 file (2,974 file
+  shots are in no list and are unused); no unsorted or repeated timestamps on any machine; bootstrap case draws with no
+  eligible control 0.00% EAST, 0.80% DIII-D, 1.56% C-Mod (left out of that draw, as specified). Repeat of the
+  registered run identical on all three machines.
+- **EAST (primary):** S1 common 300 ms history (467 cases, 1,203 controls) Delta +0.001 (-0.002 to +0.003); S2
+  mixed-landmark model (3,047 of 6,016 training controls moved, median 3.45 s) Delta -0.002 (-0.004 to +0.000), its
+  ordinary AUC 0.992. The null holds under both, still at the sampling ceiling.
+- DIII-D: S1 +0.007 (+0.002 to +0.013); S2 -0.005 (-0.008 to -0.001); all below 0.03.
+- **C-Mod:** S1 (146 of 192 cases kept) Delta +0.019 (+0.010 to +0.029), below 0.03: about half of the registered
+  +0.036 comes with the pairs where a 300 ms window runs into the start of a record, so short recorded history (and the
+  changed cohort) is part of it. S2: output cut off in the Telegram message; to be read from the log.
+
+## 2026-11-23 - Planted-leak validation of the toolkit: 11 of 12 cells pass; FAILED by the registered rule (E false alarms on the duration family, 3/20)
+
+`scripts/planted_leaks.py`, protocol `docs/preregistration_planted_leaks.md` (e36dc71, before any run; code 8905fc9
+before the run). Synthetic records, one planted shortcut per family, 20 replicates each. Software validation, not
+evidence about any machine.
+- Strength rule: no s gave a values-only AUC in 0.75 to 0.90 on L0 seed 0 (0.573, 0.744, 0.945, 1.000 for s = 0.25,
+  0.5, 1, 2); the closest, s = 0.5, used as specified.
+- Fire counts (median statistic): T fires 20/20 on the sampling shortcut (AUC 1.000) and 0/20 on every other family;
+  D fires 20/20 on the duration shortcut (1.000) and 0/20 elsewhere; E fires 20/20 on the end-of-record shortcut
+  (median Delta +0.134, all 20 between +0.092 and +0.198), 1/20 on clean data, 1/20 on the sampling family and
+  **3/20 on the duration family (limit 2): FAIL.**
+- The false alarms are |Delta| 0.05 to 0.09 in both directions; across replicates without an E shortcut Delta has SD
+  about 0.035 at this test size (about 40 cases, 80 controls), close to the 0.03 line. Pooled E false alarms 5/60.
+- Investigation 1 (specified in the protocol before running): E's false-alarm rate on 100 new clean datasets.
+- **Investigation 1 result** (E on 100 new clean datasets, seeds 101-200): fired 2/100 = 2.0% (Wilson 95% 0.6% to
+  7.0%); the bootstrap range excluded 0 in the same 2. SD of Delta across replicates 0.032 against a median bootstrap
+  half-width of 0.073: the range is not too narrow; if anything it is wide. Across every family without an E shortcut,
+  E fired 7 of 160 times (4.4%). The 3/20 on the duration family is most consistent with chance at this rate, not
+  with a duration-specific failure, though a small duration-specific excess cannot be excluded. The validation still
+  stands as FAILED by its registered rule; nothing is re-run or relabelled.
+- Toolkit lesson, to carry into its documentation: at about 40 cases and 80 controls the E check can only detect
+  |Delta| of roughly 0.07 or more (the 0.03 line is inside the noise), so it must print its range half-width as a
+  minimum detectable difference next to every reading.
+
+## 2026-11-23 - Endpoint module 2: the C-Mod crossing disappears with mixed-landmark training
+
+C-Mod S2 (read from the saved result file; the Telegram copy was cut): 1,084 of 2,121 training controls moved to an
+M-like landmark (1 without an eligible anchor; median 75 ms, quartiles 5 to 345). Mixed-landmark model on the
+registered pairs: C_E 0.882, C_M 0.884, **Delta -0.001 (-0.011 to +0.006)**; its ordinary AUC 0.885 (0.855 to 0.913).
+So the registered C-Mod +0.036 depended on training only at end-of-record landmarks (and, by S1, partly on short
+history): a model that has also seen mid-record negative windows shows no dependence. Summary of module 2: no material
+end-versus-elapsed-time dependence on EAST (primary) under the registered run and both sensitivities; the one crossing
+(C-Mod) goes away under both sensitivities. Reported as dependence on the training landmark choice, not as evidence
+that either model is better.
+
+## 2026-11-23 - Audit toolkit, first one-command version (`scripts/audit.py`)
+
+Built after a conversation with an ADITYA-U researcher: on ADITYA-U and SST-1 every shot ends in a disruption (no
+controlled ramp-down), disruption details come from a hand-edited logbook, and the data have missing, noisy and
+uncalibrated signals. On such machines the task is "when", and the usual set-up (last tens of ms positive, earlier
+windows negative) lets a model learn "the shot is about to end" instead of a precursor.
+- Mixed mode: T, D, E as validated on planted leaks, with E's smallest detectable difference printed.
+- All-disruptive mode: clock-only AUC, sampling-only AUC, and a clock-matched concordance: each positive window against
+  negative windows of other shots within 10 ms of the same elapsed time; Delta = C_all - C_clock, bootstrap over shots.
+- Demo (synthetic, 150 all-disruptive shots of 180-240 ms, weak precursor on one signal, a slow drift on another): the
+  values model's ordinary window AUC is 0.906, but the clock alone gives 0.963 and, against clock-matched negatives,
+  the model's concordance falls from 0.905 to 0.629 (Delta +0.276, +0.189 to +0.374): most of its apparent skill is the
+  clock read through the drifting signal. This is the failure mode the mode is built to show.
+- Found while building it: with constant timing features (uniform sampling), floating-point noise of order 1e-17 s in
+  "age of the last slice" was standardised into a usable signal (sampling-only AUC 0.749 on data where it must be
+  0.5). Timing features are now rounded to 0.1 us. The registered planted-leak run was not affected (T stayed at
+  0.46-0.49 on every family without a sampling shortcut).
+- Next: a planted-leak protocol for the all-disruptive mode before it is used on any real data.
+
+## 2026-11-23 - All-disruptive mode, planted-leak validation: 7 of 8 cells pass; FAILED on the "harmless drift" family, whose premise was wrong
+
+`scripts/planted_leaks_all.py`, protocol `docs/preregistration_planted_leaks_all.md` (99f8e3f, code 9c5f7c0, both
+before the run). Synthetic only.
+- Sampling flag: 20/20 on the sampling shortcut (AUC 0.998), 0/20 on the other three families.
+- Clock-matched flag: 20/20 on the clock shortcut (median Delta +0.290; C_all 0.925 -> C_clock 0.636), 0/20 clean,
+  1/20 sampling family; **20/20 on A_W "harmless drift" (median +0.144), expected 0: FAIL.**
+- Why: in all-disruptive windowing the clock is always informative, because positives sit at the end of every shot;
+  clock-only AUC was 0.77 even with durations spread 0.10 to 0.50 s. A_W's drift let the model read an informative
+  clock, and its clock-matched concordance (0.615) drops to the clean family's level (0.626). The flag did what it is
+  for; the family was mislabelled as harmless in the protocol. Recorded as FAILED; explanation marked post hoc.
+- Lesson for the toolkit and for any ADITYA-U-style study: when every shot disrupts, any signal that trends with time
+  is a route to the clock, and the clock is informative by construction. The clock-matched concordance, not the
+  ordinary window AUC, is the number to lead with.

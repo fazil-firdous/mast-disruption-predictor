@@ -1,0 +1,4 @@
+Investigation 1 (after the first table): E on clean data L0, seeds 101-200.
+  fired 2/100 = 2.0% (Wilson 95% 0.6% to 7.0%); range excludes 0 regardless of size 2/100
+  SD of Delta across replicates 0.0322; median bootstrap half-width 0.0725; mean Delta -0.0065
+  test size: median 40 cases, 80 controls
