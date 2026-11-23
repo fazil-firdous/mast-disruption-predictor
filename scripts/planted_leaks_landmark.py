@@ -31,19 +31,19 @@ def hazard(family, k):
     return 0.002 * (1 + t / 0.05) if family.startswith("V") else P_CONST
 
 
-def generate(family, seed):
+def generate(family, seed, strength=0.5, n_shots=N_SHOTS):
     """{shot: (t, values, True, t_event)}; the drift is added after all random draws, so X and X+D share them."""
     base = family.replace("+D", "")
     rng = np.random.default_rng(seed)
     shots = {}
-    for i in range(N_SHOTS):
+    for i in range(n_shots):
         k = BURN
         while rng.random() >= hazard(base, k):
             k += 1
         t = np.round(np.arange(k + 1) * TICK, 6)
         x = pl.ar1(rng, len(t))[:, :N_SIG]
         if base == "P":
-            x[:, 0] += 0.5 * np.clip(1 - (t[-1] - t) / 0.030, 0, None)
+            x[:, 0] += strength * np.clip(1 - (t[-1] - t) / 0.030, 0, None)
         if family.endswith("+D"):
             x[:, 1] += 10.0 * t
         shots[90000 + i] = (t, x, True, float(t[-1]))
@@ -119,7 +119,35 @@ def investigation_1():
     print(out)
 
 
+def power_study(seeds=range(21, 41)):
+    """Design study (protocol, power study): fire rate of the landmark primary with early stopping by strength and size."""
+    cells = [("N", 0.0)] + [("P", s) for s in (0.5, 1.0, 2.0)]
+    rows = []
+    for n in (200, 500):
+        for family, strength in cells:
+            for seed in seeds:
+                r = au.landmark_stats(generate(family, seed, strength or 0.5, n), **SETTINGS, early_stopping=True)
+                rows.append({"n_shots": n, "family": family, "strength": strength, "seed": seed, "gain": r["gain"][0],
+                             "low": r["gain"][1], "fired": bool(r["flag_gain"]), "a_aug": r["a_aug"]})
+            print(f"{n} {family} {strength} done", flush=True)
+    frame = pd.DataFrame(rows)
+    lines = ["Power study (protocol, after investigation 1; design, not validation): landmark primary with early "
+             "stopping, seeds 21-40", "", "shots | family | strength | fired | median gain | median decision AUC"]
+    for (n, family, strength), part in frame.groupby(["n_shots", "family", "strength"]):
+        lines.append(f"{n} | {family} | {strength} | {int(part['fired'].sum())}/{len(part)} | "
+                     f"{part['gain'].median():+.5f} | {part['a_aug'].median():.3f}")
+    out = "\n".join(lines)
+    folder = os.path.join(config.RESULTS_DIR, "toolkit")
+    frame.to_csv(os.path.join(folder, "planted_landmark_power.csv"), index=False)
+    with open(os.path.join(folder, "planted_landmark_power.txt"), "w") as f:
+        f.write(out + "\n")
+    print(out)
+    notify.send(out[:3400])
+
+
 def main():
+    if "--power" in sys.argv:
+        return power_study()
     if "--investigation-1" in sys.argv:
         return investigation_1()
     frame = run()
