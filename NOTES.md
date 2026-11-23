@@ -2246,3 +2246,17 @@ all-disruptive JET selection, split by sample), Zhong et al. 2024 (NF 64 096012,
 (arXiv:2309.05361), Agarwal et al. 2026 (arXiv:2608.22515, ADITYA fixed windows from initiation), Banerjee et al.
 2026 (NF, ADITYA-U ramp-down disruptions), Keith et al. 2024 (JFE, survival analysis), van Houwelingen 2007 and Suresh
 et al. 2022 (landmarking, discrete-time models). To be checked before citing.
+
+## 2026-11-23 - Landmark primary, validation: FAILED (no power where the precursor is; negative Brier gain everywhere)
+
+`scripts/planted_leaks_landmark.py`, protocol `docs/preregistration_landmark_mode.md` (fd13323; code 0f02103; both
+before the run). Synthetic only.
+- Primary (Brier gain of values over an elapsed-time baseline, range above 0): 0/20 in all six families, including
+  P and P+D where a precursor was planted (expected 18+): FAIL. The values model ranks better there (decision AUC 0.63
+  vs 0.47) but its probabilities are worse: the gain is negative in every family (N -0.011, V -0.025), so the extra
+  12 features cost calibration even when they carry nothing.
+- Secondary clock-matched flag: N+D 1/20 (pass: a readable but uninformative clock does not trigger it); V+D 16/20
+  (expected 18: FAIL); V without any drift 14/20: under a rising hazard the contrast moves with no clock proxy. So it
+  is not a leakage detector, as the review said.
+- Generator as intended (next-30 ms share 0.133 vs analytic 0.131; drift-time correlation 0.99 / 0.94).
+- Investigation 1 specified before running: same N and P families with early stopping in both learners.

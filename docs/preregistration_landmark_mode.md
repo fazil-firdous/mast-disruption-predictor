@@ -62,4 +62,19 @@ reported whatever the outcome; nothing is tuned after it.
 
 ## Changes after the first result
 
-(none yet)
+### Result and investigation 1 (2026-11-23, after the first table)
+
+FAILED. The primary never fired where expected: P 0/20 and P+D 0/20 (median Brier gain -0.0022 and -0.0034), although
+the values model ranks better there (decision AUC 0.63 against 0.47 for the baseline). It also never fired where it
+should not (N, N+D, V, V+D all 0/20), but its gain was negative in every family (about -0.011 on N, -0.025 on V): the
+model with 12 extra value features is worse calibrated than the elapsed-time model even when the values carry
+nothing. Secondary: the clock-matched flag fired 1/20 on N+D (passes: readable but uninformative clock) and 16/20 on
+V+D (expected at least 18: FAIL), and also 14/20 on V, which has no drift at all: under a rising hazard the contrast
+moves without any clock proxy, as the reviewer warned. Generator checks as intended: next-30 ms share 0.133 against
+the analytic 0.131; the drift correlates 0.99 (N+D) and 0.94 (V+D) with elapsed time.
+
+Investigation 1, specified now, before it is run (exploratory; it cannot rescue the registered result): is the
+failure the learner's overfitting? Repeat families N and P, seeds 1 to 20, with both models refitted using the
+learner's own early stopping (validation fraction 0.1 of the training decisions, 10 rounds without improvement,
+seed 42), nothing else changed. Report the same columns. If it changes the picture, a v3 of the primary needs its own
+protocol and fresh seeds (21 to 40); seeds 1 to 20 are spent.
