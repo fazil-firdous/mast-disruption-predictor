@@ -2260,3 +2260,9 @@ before the run). Synthetic only.
   is not a leakage detector, as the review said.
 - Generator as intended (next-30 ms share 0.133 vs analytic 0.131; drift-time correlation 0.99 / 0.94).
 - Investigation 1 specified before running: same N and P families with early stopping in both learners.
+- **Investigation 1 result** (exploratory, early stopping in both learners, N and P, seeds 1-20): N 0/20, median gain
+  -0.0049 (was -0.011): the penalty from overfitting halves; P 3/20, median gain **+0.0031** (-0.0043 to +0.0127),
+  decision AUC 0.469 -> 0.643. So overfitting was part of the failure, and the remaining problem is power: with 200
+  shots (40 test) and this weak precursor the paired Brier gain is positive but rarely resolved. A primary that cannot
+  see a planted precursor at this size cannot be used on a few hundred real shots without a stated power. Next: a
+  power study on fresh seeds before any v3 claim.

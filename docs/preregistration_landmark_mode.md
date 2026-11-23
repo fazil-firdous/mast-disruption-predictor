@@ -78,3 +78,15 @@ failure the learner's overfitting? Repeat families N and P, seeds 1 to 20, with 
 learner's own early stopping (validation fraction 0.1 of the training decisions, 10 rounds without improvement,
 seed 42), nothing else changed. Report the same columns. If it changes the picture, a v3 of the primary needs its own
 protocol and fresh seeds (21 to 40); seeds 1 to 20 are spent.
+
+Investigation 1 result (NOTES.md 2026-11-23): N 0/20 (median gain -0.0049); P 3/20 (median +0.0031, -0.0043 to
++0.0127). Overfitting explains part of the failure; power explains the rest.
+
+### Power study (2026-11-23, specified before it is run; design, not validation)
+
+Early stopping as in investigation 1 is adopted for the landmark primary from now on (a change made after the first
+result, recorded here). Question: how often does the primary fire as a function of precursor strength and number of
+shots? Families P (precursor strength s in {0.5, 1, 2}) and N (no precursor), each at 200 and 500 shots; fresh
+generator seeds 21 to 40; everything else as above. Reported: fire rate per cell and median gain. Reading: the smallest
+tested strength at which the primary fires in at least 16 of 20 (80% power) at each size; N's fire rate as the size of
+the test at each size. Seeds 21 to 40 are then spent; any later validation uses 41 onwards.
