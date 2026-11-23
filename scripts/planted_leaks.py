@@ -110,6 +110,39 @@ def check_e(shots, split, n_boot=ez.N_BOOT):
     return fired, d[0]
 
 
+def null_rate(s, seeds=range(101, 201), n_boot=ez.N_BOOT):
+    """Investigation 1: E on clean data only. One row per seed: Delta, range, fired, test cases and controls."""
+    rows = []
+    for seed in seeds:
+        shots = generate("L0", seed, s)
+        split = split_of(shots)
+        b = ez.build(shots, split)
+        mask = np.isfinite(b["s_m"])
+        w_e, w_m = ez.win_matrix(b["s_case"], b["s_end"]), ez.win_matrix(b["s_case"], b["s_m"])
+        d = ez.delta_range(w_e, w_m, mask, n_boot=n_boot)
+        rows.append({"seed": seed, "delta": d[0], "low": d[1], "high": d[2], "cases": len(b["cases"]),
+                     "controls": len(b["controls"]), "fired": abs(d[0]) >= ez.WORTH and (d[1] > 0 or d[2] < 0)})
+    return pd.DataFrame(rows)
+
+
+def wilson(k, n, z=1.96):
+    p = k / n
+    centre = (p + z * z / (2 * n)) / (1 + z * z / n)
+    half = z * np.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / (1 + z * z / n)
+    return centre - half, centre + half
+
+
+def null_text(f):
+    k, n = int(f["fired"].sum()), len(f)
+    excl = int(((f["low"] > 0) | (f["high"] < 0)).sum())
+    lo, hi = wilson(k, n)
+    return (f"Investigation 1 (after the first table): E on clean data L0, seeds 101-200.\n"
+            f"  fired {k}/{n} = {k / n:.1%} (Wilson 95% {lo:.1%} to {hi:.1%}); range excludes 0 regardless of size "
+            f"{excl}/{n}\n  SD of Delta across replicates {f['delta'].std():.4f}; median bootstrap half-width "
+            f"{((f['high'] - f['low']) / 2).median():.4f}; mean Delta {f['delta'].mean():+.4f}\n"
+            f"  test size: median {f['cases'].median():.0f} cases, {f['controls'].median():.0f} controls")
+
+
 def values_auc(shots, split):
     b = ez.build(shots, split)
     labels = np.r_[np.ones(len(b["cases"])), np.zeros(len(b["controls"]))].astype(bool)
@@ -162,6 +195,16 @@ def table(frame):
 
 def main():
     quick = "--quick" in sys.argv
+    if "--null-rate" in sys.argv:
+        f = null_rate(0.5)
+        out = null_text(f)
+        folder = os.path.join(config.RESULTS_DIR, "toolkit")
+        os.makedirs(folder, exist_ok=True)
+        f.to_csv(os.path.join(folder, "planted_null_rate.csv"), index=False)
+        with open(os.path.join(folder, "planted_null_rate.txt"), "w") as fh:
+            fh.write(out + "\n")
+        print(out)
+        return
     s, tried, in_range = choose_strength()
     head = ["Planted-leak validation (docs/preregistration_planted_leaks.md). Synthetic records only; a software "
             "validation, not evidence about any machine.",

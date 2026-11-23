@@ -51,4 +51,16 @@ dated note, not tuned away.
 
 ## Changes after the first result
 
-(none yet)
+### Result and investigation 1 (2026-11-23, after the first table)
+
+The first table (NOTES.md 2026-11-23) **failed the registered rule in one cell**: E fired on the duration family L_D in
+3 of 20 replicates (limit 2). All other 11 cells passed (T 20/20 on L_T and 0/20 elsewhere; D 20/20 on L_D and 0/20
+elsewhere; E 20/20 on L_E, 1/20 on L0 and L_T). The strength rule found no s with AUC in 0.75 to 0.90 (0.744 at
+s = 0.5, 0.945 at s = 1); the closest, 0.5, was used, as specified. The validation stands as FAILED.
+
+Investigation, specified now, before it is run; descriptive, it changes nothing above: E's false-alarm rate on clean
+data, family L0, generator seeds 101 to 200 (100 new datasets), E only, same settings. Reported: the share that fires
+(Wilson 95% interval), the share with the bootstrap range excluding 0 regardless of size, the SD of Delta across
+replicates against the median bootstrap half-width, and test-set sizes. Question: is 3/20 consistent with a modest
+false-alarm rate at this small test size (about 40 cases and 80 controls, against 503 and 1,203 on EAST), or is the
+bootstrap range too narrow?

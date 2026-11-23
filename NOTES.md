@@ -2143,3 +2143,18 @@ output stays the result).
 - **C-Mod:** S1 (146 of 192 cases kept) Delta +0.019 (+0.010 to +0.029), below 0.03: about half of the registered
   +0.036 comes with the pairs where a 300 ms window runs into the start of a record, so short recorded history (and the
   changed cohort) is part of it. S2: output cut off in the Telegram message; to be read from the log.
+
+## 2026-11-23 - Planted-leak validation of the toolkit: 11 of 12 cells pass; FAILED by the registered rule (E false alarms on the duration family, 3/20)
+
+`scripts/planted_leaks.py`, protocol `docs/preregistration_planted_leaks.md` (e36dc71, before any run; code 8905fc9
+before the run). Synthetic records, one planted shortcut per family, 20 replicates each. Software validation, not
+evidence about any machine.
+- Strength rule: no s gave a values-only AUC in 0.75 to 0.90 on L0 seed 0 (0.573, 0.744, 0.945, 1.000 for s = 0.25,
+  0.5, 1, 2); the closest, s = 0.5, used as specified.
+- Fire counts (median statistic): T fires 20/20 on the sampling shortcut (AUC 1.000) and 0/20 on every other family;
+  D fires 20/20 on the duration shortcut (1.000) and 0/20 elsewhere; E fires 20/20 on the end-of-record shortcut
+  (median Delta +0.134, all 20 between +0.092 and +0.198), 1/20 on clean data, 1/20 on the sampling family and
+  **3/20 on the duration family (limit 2): FAIL.**
+- The false alarms are |Delta| 0.05 to 0.09 in both directions; across replicates without an E shortcut Delta has SD
+  about 0.035 at this test size (about 40 cases, 80 controls), close to the 0.03 line. Pooled E false alarms 5/60.
+- Investigation 1 (specified in the protocol before running): E's false-alarm rate on 100 new clean datasets.

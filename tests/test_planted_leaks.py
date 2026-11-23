@@ -20,3 +20,8 @@ def test_timing_row():
     t = np.round(np.arange(0.0, 1.0, 0.01), 6)
     n, age, gap = pl.timing_row(t)
     assert n == 30 and abs(age) < 1e-9 and abs(gap - 0.01) < 1e-9
+
+
+def test_wilson():
+    lo, hi = pl.wilson(3, 20)
+    assert 0.04 < lo < 0.06 and 0.35 < hi < 0.37
