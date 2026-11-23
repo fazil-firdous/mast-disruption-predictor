@@ -34,6 +34,7 @@ from scripts import timing_model as tm
 
 AUC_LINE, WORTH, N_BOOT, SEED = 0.80, 0.03, 1000, 42
 MAX_PAIRS = 20_000_000
+TIME_RESOLUTION = 1e-7  # seconds; for real data use the clock precision documented by the data owner
 RESERVED = {"shot", "time", "disrupted", "t_disrupt"}
 
 
@@ -88,15 +89,15 @@ def mixed(shots):
             f"{'FLAG: the recording schedule alone separates the classes' if fired_t else 'no flag'}",
             f"  D  clock alone (elapsed time at the landmark): AUC {auc_d:.3f} -> "
             f"{'FLAG: the clock alone separates the classes' if fired_d else 'no flag'}",
-            f"  E  control at its own end vs at the case's elapsed time: Delta {d[0]:+.3f} ({d[1]:+.3f} to {d[2]:+.3f}); "
-            f"smallest detectable here about {(d[2] - d[1]) / 2:.3f} -> "
+            f"  E  control at its own end vs at the case's elapsed time: Delta {d[0]:+.4f} ({d[1]:+.4f} to {d[2]:+.4f}); "
+            f"bootstrap interval half-widths {d[0] - d[1]:.4f} below, {d[2] - d[0]:.4f} above -> "
             f"{'FLAG: the score depends on where the control is evaluated' if fired_e else 'no flag'}"]
 
 
 # ---------------------------------------------------------------- all-disruptive mode
 
 
-def windows(shots, window, step, horizon, lead):
+def windows(shots, window, step, horizon, lead, resolution=None):
     """One row per window: shot, landmark, elapsed, positive, features, timing features."""
     rows = []
     for shot, (t, v, _, td) in shots.items():
@@ -109,9 +110,16 @@ def windows(shots, window, step, horizon, lead):
             to_go = td - landmark
             rows.append({"shot": shot, "landmark": landmark, "elapsed": landmark - t[0], "positive": to_go <= horizon,
                          "features": hm.feature_row(v[keep]),
-                         # rounded to 0.1 us: float noise in constant timing features must not become a signal
-                         "timing": [n, round(landmark - t[keep][-1], 7), round(tm.max_gap(t, landmark, span=window), 7)]})
+                         # quantised to the clock resolution: float noise in constant timing features must not
+                         # become a signal (membership is decided with a 1e-9 s tolerance before this)
+                         "timing": [n, quantise(landmark - t[keep][-1], resolution),
+                                    quantise(tm.max_gap(t, landmark, span=window), resolution)]})
     return pd.DataFrame(rows)
+
+
+def quantise(x, resolution=None):
+    r = resolution or TIME_RESOLUTION
+    return float(np.round(x / r) * r) if np.isfinite(x) else x
 
 
 def logistic_scores(x_tr, y_tr, x_te):

@@ -2212,3 +2212,37 @@ before the run). Synthetic only.
 - Lesson for the toolkit and for any ADITYA-U-style study: when every shot disrupts, any signal that trends with time
   is a route to the clock, and the clock is informative by construction. The clock-matched concordance, not the
   ordinary window AUC, is the number to lead with.
+
+## 2026-11-23 - Outside review of the toolkit: wording corrections, and the all-disruptive primary to change
+
+Corrections to the entries above (kept as written; these supersede their wording):
+- Mixed-mode validation: "false alarms" should read **"unexpected flags"**. Without an E shortcut the population
+  contrast is not known to be null (a duration change alters the negative windows, their history and which pairs are
+  eligible), so E may respond to a real induced contrast. The 7/160: 5 from the first table (L0 1/20, L_T 1/20, L_D
+  3/20; seeds 1-20) plus 2 from investigation 1 (L0, seeds 101-200, no overlap).
+- "SD 0.032 against half-width 0.073, the range is not too narrow" compared different things: a normal 95% half-width
+  is about 1.96 SE, so 1.96 x 0.032 = 0.063 against 0.073 means roughly calibrated, slightly wide. "Smallest
+  detectable difference" is withdrawn: a detection limit needs a power simulation for a stated effect. The toolkit now
+  prints the **bootstrap interval half-widths** (below and above) instead.
+- Endpoint module 2: the supported primary conclusion is **"little change under the tested file-relative anchor swap
+  in EAST"**. A slice-count AUC near 1 shows near-separation for that baseline, not that the values model's matched
+  concordance is at its ceiling. C-Mod wording adopted: "The exploratory C-Mod contrast was smaller in the full-history
+  subset and near zero with the mixed-landmark fit; neither sensitivity was part of the registered EAST primary." S1
+  changes the cohort, so it does not identify a short-history mechanism; S2 shows sensitivity to the training-landmark
+  recipe, not a decomposition.
+- Float fix: replaced by a clock-resolution parameter (default 0.1 us for synthetic data; for real data, the precision
+  documented by the data owner) and regression tests: exact sample membership, counts, ages and gaps on integer ticks,
+  unchanged under cumulative-sum and 1e-12 s jitter; identical timing vectors give tied scores and AUC 0.5.
+
+All-disruptive mode, reviewer's recommendation (to be written as a protocol before any change is run): the primary
+should be a **fixed-horizon landmark comparison**: on a forward grid of decision times, does adding past diagnostic
+values to a flexible elapsed-time (and programme, where known) baseline improve the prediction of an event in the next
+H ms? Paired Brier gain on held-out shots, resampling shots as clusters; calibration and alarm counts alongside.
+C_all - C_clock stays as a secondary measure of sensitivity to the comparison rule, not of leakage. Matching on
+realised duration is ruled out (it is future information and fixes the label). Validation to include a constant-hazard
+null (every shot eventually disrupts, but the next-H risk does not depend on elapsed time) with and without a
+readable drift, paired within replicate; A_W stays a registered failure. Prior work to cite: Croonen 2023 (Plasma 6:89,
+all-disruptive JET selection, split by sample), Zhong et al. 2024 (NF 64 096012, HL-2A), Shen et al. 2023
+(arXiv:2309.05361), Agarwal et al. 2026 (arXiv:2608.22515, ADITYA fixed windows from initiation), Banerjee et al.
+2026 (NF, ADITYA-U ramp-down disruptions), Keith et al. 2024 (JFE, survival analysis), van Houwelingen 2007 and Suresh
+et al. 2022 (landmarking, discrete-time models). To be checked before citing.
