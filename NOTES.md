@@ -2197,3 +2197,18 @@ windows negative) lets a model learn "the shot is about to end" instead of a pre
   0.5). Timing features are now rounded to 0.1 us. The registered planted-leak run was not affected (T stayed at
   0.46-0.49 on every family without a sampling shortcut).
 - Next: a planted-leak protocol for the all-disruptive mode before it is used on any real data.
+
+## 2026-11-23 - All-disruptive mode, planted-leak validation: 7 of 8 cells pass; FAILED on the "harmless drift" family, whose premise was wrong
+
+`scripts/planted_leaks_all.py`, protocol `docs/preregistration_planted_leaks_all.md` (99f8e3f, code 9c5f7c0, both
+before the run). Synthetic only.
+- Sampling flag: 20/20 on the sampling shortcut (AUC 0.998), 0/20 on the other three families.
+- Clock-matched flag: 20/20 on the clock shortcut (median Delta +0.290; C_all 0.925 -> C_clock 0.636), 0/20 clean,
+  1/20 sampling family; **20/20 on A_W "harmless drift" (median +0.144), expected 0: FAIL.**
+- Why: in all-disruptive windowing the clock is always informative, because positives sit at the end of every shot;
+  clock-only AUC was 0.77 even with durations spread 0.10 to 0.50 s. A_W's drift let the model read an informative
+  clock, and its clock-matched concordance (0.615) drops to the clean family's level (0.626). The flag did what it is
+  for; the family was mislabelled as harmless in the protocol. Recorded as FAILED; explanation marked post hoc.
+- Lesson for the toolkit and for any ADITYA-U-style study: when every shot disrupts, any signal that trends with time
+  is a route to the clock, and the clock is informative by construction. The clock-matched concordance, not the
+  ordinary window AUC, is the number to lead with.

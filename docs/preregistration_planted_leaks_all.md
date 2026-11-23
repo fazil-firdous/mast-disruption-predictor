@@ -39,4 +39,18 @@ median ordinary window AUC. No setting changed after the first table; a failed c
 
 ## Changes after the first result
 
-(none yet)
+### Result (2026-11-23, after the first table)
+
+FAILED by the registered rule in one cell: the clock-matched flag fired 20/20 on A_W, the "harmless drift" family
+(median Delta +0.144, range +0.102 to +0.202), where it was expected not to fire. The other seven cells passed:
+sampling flag 20/20 on A_S and 0/20 elsewhere; clock-matched flag 20/20 on A_C (median +0.290), 0/20 on A0, 1/20 on
+A_S. The validation stands as FAILED.
+
+Reason, from numbers already in the table (no new run): the premise of A_W was wrong. The protocol assumed that wide
+durations (0.10 to 0.50 s) make the clock carry little about the label, but the clock-only AUC on the wide-duration
+families is 0.768 (A0, A_W) and 0.757 (A_S): in all-disruptive windowing the positive windows always sit at the end of
+a shot, so elapsed time is informative however much durations vary. A_W therefore planted a usable clock shortcut,
+and the model used it: its concordance against clock-matched negatives (0.615) falls to the level of the clean family
+(0.626 in A0), where no drift lets the model read the clock. Read this way the flag behaved as designed, but this is a
+post-hoc reading; the registered outcome is unchanged. Any future version needs a family whose clock is truly
+uninformative, which this windowing cannot produce.
