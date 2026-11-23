@@ -2167,3 +2167,14 @@ evidence about any machine.
 - Toolkit lesson, to carry into its documentation: at about 40 cases and 80 controls the E check can only detect
   |Delta| of roughly 0.07 or more (the 0.03 line is inside the noise), so it must print its range half-width as a
   minimum detectable difference next to every reading.
+
+## 2026-11-23 - Endpoint module 2: the C-Mod crossing disappears with mixed-landmark training
+
+C-Mod S2 (read from the saved result file; the Telegram copy was cut): 1,084 of 2,121 training controls moved to an
+M-like landmark (1 without an eligible anchor; median 75 ms, quartiles 5 to 345). Mixed-landmark model on the
+registered pairs: C_E 0.882, C_M 0.884, **Delta -0.001 (-0.011 to +0.006)**; its ordinary AUC 0.885 (0.855 to 0.913).
+So the registered C-Mod +0.036 depended on training only at end-of-record landmarks (and, by S1, partly on short
+history): a model that has also seen mid-record negative windows shows no dependence. Summary of module 2: no material
+end-versus-elapsed-time dependence on EAST (primary) under the registered run and both sensitivities; the one crossing
+(C-Mod) goes away under both sensitivities. Reported as dependence on the training landmark choice, not as evidence
+that either model is better.
