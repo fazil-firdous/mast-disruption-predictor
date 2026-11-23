@@ -50,6 +50,49 @@ def load(path):
     return frame, signals
 
 
+def check_table(frame, signals, all_disrupt):
+    """(errors, warnings) about the input table, in plain words. Errors stop the run."""
+    errors, warnings = [], []
+    if not pd.api.types.is_numeric_dtype(frame["time"]):
+        errors.append("'time' must be numeric, in seconds")
+        return errors, warnings
+    if frame["time"].isna().any():
+        errors.append(f"'time' has {int(frame['time'].isna().sum())} empty values")
+    dup = int(frame.duplicated(["shot", "time"]).sum())
+    if dup:
+        errors.append(f"{dup} rows repeat a (shot, time) pair; keep one row per shot and time")
+    sizes = frame.groupby("shot").size()
+    if (sizes < 2).any():
+        errors.append(f"{int((sizes < 2).sum())} shot(s) have fewer than 2 rows")
+    if len(sizes) < 20:
+        warnings.append(f"only {len(sizes)} shots: every number below will be very uncertain")
+    if not all_disrupt:
+        if "disrupted" not in frame.columns:
+            errors.append("mixed mode needs a 'disrupted' column (0/1 per shot); use --all-disrupt if every shot disrupts")
+        else:
+            varies = frame.groupby("shot")["disrupted"].nunique()
+            if (varies > 1).any():
+                errors.append(f"'disrupted' changes within {int((varies > 1).sum())} shot(s); it must be one value per shot")
+            flags = frame.groupby("shot")["disrupted"].max()
+            if flags.nunique() < 2:
+                errors.append("mixed mode needs both disrupted and non-disrupted shots")
+    if "t_disrupt" in frame.columns:
+        span = frame.groupby("shot").agg(t0=("time", "min"), t1=("time", "max"), td=("t_disrupt", "first"))
+        before = int((span["td"] < span["t0"]).sum())
+        if before:
+            errors.append(f"{before} shot(s) have t_disrupt before their first slice")
+        after = int((span["td"] > span["t1"] + 0.05).sum())
+        if after:
+            warnings.append(f"{after} shot(s) have t_disrupt more than 50 ms after their last slice; check units (s)")
+    if frame["time"].abs().max() > 1e3:
+        warnings.append("times above 1000: 'time' must be in seconds, not ms or samples")
+    missing = frame[signals].isna().mean()
+    bad = missing[missing > 0.5]
+    if len(bad):
+        warnings.append("signals more than half empty: " + ", ".join(f"{c} ({v:.0%})" for c, v in bad.items()))
+    return errors, warnings
+
+
 def shots_from(frame, signals, all_disrupt):
     """{shot: (t, values, disrupted, t_disrupt)} with times sorted."""
     out = {}
@@ -211,7 +254,7 @@ def all_disruptive(shots, window, step, horizon, lead, tol):
             f"C_all {r['c_all']:.3f}, C_clock {r['c_clock']:.3f}; Delta = C_all - C_clock {d[0]:+.3f} ({d[1]:+.3f} to "
             f"{d[2]:+.3f}); positives with a match {r['matched']:,} of {r['n_pos']:,}; negatives used {r['n_neg']:,} -> "
             f"{'FLAG: part of the discrimination is the clock' if r['flag_clock_match'] else 'no flag'}",
-            "  (all-disruptive mode is not yet validated on planted leaks; read it as a screen, not a verdict)"]
+            "  (planted-leak validation of this screen: 7 of 8 cells passed, failed on one family; a screen, not a verdict)"]
 
 
 # ---------------------------------------------------------------- all-disruptive mode v2 (landmark primary)
@@ -305,7 +348,10 @@ def landmark_text(r, window, step, horizon, lead, tol):
             f"  secondary: decision AUC baseline {r['a_base']:.3f}, with values {r['a_aug']:.3f}; elapsed time alone "
             f"{r['a_clock']:.3f}; sampling alone {r['a_time']:.3f}; clock-matched C_all {r['c_all']:.3f}, C_clock "
             f"{r['c_clock']:.3f}, Delta {d[0]:+.3f} ({d[1]:+.3f} to {d[2]:+.3f}) (sensitivity to the comparison rule, "
-            f"not a leakage measure)"]
+            f"not a leakage measure)",
+            "  power (synthetic study, NOTES.md 2026-11-23): with about 200 shots the primary resolved a precursor that "
+            "lifts the decision AUC to about 0.78 in 20 of 20 runs, but one that lifts it to about 0.63 in 1 of 20 (13 of "
+            "20 with 500 shots). 'No improvement shown' is not evidence that no precursor exists."]
 
 
 # ---------------------------------------------------------------- demo data
@@ -336,6 +382,8 @@ def main(argv=None):
     p.add_argument("--horizon-ms", type=float, default=30.0)
     p.add_argument("--lead-ms", type=float, default=2.0)
     p.add_argument("--tolerance-ms", type=float, default=10.0)
+    p.add_argument("--time-resolution", type=float, default=TIME_RESOLUTION,
+                   help="clock precision in seconds (use the value documented for your data)")
     p.add_argument("--demo", action="store_true")
     a = p.parse_args(argv)
     if a.demo:
@@ -347,16 +395,20 @@ def main(argv=None):
         out_dir = os.path.dirname(os.path.abspath(a.path))
     else:
         p.error("give a table, or --demo")
-    if not a.all_disrupt and "disrupted" not in frame.columns:
-        sys.exit("mixed mode needs a 'disrupted' column (0/1 per shot); use --all-disrupt if every shot disrupts")
+    errors, warnings = check_table(frame, signals, a.all_disrupt)
+    if errors:
+        sys.exit("The table cannot be audited:\n- " + "\n- ".join(errors))
     shots = shots_from(frame, signals, a.all_disrupt)
     head = [f"Audit of {a.path or 'demo data'}: {len(shots):,} shots, {len(signals)} signals "
             f"({', '.join(signals[:8])}{', ...' if len(signals) > 8 else ''})."]
+    head += [f"WARNING: {w}" for w in warnings]
     if a.all_disrupt:
         prog_cols = [c for c in frame.columns if c.startswith("prog_")]
         prog = frame.groupby("shot")[prog_cols].first().apply(list, axis=1).to_dict() if prog_cols else None
         args = (a.window_ms / 1e3, a.step_ms / 1e3, a.horizon_ms / 1e3, a.lead_ms / 1e3, a.tolerance_ms / 1e3)
-        body = landmark_text(landmark_stats(shots, *args, prog=prog), *args) + [""] + all_disruptive(shots, *args)
+        r = landmark_stats(shots, *args, prog=prog, resolution=a.time_resolution, early_stopping=True)
+        body = landmark_text(r, *args) + ["", "Earlier screen (validation failed on one family; see docs/TOOLKIT.md):"] + \
+            all_disruptive(shots, *args)
     else:
         body = mixed(shots)
     out = "\n".join(head + body)

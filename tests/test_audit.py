@@ -78,3 +78,20 @@ def test_identical_timing_vectors_give_tied_scores():
     assert np.ptp(s) == 0
     from scripts import sampling_audit as sa
     assert sa.auc(s, np.r_[np.ones(10), np.zeros(20)].astype(bool)) == 0.5
+
+
+def test_check_table_catches_common_mistakes():
+    base = pd.DataFrame({"shot": [1, 1, 2, 2], "time": [0.0, 0.001, 0.0, 0.001], "x": [1.0, 2.0, 3.0, 4.0]})
+    e, w = au.check_table(base, ["x"], True)
+    assert not e and any("only 2 shots" in m for m in w)
+    dup = pd.concat([base, base.iloc[:1]])
+    assert any("repeat a (shot, time)" in m for m in au.check_table(dup, ["x"], True)[0])
+    mixed = base.assign(disrupted=[1, 0, 0, 0])
+    assert any("changes within" in m for m in au.check_table(mixed, ["x"], False)[0])
+    one_class = base.assign(disrupted=1)
+    assert any("both disrupted and non-disrupted" in m for m in au.check_table(one_class, ["x"], False)[0])
+    assert any("needs a 'disrupted' column" in m for m in au.check_table(base, ["x"], False)[0])
+    ms = base.assign(time=base["time"] * 1e7)
+    assert any("seconds" in m for m in au.check_table(ms, ["x"], True)[1])
+    early = base.assign(t_disrupt=-1.0)
+    assert any("before their first slice" in m for m in au.check_table(early, ["x"], True)[0])
