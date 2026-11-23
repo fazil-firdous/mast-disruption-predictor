@@ -2158,3 +2158,12 @@ evidence about any machine.
 - The false alarms are |Delta| 0.05 to 0.09 in both directions; across replicates without an E shortcut Delta has SD
   about 0.035 at this test size (about 40 cases, 80 controls), close to the 0.03 line. Pooled E false alarms 5/60.
 - Investigation 1 (specified in the protocol before running): E's false-alarm rate on 100 new clean datasets.
+- **Investigation 1 result** (E on 100 new clean datasets, seeds 101-200): fired 2/100 = 2.0% (Wilson 95% 0.6% to
+  7.0%); the bootstrap range excluded 0 in the same 2. SD of Delta across replicates 0.032 against a median bootstrap
+  half-width of 0.073: the range is not too narrow; if anything it is wide. Across every family without an E shortcut,
+  E fired 7 of 160 times (4.4%). The 3/20 on the duration family is most consistent with chance at this rate, not
+  with a duration-specific failure, though a small duration-specific excess cannot be excluded. The validation still
+  stands as FAILED by its registered rule; nothing is re-run or relabelled.
+- Toolkit lesson, to carry into its documentation: at about 40 cases and 80 controls the E check can only detect
+  |Delta| of roughly 0.07 or more (the 0.03 line is inside the noise), so it must print its range half-width as a
+  minimum detectable difference next to every reading.
