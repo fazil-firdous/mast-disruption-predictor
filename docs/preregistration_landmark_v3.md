@@ -28,4 +28,9 @@ Seeds 41 to 60 are then spent.
 
 ## Changes after the first result
 
-(none yet)
+### Result (2026-11-23)
+
+PASSED. Primary fired: P 20/20 and P+D 19/20 (median gain +0.0257 and +0.0252; decision AUC 0.48 -> 0.77); N, N+D,
+V, V+D 0/20 each (median gains -0.0055 to -0.0108). Clock-matched contrast (reported only): N 2/20, N+D 1/20, V 14/20,
+V+D 14/20, P 0/20, P+D 1/20: it moves with a rising hazard whether or not a drift is present, confirming it is not a
+leakage detector. Seeds 41 to 60 are now spent.

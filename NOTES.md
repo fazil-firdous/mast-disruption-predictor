@@ -2282,3 +2282,17 @@ before the run). Synthetic only.
 - Still open: the registered landmark validation stays FAILED; a v3 validation with early stopping needs its own
   protocol on seeds 41 onwards (the clock-matched secondary also failed V+D 16/20 and should be described only as a
   sensitivity measure).
+
+## 2026-11-23 - Landmark primary v3: PASSED; toolkit guide and examples
+
+`scripts/planted_leaks_landmark.py --v3`, protocol `docs/preregistration_landmark_v3.md` (750a140; code 3b5888c; both
+before the run; early stopping and strength 1 chosen after v2 and the power study, stated as such; fresh seeds 41-60).
+- Primary (Brier gain of diagnostic values over an elapsed-time baseline): P 20/20, P+D 19/20 (median +0.026, decision
+  AUC 0.48 -> 0.77); N, N+D, V, V+D 0/20 each. **PASSED**: it finds a planted precursor and stays quiet on a
+  readable-but-uninformative clock (N+D) and on an informative clock the baseline already has (V, V+D).
+- Clock-matched contrast, reported only: V 14/20 and V+D 14/20 with or without drift; N+D 1/20. A sensitivity
+  measure, as the review said.
+- Toolkit: plain-language input checks, `--time-resolution`, early stopping and a power note in the primary,
+  `docs/TOOLKIT.md` (every validation with its outcome, failures included), `examples/` tables; 24 tests pass.
+- Honest scope: v3 passed on synthetic data where the precursor is strong enough to be seen (power study); it is a
+  software validation, not evidence about any machine, and the earlier failures stay on record.

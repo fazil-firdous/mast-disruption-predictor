@@ -64,7 +64,7 @@ on a small machine is not evidence that no precursor exists.
 | Mixed mode T, D, E | `docs/preregistration_planted_leaks.md` | 11 of 12 cells pass; **FAILED** one (E 3/20 on the duration family, limit 2). Follow-up: E fired 2/100 on new clean data. |
 | All-disruptive screen (sampling, clock-matched) | `docs/preregistration_planted_leaks_all.md` | 7 of 8 pass; **FAILED** on a "harmless drift" family whose clock was in fact informative. |
 | Landmark primary v2 | `docs/preregistration_landmark_mode.md` | **FAILED**: no power at the planted precursor, negative gain from overfitting. Early stopping and a power study followed. |
-| Landmark primary v3 | `docs/preregistration_landmark_v3.md` | see NOTES.md |
+| Landmark primary v3 (current) | `docs/preregistration_landmark_v3.md` | **PASSED**: fired 20/20 and 19/20 where a precursor was planted, 0/20 in all four families without one (constant or rising hazard, with or without a clock-carrying drift). |
 
 Failures are kept as failures; explanations found afterwards are marked as such. The tests are software validations
 on synthetic data, not evidence about any machine.

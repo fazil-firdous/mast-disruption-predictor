@@ -1,0 +1,11 @@
+Landmark primary v3 validation (docs/preregistration_landmark_v3.md). Synthetic only.
+
+family | primary fired | median gain (low, high) | decision AUC base, values | clock-matched (reported only)
+N | 0/20 | -0.00635 (-0.01126, -0.00171) | 0.482, 0.499 | 2/20 (-0.004)
+N+D | 0/20 | -0.00551 (-0.01126, -0.00118) | 0.482, 0.491 | 1/20 (-0.006)
+V | 0/20 | -0.01077 (-0.01987, -0.00305) | 0.594, 0.563 | 14/20 (+0.060)
+V+D | 0/20 | -0.00911 (-0.01776, -0.00043) | 0.594, 0.575 | 14/20 (+0.067)
+P | 20/20* | +0.02569 (+0.01305, +0.03921) | 0.482, 0.770 | 0/20 (-0.006)
+P+D | 19/20* | +0.02523 (+0.01376, +0.03811) | 0.482, 0.773 | 1/20 (-0.005)
+
+Validation PASSED (expected >= 18/20, unexpected <= 2/20).
