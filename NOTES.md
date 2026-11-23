@@ -2266,3 +2266,19 @@ before the run). Synthetic only.
   shots (40 test) and this weak precursor the paired Brier gain is positive but rarely resolved. A primary that cannot
   see a planted precursor at this size cannot be used on a few hundred real shots without a stated power. Next: a
   power study on fresh seeds before any v3 claim.
+
+## 2026-11-23 - Landmark primary, power study: it sees a moderate precursor at 200 shots, a weak one needs more than 500
+
+`scripts/planted_leaks_landmark.py --power` (specified in the protocol before running; early stopping; fresh seeds
+21-40; design study, not a validation).
+- No precursor (N): fired 0/20 at 200 and at 500 shots (median gain -0.0083 and -0.0028): conservative, the extra
+  features still cost a little.
+- Precursor strength 0.5 (values model decision AUC about 0.62-0.65): 1/20 at 200 shots, 13/20 at 500 (below 80%).
+- Strength 1 (AUC about 0.78-0.80): 20/20 at both sizes (median gain +0.026, +0.030). Strength 2 (AUC about 0.89-0.90):
+  20/20 at both.
+- Reading for the toolkit: with a few hundred shots the primary reliably detects a precursor that lifts the decision
+  AUC to about 0.78; a weak one (about 0.63) needs more than 500 shots. A "no improvement shown" on a small machine
+  must be read against this: it is not evidence of no precursor. To be printed with every all-disruptive result.
+- Still open: the registered landmark validation stays FAILED; a v3 validation with early stopping needs its own
+  protocol on seeds 41 onwards (the clock-matched secondary also failed V+D 16/20 and should be described only as a
+  sensitivity measure).
