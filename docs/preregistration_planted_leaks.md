@@ -64,3 +64,11 @@ data, family L0, generator seeds 101 to 200 (100 new datasets), E only, same set
 replicates against the median bootstrap half-width, and test-set sizes. Question: is 3/20 consistent with a modest
 false-alarm rate at this small test size (about 40 cases and 80 controls, against 503 and 1,203 on EAST), or is the
 bootstrap range too narrow?
+
+### Investigation 2 (2026-11-24, specified before it is run; descriptive)
+
+Is E's flag rate on the duration family L_D higher than on clean data? E only, family L_D, generator seeds 101 to 200
+(100 new datasets), same settings and s = 0.5. Reported: fire count with Wilson 95% interval, set against investigation
+1 (L0, same seeds: 2/100), and the mean and SD of Delta. Reading: if the L_D interval lies above L0's, the duration
+shortcut induces a real contrast for E (a property of E, to be documented), not chance. The registered table stays
+FAILED either way.
