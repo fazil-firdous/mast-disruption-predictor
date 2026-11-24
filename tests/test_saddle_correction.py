@@ -281,3 +281,16 @@ def test_ledger_change_counts():
     assert n == {"finite, value differs": 1, "finite to missing": 1, "missing to finite": 1, "unchanged finite": 1,
                  "unchanged missing": 1}
     assert sum(n.values()) == len(a)
+
+
+def test_no_double_flip_on_a_release_ingested_after_the_source_fix():
+    assert sf.release_state("2026-09-25T10:00:00Z") == "reversed"
+    assert sf.release_state("2026-11-30T10:00:00Z") == "unverified" and sf.release_state("") == "unverified"
+    mag = magnetics(25000, flip_stored=False)
+    mag.attrs["ingested_at"] = "2026-11-30T10:00:00Z"
+    groups = {"summary": summary_group(), "magnetics": mag}
+    out, status = sf.shot_result(25000, lambda shot, group: groups[group])
+    assert status == "release_unverified" and "lm" not in out
+    old = {"summary": summary_group(), "magnetics": magnetics(20000, flip_stored=False)}
+    old["magnetics"].attrs["ingested_at"] = "2026-11-30T10:00:00Z"
+    assert sf.shot_result(20000, lambda shot, group: old[group])[1] == "ok"  # outside the range: nothing to flip
