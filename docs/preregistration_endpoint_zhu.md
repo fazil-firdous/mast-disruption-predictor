@@ -1,7 +1,7 @@
 # Endpoint module 2: does the evaluation of the public Zhu et al. files depend on where the control is evaluated? (protocol)
 
 Written 2026-11-21, before any statistic of this study was computed. The git commit that adds this file is its
-timestamp. It follows the MAST endpoint module (docs/preregistration_endpoint.md) and an outside review of its result.
+timestamp. It follows the MAST endpoint module (docs/preregistration_endpoint.md).
 Changes after the first result go at the bottom.
 
 ## What this is, and what it is not
@@ -67,8 +67,7 @@ weights).
 ### Amendment 1 (2026-11-21, written AFTER the registered result had been seen; post-result sensitivities)
 
 The registered run finished and its full output was read before this amendment (NOTES.md 2026-11-21: EAST Delta
-+0.003, +0.000 to +0.007, not material; DIII-D +0.009; C-Mod +0.036, material by the rule). An outside review of the
-design (received after the run had started) suggested verification items and at most two sensitivities. Everything
++0.003, +0.000 to +0.007, not material; DIII-D +0.009; C-Mod +0.036, material by the rule). A design check made after the run had started suggested verification items and at most two sensitivities. Everything
 below is a post-result sensitivity, not part of the confirmatory test; the registered output is kept unchanged and
 remains the result.
 

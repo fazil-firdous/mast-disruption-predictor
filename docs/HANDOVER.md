@@ -1,7 +1,6 @@
 # Carrying this project on
 
-Written 2026-11-11 for whoever continues the work: the owner alone, a collaborator, or an assistant that has never
-seen the project. Everything needed is in this repository; nothing depends on anyone's memory.
+Written 2026-11-11 for whoever continues the work. Everything needed is in this repository; nothing depends on anyone's memory.
 
 ## Read these first, in this order
 
@@ -22,7 +21,6 @@ An assistant starting cold should be given items 3 to 5 and asked to read them b
 | Results of every experiment | `MAST_HOME/results/` (`E0`..`E15`, `E10/seed_*`, `E10/comparisons/`, `v3/`, `v3_explore/`, `events/`, `twin_differences/`, `release/`) |
 | Copies of results before each rerun | `MAST_HOME/results_history/` |
 | Secrets (Telegram, GitHub token) | `~/mast-private/.env`, never in the repository |
-| Paper sources and drafts | not in the repository; the owner keeps them |
 
 ## The server
 
@@ -116,7 +114,7 @@ in response to the session, so the associations could not be read without the ex
 
 ## State on 2026-11-24, and what to do next
 
-Written in case work pauses. Details of every result are in `NOTES.md` (newest at the bottom).
+Details of every result are in `NOTES.md` (newest at the bottom).
 
 **Audit toolkit (`scripts/audit.py`, guide `docs/TOOLKIT.md`).** One command for any table of shot, time and signals.
 Mixed mode (some shots disrupt): T timing, D clock, E endpoint checks. All-disruptive mode (every shot disrupts):
@@ -136,8 +134,6 @@ flip (they should not) before refetching, and set the rule accordingly.
 **Next steps, in order of value.**
 1. When a new FAIR-MAST release appears: re-check the saddle signs (above) and the EFIT timing (the maintainers fixed
    dropped and late EFIT slices in level 2).
-2. If a collaborator with an all-disruptive machine runs `scripts/audit.py --all-disrupt` locally, agree in writing
-   first what may be shared (summary numbers only), who checks it, and authorship.
-3. A methods paper on the toolkit: the validations (with their failures), the MAST twin and endpoint results, and the
-   Zhu-file results. Outline kept privately by the owner.
-4. Re-run `python -m pytest -q` after any change; protocols go in `docs/` before any new analysis is run.
+2. Before running `scripts/audit.py --all-disrupt` on a machine's data, fix the window, step and horizon in a
+   protocol, and read the result against the power note.
+3. Re-run `python -m pytest -q` after any change; protocols go in `docs/` before any new analysis is run.

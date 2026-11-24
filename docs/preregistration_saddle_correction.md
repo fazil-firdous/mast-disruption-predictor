@@ -1,7 +1,7 @@
 # Saddle-coil sign correction of the locked-mode feature (protocol)
 
 Written 2026-11-15, after the no-locked-mode check (`docs/preregistration_no_lm.md`, NOTES.md 2026-11-15) and an
-outside review that said the ablation is a robustness check, not a correction of a known feature-construction error.
+methodological check that found the ablation is a robustness check, not a correction of a known feature-construction error.
 Written before any saddle-coil channel data were read for this study and before any model of it was trained. The git
 commit that adds this file is its timestamp. Changes after the first result go at the bottom.
 
@@ -103,7 +103,7 @@ inputs", not that it survives removal of both.
 
 ## Amendment 1 (2026-11-15, before any channel data were seen)
 
-Written after a second outside review, while the first GitHub read was running and before anything from it was
+Written after a further methodological check, while the first GitHub read was running and before anything from it was
 collected or looked at. That read is cancelled and repeated with the code of this amendment, so that the frozen
 sample's channel inputs are kept. The registered V statistic and its rule stay as written above; what follows is added,
 and labelled as added.

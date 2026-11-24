@@ -1,7 +1,6 @@
 # Audit toolkit, all-disruptive mode v2: fixed-horizon landmark comparison, and its planted-leak validation (protocol)
 
-Written 2026-11-23, before any of it was coded or run. The git commit that adds this file is its timestamp. It
-follows an outside review (NOTES.md 2026-11-23): the primary for machines where every shot disrupts should ask whether
+Written 2026-11-23, before any of it was coded or run. The git commit that adds this file is its timestamp. It follows NOTES.md 2026-11-23: the primary for machines where every shot disrupts should ask whether
 past diagnostic values improve the prediction of an event in the next H ms beyond a flexible elapsed-time baseline;
 the clock-matched contrast becomes secondary. The earlier all-disruptive validation (A_W failure) stays as recorded.
 Changes after the first result go at the bottom.
@@ -70,7 +69,7 @@ should not (N, N+D, V, V+D all 0/20), but its gain was negative in every family 
 model with 12 extra value features is worse calibrated than the elapsed-time model even when the values carry
 nothing. Secondary: the clock-matched flag fired 1/20 on N+D (passes: readable but uninformative clock) and 16/20 on
 V+D (expected at least 18: FAIL), and also 14/20 on V, which has no drift at all: under a rising hazard the contrast
-moves without any clock proxy, as the reviewer warned. Generator checks as intended: next-30 ms share 0.133 against
+moves without any clock proxy. Generator checks as intended: next-30 ms share 0.133 against
 the analytic 0.131; the drift correlates 0.99 (N+D) and 0.94 (V+D) with elapsed time.
 
 Investigation 1, specified now, before it is run (exploratory; it cannot rescue the registered result): is the

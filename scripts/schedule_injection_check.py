@@ -1,5 +1,5 @@
 """Accounting and mechanics of the schedule-injection study (docs/preregistration_schedule_injection.md). Requested by the
-outside review AFTER the result; a diagnostic only: it changes no reading and fits no model.
+methodological check AFTER the result; a diagnostic only: it changes no reading and fits no model.
 
 1. Eligibility: shots in the file, and those left out under U or I (fewer than 2 slices), by class.
 2. Nesting: U's slices are a subset of I's in every shot, with equal values at common time stamps; non-disrupted

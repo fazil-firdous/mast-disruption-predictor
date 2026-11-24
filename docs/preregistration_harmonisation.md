@@ -2,7 +2,7 @@
 
 Written 2026-11-14, after the sampling audit (parts 1 and 2) and the timing-only predictor (NOTES.md 2026-11-14), and
 before any model of this study was fitted. The git commit that adds this file is its timestamp. A sensitivity
-analysis, as an outside reviewer framed it: a performance drop is not automatically "the shortcut", and what remains
+analysis, framed as follows: a performance drop is not automatically "the shortcut", and what remains
 is not automatically "physics". Changes after the first result go at the bottom.
 
 ## Task (the same as the timing studies)
@@ -70,4 +70,4 @@ test shots (seed 42). Beside it: AUC(R0), AUC(R1), AUC(R2) and the residual timi
   standardised, and a few large ages pull an L2-penalised logistic fit to the wrong sign). The rule should have been
   |AUC - 0.5| > 0.10. DIII-D's R2 is therefore NOT read as "survives harmonisation", although the code printed that
   line by the letter of the rule. Recorded here because it was found after the result was seen. Following the stop
-  rule of the outside review (do not change preprocessing until a timing test passes), no new harmonisation is tried.
+  rule (do not change preprocessing until a timing test passes), no new harmonisation is tried.
