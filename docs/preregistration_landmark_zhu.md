@@ -50,4 +50,14 @@ the recording schedule in these records. Otherwise: no improvement shown (not sh
 
 ## Changes after the first result
 
-(none yet)
+### Result (2026-11-24)
+
+Primary, EAST (468 test disrupted shots, 76,345 decisions, 2,092 positive): Brier gain of the signals over clock +
+schedule **-0.00046 (-0.00063 to -0.00032): no improvement shown**. Read with the decision AUCs: clock 0.636, clock +
+schedule **1.000**, + signals 0.999, clock + signals 0.954. The recording schedule alone separates the last 100 ms
+before a disruption from earlier decisions almost perfectly, so there is nothing left for the signals to add: the
+null is a ceiling, not evidence that the signals carry no information (they add +0.0095, +0.0082 to +0.0109, over the
+clock alone). DIII-D the same (clock 0.655, clock + schedule 0.995; signals over clock + schedule -0.00004, -0.00016 to
++0.00007). C-Mod differs: the schedule adds little (0.790 -> 0.828; gain +0.0070, +0.0013 to +0.0119); signals over
+clock + schedule +0.016 (-0.014 to +0.043), not resolved with 152 test shots and 1,490 decisions. Every disrupted
+record ends at its disruption (median gap 0.0 ms).
