@@ -193,7 +193,7 @@ def fetch(ids, sample=(), workers=8, open_group=programme_signals.open_group, sa
     report = {"task": "saddle_fetch", "created": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
               "shots_requested": len(ids), "seconds": round(time.time() - start),
               **{s: sum(v == s for v in status.values()) for s in ("ok", "no_saddle", "absent", "unreachable", "odd",
-                                                                   "not_started")}}
+                                                                   "not_started", "release_unverified")}}
     return tables, report
 
 
