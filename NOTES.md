@@ -2341,3 +2341,10 @@ released). fair-mast main: last commit 2026-10-28; PR #249 (UTC documentation) o
   added to `scripts/saddle_fetch.py`: for shots in 24782-30473 the flip is applied only to groups ingested before
   2026-10-23; later groups get status `release_unverified` and no corrected feature until the release is checked.
   Existing data (ingested 23-29 September 2026) are unaffected. Test added.
+
+## 2026-11-24 - Handover update; Paper 2 and technical note drafts updated (private)
+
+`docs/HANDOVER.md` has a dated section with the toolkit, its real-data results, the saddle-sign guard and the next
+steps. Private drafts (kept outside the repository by the owner): the Paper 2 final candidate now cites the
+maintainers' confirmation of the saddle correction; the technical note adds the within-record landmark result and
+endpoint module 2; a two-page quick guide to the audit tool for collaborators.

@@ -113,3 +113,31 @@ in response to the session, so the associations could not be read without the ex
 - Ask for one change at a time, with tests, and read the diff before merging.
 - Ask it to write the plan and the expected reading into the notes before a run, and the result after.
 - Two assistants agreeing is not a check. A person who knows the machine, or the data itself, is.
+
+## State on 2026-11-24, and what to do next
+
+Written in case work pauses. Details of every result are in `NOTES.md` (newest at the bottom).
+
+**Audit toolkit (`scripts/audit.py`, guide `docs/TOOLKIT.md`).** One command for any table of shot, time and signals.
+Mixed mode (some shots disrupt): T timing, D clock, E endpoint checks. All-disruptive mode (every shot disrupts):
+the landmark primary, the Brier gain of the signals over elapsed time (and `prog_*` columns), validated on planted
+shortcuts (v3 passed; earlier versions failed and are kept on record), with a power note. Examples in `examples/`.
+
+**Real-data results of the toolkit so far.** Public Zhu et al. files: within disrupted EAST and DIII-D records the
+recording schedule alone gives a decision AUC of 1.000 / 0.995 for "disruption within 100 ms", so what the signals add
+cannot be measured there (`scripts/landmark_zhu.py`). Endpoint module 2: little change in EAST under the tested
+anchor swap (`scripts/endpoint_zhu.py`, `scripts/endpoint_zhu_sensitivity.py`).
+
+**Saddle-coil signs.** The FAIR-MAST maintainers confirmed our correction and moved it into their ingestion code
+(fair-mast-ingestion #157). `scripts/saddle_fetch.py` therefore refuses to flip groups ingested after 2026-10-23
+(status `release_unverified`): when a new FAIR-MAST release appears, check whether M02, M08 and M012 still need the
+flip (they should not) before refetching, and set the rule accordingly.
+
+**Next steps, in order of value.**
+1. When a new FAIR-MAST release appears: re-check the saddle signs (above) and the EFIT timing (the maintainers fixed
+   dropped and late EFIT slices in level 2).
+2. If a collaborator with an all-disruptive machine runs `scripts/audit.py --all-disrupt` locally, agree in writing
+   first what may be shared (summary numbers only), who checks it, and authorship.
+3. A methods paper on the toolkit: the validations (with their failures), the MAST twin and endpoint results, and the
+   Zhu-file results. Outline kept privately by the owner.
+4. Re-run `python -m pytest -q` after any change; protocols go in `docs/` before any new analysis is run.
