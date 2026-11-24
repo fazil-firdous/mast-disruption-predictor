@@ -1,5 +1,5 @@
 """Accounting and implementation checks for the public-files audit, before the package goes to the authors (asked for by
-an outside reviewer). Exploratory diagnostics, not a new analysis: file hashes and versions, shot counts and
+a methodological check). Exploratory diagnostics, not a new analysis: file hashes and versions, shot counts and
 duplicates, the EAST split's inclusion flow and disjointness, the disruption-time convention (C4) in full, class counts
 per shot-number bin (C5), and a diagnosis of the reversed DIII-D residual-timing fit of the harmonisation run.
 

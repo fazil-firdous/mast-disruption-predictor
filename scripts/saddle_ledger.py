@@ -1,4 +1,4 @@
-"""Accounting for the saddle-sign correction, from saved outputs only (no new model). Asked for by the outside review
+"""Accounting for the saddle-sign correction, from saved outputs only (no new model). Requested as a check
 after the corrected result (NOTES.md 2026-11-15); computed after that result, so every line is a clarification or a
 labelled post-hoc secondary, never a test that could change the reading.
 

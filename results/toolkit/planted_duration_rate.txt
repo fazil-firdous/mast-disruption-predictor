@@ -1,0 +1,4 @@
+Investigation 2: E on the duration family L_D, seeds 101-200.
+  fired 4/100 = 4.0% (Wilson 95% 1.6% to 9.8%); range excludes 0 regardless of size 4/100
+  SD of Delta across replicates 0.0286; median bootstrap half-width 0.0597; mean Delta +0.0026
+  test size: median 40 cases, 80 controls

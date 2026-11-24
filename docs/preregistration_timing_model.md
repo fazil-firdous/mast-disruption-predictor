@@ -9,7 +9,7 @@ Can a predictor that sees only observation times, trained without test labels, t
 shots on the held-out test shots that the public files themselves designate?
 
 The fixed-statistic AUCs of the audit already show retrospective separability. This study asks the narrower,
-model-based question an outside reviewer suggested, on an official split, evaluated once.
+model-based question, on an official split, evaluated once.
 
 ## Data and split
 

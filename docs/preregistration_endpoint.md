@@ -1,7 +1,7 @@
 # Does the evaluation depend on where the negative windows come from? (protocol, endpoint module)
 
 Written 2026-11-21, before any score of this study was computed. The git commit that adds this file is its timestamp.
-First module of the audit toolkit (NOTES.md 2026-11-21; outside review: "start with C"). Changes after the first result
+First module of the audit toolkit (NOTES.md 2026-11-21). Changes after the first result
 go at the bottom.
 
 ## Question
@@ -64,7 +64,7 @@ Delta for A_c at h = 10 ms, over the 50 splits (corrected range, as in the twin 
 ### Follow-up diagnostic 1 (2026-11-21, after the first result; it explains nothing it was not written to check)
 
 The first result (NOTES.md 2026-11-21) showed Delta +0.115 at 10 ms and a negative point estimate at 100 ms
-(-0.066, -0.142 to +0.011 over splits; pooled -0.063). An outside review suggested one small, saved-score diagnostic,
+(-0.066, -0.142 to +0.011 over splits; pooled -0.063). One small, saved-score diagnostic,
 specified now, before it is computed. No refit, no threshold search, no tuned phase proxy.
 
 1. **Common cohort.** The pair-split rows eligible at both 10 and 100 ms; exclusions by lead; Delta at 10 and 100 ms

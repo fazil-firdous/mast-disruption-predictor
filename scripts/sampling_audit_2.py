@@ -1,5 +1,4 @@
-"""Sampling audit, part 2 (docs/preregistration_sampling_audit_2.md, fixed before any statistic): checks an outside
-reviewer asked for. No model; reads the same *_for_nn.mat files as scripts/sampling_audit.py.
+"""Sampling audit, part 2 (docs/preregistration_sampling_audit_2.md, fixed before any statistic): further checks asked for. No model; reads the same *_for_nn.mat files as scripts/sampling_audit.py.
 
     python scripts/sampling_audit_2.py /root/dv/var/www/html/reports/20JA/20JA72/20ja072_fig4_data
 

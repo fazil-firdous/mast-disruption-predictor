@@ -110,11 +110,11 @@ def check_e(shots, split, n_boot=ez.N_BOOT):
     return fired, d[0]
 
 
-def null_rate(s, seeds=range(101, 201), n_boot=ez.N_BOOT):
-    """Investigation 1: E on clean data only. One row per seed: Delta, range, fired, test cases and controls."""
+def null_rate(s, seeds=range(101, 201), n_boot=ez.N_BOOT, family="L0"):
+    """Investigations 1 and 2: E only, on one family. One row per seed: Delta, range, fired, test cases and controls."""
     rows = []
     for seed in seeds:
-        shots = generate("L0", seed, s)
+        shots = generate(family, seed, s)
         split = split_of(shots)
         b = ez.build(shots, split)
         mask = np.isfinite(b["s_m"])
@@ -195,6 +195,15 @@ def table(frame):
 
 def main():
     quick = "--quick" in sys.argv
+    if "--duration-rate" in sys.argv:
+        f = null_rate(0.5, family="L_D")
+        out = null_text(f).replace("Investigation 1 (after the first table): E on clean data L0", "Investigation 2: E on the duration family L_D")
+        folder = os.path.join(config.RESULTS_DIR, "toolkit")
+        f.to_csv(os.path.join(folder, "planted_duration_rate.csv"), index=False)
+        with open(os.path.join(folder, "planted_duration_rate.txt"), "w") as fh:
+            fh.write(out + "\n")
+        print(out)
+        return
     if "--null-rate" in sys.argv:
         f = null_rate(0.5)
         out = null_text(f)

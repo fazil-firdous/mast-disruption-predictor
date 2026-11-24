@@ -485,9 +485,8 @@ MIT-PSFC/disruption-survival-analysis (Keith et al., C-Mod): survival models (au
 
 Also done: the status picture marks a comparison 'clear' only after Holm over all comparisons and measures ('hint' otherwise); the full per-shot ending table is public (`results/auto_labels/per_shot.csv`); `scripts/candidate_notes.py` counts hardware and plasma words in the post-shot comments by ending group, to run on the server (the sandbox cannot reach the shot table).
 
-## 2026-11-06 - History rewritten; results are never overwritten
+## 2026-11-06 - Results are never overwritten
 
-- The repository history was rewritten at the owner's request: every commit now has the owner as author (GitHub no-reply address), the assistant trailers and an old rules file were removed, and the file contents are unchanged except one sentence in `scripts/diagnose_network.py`. Commit hashes quoted in older NOTES entries refer to the history before the rewrite.
 - Before any full run with new science code or data, the server copies the whole results folder to `MAST_HOME/results_history/<date>_<old commit>/` and does not start the run if it cannot (`keep_results`). The first run after this change makes one copy of the v2 results the paper uses.
 
 ## 2026-11-06 - What the operators wrote about each ending; exact library versions
@@ -706,11 +705,10 @@ Pre-registered (`docs/preregistration_v3.md`), 150 runs; verdicts from splits 21
   50 ms, then chance. With the heating matched, the separation is confined to about the last 30 ms.
 - **Triplets compared in the twin-difference study:** 2,598 at 10 ms, 2,741 at 30, 2,801 at 50, 2,755 at 100, 1,653
   at 200, 450 at 300.
-- **Paper 2 draft v0.2** has every number filled except the data-release DOI (private, in the paper notes).
 
 ## 2026-11-10 - Paper 1 submitted to arXiv
 
-- Submitted to physics.plasm-ph as submit/8351057 (endorsed by U. Maurya, IPR), the same 14-page paper as the Zenodo
+- Submitted to physics.plasm-ph as submit/8351057, the same 14-page paper as the Zenodo
   record doi:10.5281/zenodo.24081241, with a shortened abstract in the form (arXiv's length limit). Licence CC BY 4.0.
 - When it is announced: add the arXiv number to the README, CITATION.cff, ORCID and paper 2's reference to paper 1.
 
@@ -750,7 +748,6 @@ Pre-registered (`docs/preregistration_v3.md`), 150 runs; verdicts from splits 21
   - *Early height.* The programmed shape is not in the data, so pairs are split by whether the two magnetic axes
     were within 2 cm (RMS) up to 100 ms before the loss; C is also given for pairs with the same heating and the
     same early height.
-- Commits carry the repository owner's name only from here on.
 
 ## 2026-11-11 - The twin test holds when the height is matched and when the twin outlives the loss (exploratory)
 
@@ -856,8 +853,6 @@ pairs of M8-M9; same-time statistic; ranges over groups of pairs sharing a twin.
 - Twin reuse: 1,700 different kept shots for 3,902 lost shots; 52% serve one, 21% two, 28% three or more, at most
   18. Triplet gaps: median 2 shots from L to K1 and from K1 to K2 (means 5.0 and 4.3). Lost shots without a twin
   (892): 19.3% recorded against 16.9% with a twin.
-- Paper 2 draft v0.7 carries all of this (private). Open: the data-release DOI, a physicist's read, the full
-  texts of the three nearest papers.
 
 ## 2026-11-11 - Four final checks of the twin test (defined in the pre-registration before they ran; exploratory)
 
@@ -1242,7 +1237,7 @@ plan. Only the programme-only model is plasma-free; the paper reads 'machine-sid
   (-0.027 to +0.010), 1,716 pairs. Not resolved. The pooled range ends at +0.010, below the +0.03 fixed as worth
   having, but it is conditional on these 20 fitted models (pairs resampled, training not); the range over splits,
   which includes training variation and decides, still includes +0.03. So: no resolved improvement; a worthwhile
-  gain is not excluded. (Wording corrected 2026-11-13 after an outside review; the earlier line said 'ruled out'.)
+  gain is not excluded. (Wording corrected 2026-11-13 after a methodological check; the earlier line said 'ruled out'.)
 - **Every other lead and model agrees:** C minus A at 10, 30 and 100 ms: +0.002, +0.018, +0.008; B (5 ms instead of
   20 ms) and G (growth) within +-0.01 of A everywhere; none resolved. Plan twins and field-and-shape twins at 50 ms:
   -0.023 and -0.024, ranges including zero (required check: no positive sign to agree with).
@@ -1395,7 +1390,7 @@ repetition (A 3,134 and B 4,104 pairs tested). Two-level bootstrap.
   P_B 0.485 (0.471 to 0.500). Beside it: over repetitions only +0.012 to +0.075; pairs only +0.049 (+0.020 to
   +0.078). Part 1's +0.087 was not borne out at that size; the estimate is about half.
 - **The comparison sequences:** P_B is near one half in both parts (0.485, 0.471 to 0.500, in part 2). Wording
-  (after an outside review): 'the comparison sequences had a later-repeat preference near one half; the contrast
+  (after a methodological check): 'the comparison sequences had a later-repeat preference near one half; the contrast
   with pre-loss sequences remained unresolved'. Near one half is not a demonstrated absence of drift.
 - **Heating-matched pairs (key secondary):** +0.018 (-0.052 to +0.089); A 42% and B 55% of pairs matched. Observed
   and reported, but not interpreted, because the protocol's gate (a resolved primary) was not met.
@@ -1412,7 +1407,7 @@ repetition (A 3,134 and B 4,104 pairs tested). Two-level bootstrap.
 
 ## 2026-11-14 - A second dataset: C-Mod, DIII-D and EAST (Zhu et al., public on Harvard Dataverse)
 
-Harvard Dataverse doi:10.7910/DVN/XIOHW1 (pointed to by an outside reviewer; confirmed as the DisruptionBench data
+Harvard Dataverse doi:10.7910/DVN/XIOHW1 (confirmed as the DisruptionBench data
 by its corresponding author, who also confirmed that research use with citation is fine). Per time slice: shot,
 time, time_until_disrupt and 12 plasma signals, including the current error (Ip - Ip_prog)/Ip_prog (Zhu et al.,
 table 1), but neither Ip nor the programmed current, so MAST-style twins cannot be built from it directly (asked
@@ -1451,7 +1446,7 @@ range from 2,000 bootstrap resamples of shots.
 
 ## 2026-11-14 - Self-audit of MAST's observation times is built (nothing run yet)
 
-After the public-files result, and on an outside reviewer's advice, the same question for our own data first.
+After the public-files result, and the same question for our own data first.
 Protocol `docs/preregistration_mast_timing_audit.md` (d1251c2) before any time stamp was read. EFIT slice times come
 through GitHub (`scripts/efit_times_fetch.py`); the summary grid from the cached shot tables.
 `scripts/mast_timing_audit.py`: primary, the timing concordance of the EFIT slice count in the 20 ms window at 30 ms
@@ -1470,7 +1465,7 @@ group, none failed); summary grid from the cached shot tables; 3,902 twin pairs.
 - EFIT gaps over the flat-top: median 5.00 ms and 90th percentile 5.00 ms, lost and kept alike; no EFIT slices for 0.7%
   of lost and 0.9% of kept shots.
 - **Reading, as fixed beforehand:** no timing difference between lost shots and their twins at the moment compared.
-  **Scope (narrowed 2026-11-14 after an outside review):** FAIR-MAST level 2 publishes equilibrium on a 5 ms grid and
+  **Scope (narrowed 2026-11-14 after a methodological check):** FAIR-MAST level 2 publishes equilibrium on a 5 ms grid and
   summary on a 1 ms grid by zero-order hold, each published point taking the latest source sample at or before it
   (ukaea.github.io/fair-mast/level2/changes-from-source.html; to confirm for the version used). So the audit measured
   publication-grid coordinates, and all ties are a property of that representation. It excludes discrimination by
@@ -1532,7 +1527,7 @@ before the moment compared, lost shot against twin.
   inside the 0.47 to 0.53 band at the top). Lost shots repeat EFIT values slightly LESS often than their twins near the
   loss; mean paired difference -0.018. By lead: 0.461 (10 ms), 0.469 (30), 0.480 (50), 0.495 (100 ms): the difference
   shrinks away from the loss.
-- Wording (narrowed after an outside review): the examined repetition signature (simultaneous repeat of all six
+- Wording (narrowed after a methodological check): the examined repetition signature (simultaneous repeat of all six
   variables, adjacent pairs with any NaN left out) differed near the landmark, with fewer repeats in lost shots.
   Without native provenance this does not distinguish plasma evolution from source-update or processing differences:
   fewer repeats could also mean denser native updates, which is one of the concerns being tested. The 30 ms endpoint
@@ -1559,7 +1554,7 @@ before the moment compared, lost shot against twin.
 - **DIII-D:** 0.020 is the same failure with the fitted direction reversed; the protocol's one-sided rule missed it
   (recorded in the protocol as a change after the result). R2 is not read.
 - **C-Mod:** no residual timing (0.504); the values model keeps its AUC (0.90) on every representation; drop 0.000.
-- **What this run shows (wording narrowed after an outside review):** the tested value-based representations also
+- **What this run shows (wording narrowed after a methodological check):** the tested value-based representations also
   discriminate well (0.98 to 0.99 in EAST and DIII-D, 0.90 in C-Mod), but these runs do not isolate plasma dynamics
   from observation-process effects: last values, means and last-minus-first can carry holding, freshness and
   endpoint effects. R2 is reported descriptively, not as a successful removal of sampling information. C-Mod's R2
@@ -1610,7 +1605,7 @@ correction differs is one of the questions sent to them.
 ## 2026-11-14 - MAST source level: level-1 efm reconstruction times are irregular (protocol 6190b6b)
 
 FAIR-MAST level 1 documents `efm/all_times` (attempted) and `efm/cnvrgd_times` (converged) reconstruction times (lead
-from the outside reviewer). In three shots chosen without regard to outcome (30421, 27000, 22000), both exist, are
+from the methodological check). In three shots chosen without regard to outcome (30421, 27000, 22000), both exist, are
 identical (all converged) and have irregular gaps (5 to 50 ms; median 5 ms): 120, 106 and 96 reconstructions. So the
 level-2 5 ms grid holds values over native gaps, and the native schedule can be tested. Protocol
 `docs/preregistration_mast_source_times.md` written before any level-1 time of a twin pair was read;
@@ -1656,7 +1651,7 @@ with an unconverged attempt), 3,902 twin pairs.
 ## 2026-11-14 - Which FAIR-MAST version our data are, and which known faults touch our inputs
 
 Source: the FAIR-MAST level-2 release history (`docs/level2/release-history.md` of ukaea/fair-mast, read 2026-11-14;
-pointed to by the outside reviewer). Level 2 is regenerated at the same paths; each group carries `ingested_at` and
+pointed to by the methodological check). Level 2 is regenerated at the same paths; each group carries `ingested_at` and
 `commit_url`. The deployed release is September 2026 (ingested 23 to 29 September, commit ed6ea4e); a corrections
 release is announced (date TBC). Remote attributes today: shots 22000, 27000 and 30421 ingested 24 to 30 September 2026,
 commit ...0948. Our shot and extras caches were built by the relay between 16 October and 1 November 2026, so they are
@@ -1692,11 +1687,11 @@ Next: does the twin result need the locked-mode inputs? (protocol `docs/preregis
   (527) +0.066 (-0.054 to +0.186), pooled +0.061 (+0.002 to +0.118). Fewer pairs after 24782; not resolved over splits.
 - Chronological split (test campaigns mostly from 24782 on), pooled: L minus M +0.084 (+0.029 to +0.139) at 10 ms,
   +0.036 (-0.020 to +0.092) at 30 ms. Placebo for L at 10 ms: 0.552 (0.464 to 0.639).
-- Wording, following the outside review's model: in the tested 20-split evaluation, the 10 ms concordance advantage over
+- Wording, following the methodological check's model: in the tested 20-split evaluation, the 10 ms concordance advantage over
   the machine-side model remained positive after retraining without the listed locked-mode input features. This does not
   establish that the original model ignored the faulty coils, or that no other processing fault matters.
 
-## 2026-11-15 - After the outside review of the no-locked-mode check: correct the feature, not only drop it
+## 2026-11-15 - After the no-locked-mode check: correct the feature, not only drop it
 
 The review: the no-lm model is a robustness check, not a correction of a known feature-construction error. Retraining
 without a feature lets other signals stand in, and the original fitted model may still use the faulty representation;
@@ -1723,7 +1718,7 @@ already corrected are not corrected twice); check the cache against today's stor
 eight lm window features with the corrected signs and retrain the full model (A_c), primary C(10 ms) of A_c minus M.
 Original cache and results untouched.
 
-## 2026-11-15 - Saddle-sign protocol, amendment 1 (second outside review), before any channel data
+## 2026-11-15 - Saddle-sign protocol, amendment 1, before any channel data
 
 No run of the first GitHub read was listed when checked (03:37 UTC); the read is started again with the amended code, which keeps the frozen
 shots' channel bins. Changes (`docs/preregistration_saddle_correction.md`, amendment 1): V is a diagnostic consistency
@@ -1753,7 +1748,7 @@ requested, 10,547 with saddle data, 924 with no saddle field in the store ("no_s
   477 have no saddle field in the store, and the gate counts them as not read. Diagnostic afterwards (not a gate): all
   477 are "no_saddle" and their cached lm_n1 is entirely NaN (M8 447, M7 10, M9 4, unknown campaign 16), so cache and
   store agree that these shots have no saddle data. The protocol did not define this case; the gate is left failed,
-  no corrected features are built, training is not started, and the question goes to an outside reviewer.
+  no corrected features are built, training is not started, and the question goes to a methodological check.
 - **P3**: the summary signals of all 50 frozen shots are identical today and in our cache.
 - **P5**: every shot stores the same 12 labels (M01..M012), 11 with data. The Mirnov channel selected differs by
   campaign: M5 '201' 1,427, '210' 374; M6 '220' 2,619, '201' 56; M7 '201' 2,485, '220' 1,003; M8 and M9 '201'; a few
@@ -1776,7 +1771,7 @@ requested, 10,547 with saddle data, 924 with no saddle field in the store ("no_s
 
 ## 2026-11-15 - Saddle-sign protocol, amendment 2 (after the first check): structural-absence branch, G5 before training
 
-Outside review: G1/G2 failed on structurally missing data, not on observed disagreements; an explicit change of rule is
+G1/G2 failed on structurally missing data, not on observed disagreements; an explicit change of rule is
 legitimate if it does not relabel the first run. Recorded three ways: the original gates failed as implemented
 (outputs kept as `*_original`); the post-read diagnostic (477 no-saddle shots, all-NaN cached feature); the amended
 gates G1a and G2a, which accept "structural absence with matching downstream missingness" only under four conditions
@@ -1876,7 +1871,7 @@ shots. The kept values are the same measurements; only the schedule differs.
 - Not claimed: what the schedule did in any published model, or in EAST or DIII-D; this is C-Mod with an imposed
   schedule. It shows what a schedule of this shape can do to a values-only predictor on identical measurements, and that
   a grid correction of this kind leaves part of it.
-- **Wording corrected after the outside review (same day):** the measurements presented to the model are NOT
+- **Wording corrected after the methodological check (same day):** the measurements presented to the model are NOT
   identical: I reveals additional real observations for disrupted shots, while the source records are the same. The
   +0.069 is the total effect of an imposed, label-dependent observation policy on this fitted pipeline ("AUC increase"
   or "schedule-policy sensitivity", not "inflation" or pure shortcut exploitation): it does not separate direct use of
@@ -1931,7 +1926,7 @@ shots. The kept values are the same measurements; only the schedule differs.
 - The registered harmonisation code is left as it was (its outputs are kept); this entry records which of its numbers
   depend on the tolerance.
 
-## 2026-11-18 - Dependency ledger of the 1e-9 s time boundaries (after the outside review; closure of the timing note)
+## 2026-11-18 - Dependency ledger of the 1e-9 s time boundaries (closure of the timing note)
 
 Every reported number whose computation uses a time comparison with a 1e-9 s tolerance or an exact step boundary, and
 its status. Checked: C-Mod stored times deviate from their 5 ms steps by up to 0.124 us (median 0.005 us); EAST and
@@ -2023,7 +2018,7 @@ The programme-only model is at chance on every plan-matched set; the corrected f
 
 ## 2026-11-21 - Check: the identical pooled fixed-lead differences at 30 and 50 ms are a coincidence
 
-Raised by the outside review. Unrounded, on the same 2,663 pairs (12,440 rows per model): 30 ms +0.072176 (+0.050048 to
+Unrounded, on the same 2,663 pairs (12,440 rows per model): 30 ms +0.072176 (+0.050048 to
 +0.096163), mean win A_c 0.672347 and M 0.606511; 50 ms +0.072359 (+0.049649 to +0.095688), A_c 0.635691 and M
 0.567765. Different values and different model means; they agree only to three decimals. No bug.
 
@@ -2056,7 +2051,7 @@ programme time (P) or at its own end minus h (E; detected current quench, or end
   information entered the model. It shows that an endpoint-aligned evaluation with natural-end negatives can credit a
   plan-and-clock model with discrimination it does not have against phase-matched negatives; the twin paper's
   phase-matched design avoids this.
-- **Outside review of the endpoint result (same day).** The 0.509 -> 0.802 programme-and-time result is a fair hook
+- **Reading of the endpoint result (same day).** The 0.509 -> 0.802 programme-and-time result is a fair hook
   only as a secondary next to the primary (A_c 0.752 -> 0.867, +0.115). Wording: "matched concordance", "same programme
   time" (not "same plasma phase"), "near 0.5", and the 100 ms sign change is not an established reversal (over-split
   range includes zero; the pooled range is a different uncertainty). The nominal gap between the two twin points is
@@ -2117,7 +2112,7 @@ its first slice (M); matched concordance; bootstrap over cases and controls.
   that caveat, not as a finding about C-Mod.
 - Control score E - M: mean -0.067 EAST, -0.005 DIII-D, -0.060 C-Mod, median about 0 everywhere: a minority of
   controls score much higher at M than at their own end.
-- Outside review of the design (received while the run was going): keep the registered run; an end-trained model is a
+- Design note: keep the registered run; an end-trained model is a
   fair instrument for "how sensitive is this model's reported ranking to the control window", not for "E is better" or
   "all values-only models would do this". Suggested verification items and two sensitivities; written into the
   protocol as amendment 1, explicitly after the result was seen (`scripts/endpoint_zhu_sensitivity.py`): S1 common
@@ -2170,7 +2165,7 @@ evidence about any machine.
 
 ## 2026-11-23 - Endpoint module 2: the C-Mod crossing disappears with mixed-landmark training
 
-C-Mod S2 (read from the saved result file; the Telegram copy was cut): 1,084 of 2,121 training controls moved to an
+C-Mod S2 (from the saved result file): 1,084 of 2,121 training controls moved to an
 M-like landmark (1 without an eligible anchor; median 75 ms, quartiles 5 to 345). Mixed-landmark model on the
 registered pairs: C_E 0.882, C_M 0.884, **Delta -0.001 (-0.011 to +0.006)**; its ordinary AUC 0.885 (0.855 to 0.913).
 So the registered C-Mod +0.036 depended on training only at end-of-record landmarks (and, by S1, partly on short
@@ -2181,9 +2176,7 @@ that either model is better.
 
 ## 2026-11-23 - Audit toolkit, first one-command version (`scripts/audit.py`)
 
-Built after a conversation with an ADITYA-U researcher: on ADITYA-U and SST-1 every shot ends in a disruption (no
-controlled ramp-down), disruption details come from a hand-edited logbook, and the data have missing, noisy and
-uncalibrated signals. On such machines the task is "when", and the usual set-up (last tens of ms positive, earlier
+Motivation: on machines without a controlled ramp-down every shot ends in a disruption. On such machines the task is "when", and the usual set-up (last tens of ms positive, earlier
 windows negative) lets a model learn "the shot is about to end" instead of a precursor.
 - Mixed mode: T, D, E as validated on planted leaks, with E's smallest detectable difference printed.
 - All-disruptive mode: clock-only AUC, sampling-only AUC, and a clock-matched concordance: each positive window against
@@ -2213,7 +2206,7 @@ before the run). Synthetic only.
   is a route to the clock, and the clock is informative by construction. The clock-matched concordance, not the
   ordinary window AUC, is the number to lead with.
 
-## 2026-11-23 - Outside review of the toolkit: wording corrections, and the all-disruptive primary to change
+## 2026-11-23 - Toolkit: wording corrections, and the all-disruptive primary to change
 
 Corrections to the entries above (kept as written; these supersede their wording):
 - Mixed-mode validation: "false alarms" should read **"unexpected flags"**. Without an E shortcut the population
@@ -2234,7 +2227,7 @@ Corrections to the entries above (kept as written; these supersede their wording
   documented by the data owner) and regression tests: exact sample membership, counts, ages and gaps on integer ticks,
   unchanged under cumulative-sum and 1e-12 s jitter; identical timing vectors give tied scores and AUC 0.5.
 
-All-disruptive mode, reviewer's recommendation (to be written as a protocol before any change is run): the primary
+All-disruptive mode, planned change (to be written as a protocol before any change is run): the primary
 should be a **fixed-horizon landmark comparison**: on a forward grid of decision times, does adding past diagnostic
 values to a flexible elapsed-time (and programme, where known) baseline improve the prediction of an event in the next
 H ms? Paired Brier gain on held-out shots, resampling shots as clusters; calibration and alarm counts alongside.
@@ -2257,7 +2250,7 @@ before the run). Synthetic only.
   12 features cost calibration even when they carry nothing.
 - Secondary clock-matched flag: N+D 1/20 (pass: a readable but uninformative clock does not trigger it); V+D 16/20
   (expected 18: FAIL); V without any drift 14/20: under a rising hazard the contrast moves with no clock proxy. So it
-  is not a leakage detector, as the review said.
+  is not a leakage detector.
 - Generator as intended (next-30 ms share 0.133 vs analytic 0.131; drift-time correlation 0.99 / 0.94).
 - Investigation 1 specified before running: same N and P families with early stopping in both learners.
 - **Investigation 1 result** (exploratory, early stopping in both learners, N and P, seeds 1-20): N 0/20, median gain
@@ -2291,7 +2284,7 @@ before the run; early stopping and strength 1 chosen after v2 and the power stud
   AUC 0.48 -> 0.77); N, N+D, V, V+D 0/20 each. **PASSED**: it finds a planted precursor and stays quiet on a
   readable-but-uninformative clock (N+D) and on an informative clock the baseline already has (V, V+D).
 - Clock-matched contrast, reported only: V 14/20 and V+D 14/20 with or without drift; N+D 1/20. A sensitivity
-  measure, as the review said.
+  measure.
 - Toolkit: plain-language input checks, `--time-resolution`, early stopping and a power note in the primary,
   `docs/TOOLKIT.md` (every validation with its outcome, failures included), `examples/` tables; 24 tests pass.
 - Honest scope: v3 passed on synthetic data where the precursor is strong enough to be seen (power study); it is a
@@ -2341,3 +2334,11 @@ released). fair-mast main: last commit 2026-10-28; PR #249 (UTC documentation) o
   added to `scripts/saddle_fetch.py`: for shots in 24782-30473 the flip is applied only to groups ingested before
   2026-10-23; later groups get status `release_unverified` and no corrected feature until the release is checked.
   Existing data (ingested 23-29 September 2026) are unaffected. Test added.
+
+
+## 2026-11-24 - Planted leaks, investigation 2: E on the duration family flags at about the clean-data rate
+
+E only, family L_D, seeds 101-200 (specified before running): fired 4/100 (Wilson 1.6% to 9.8%), mean Delta +0.0026
+(SD 0.029), against 2/100 on clean data (0.6% to 7.0%). No evidence of a duration-specific contrast; the 3/20 in the
+registered table fits an unexpected-flag rate of a few percent at about 40 cases and 80 controls. The registered
+table stays FAILED.

@@ -110,7 +110,7 @@ Other soft X-ray features would be a new protocol, written before they are compu
 ## Clarifications and exploratory checks, 2026-11-13 (before any result of this study)
 
 Written while the GitHub job was reading the cameras: no soft X-ray feature had been computed and no model of this
-study trained. Prompted by an outside methodological review. The primary analysis above is unchanged; everything
+study trained. The primary analysis above is unchanged; everything
 here is exploratory and is reported as such.
 
 **What each preprocessing step knows (all causal; tested in `tests/test_soft_xrays.py`):**

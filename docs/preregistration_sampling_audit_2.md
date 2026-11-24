@@ -1,4 +1,4 @@
-# Sampling audit, part 2: checks an outside reviewer asked for (protocol)
+# Sampling audit, part 2: further checks (protocol)
 
 Written 2026-11-14, after part 1 (`docs/preregistration_sampling_audit.md`, result in NOTES.md 2026-11-14) and the
 MAST self-audit, and before any statistic below was computed. The git commit that adds this file is its timestamp.

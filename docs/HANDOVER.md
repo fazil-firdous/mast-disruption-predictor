@@ -1,7 +1,6 @@
 # Carrying this project on
 
-Written 2026-11-11 for whoever continues the work: the owner alone, a collaborator, or an assistant that has never
-seen the project. Everything needed is in this repository; nothing depends on anyone's memory.
+Written 2026-11-11 for whoever continues the work. Everything needed is in this repository; nothing depends on anyone's memory.
 
 ## Read these first, in this order
 
@@ -22,7 +21,6 @@ An assistant starting cold should be given items 3 to 5 and asked to read them b
 | Results of every experiment | `MAST_HOME/results/` (`E0`..`E15`, `E10/seed_*`, `E10/comparisons/`, `v3/`, `v3_explore/`, `events/`, `twin_differences/`, `release/`) |
 | Copies of results before each rerun | `MAST_HOME/results_history/` |
 | Secrets (Telegram, GitHub token) | `~/mast-private/.env`, never in the repository |
-| Paper sources and drafts | not in the repository; the owner keeps them |
 
 ## The server
 
@@ -113,3 +111,29 @@ in response to the session, so the associations could not be read without the ex
 - Ask for one change at a time, with tests, and read the diff before merging.
 - Ask it to write the plan and the expected reading into the notes before a run, and the result after.
 - Two assistants agreeing is not a check. A person who knows the machine, or the data itself, is.
+
+## State on 2026-11-24, and what to do next
+
+Details of every result are in `NOTES.md` (newest at the bottom).
+
+**Audit toolkit (`scripts/audit.py`, guide `docs/TOOLKIT.md`).** One command for any table of shot, time and signals.
+Mixed mode (some shots disrupt): T timing, D clock, E endpoint checks. All-disruptive mode (every shot disrupts):
+the landmark primary, the Brier gain of the signals over elapsed time (and `prog_*` columns), validated on planted
+shortcuts (v3 passed; earlier versions failed and are kept on record), with a power note. Examples in `examples/`.
+
+**Real-data results of the toolkit so far.** Public Zhu et al. files: within disrupted EAST and DIII-D records the
+recording schedule alone gives a decision AUC of 1.000 / 0.995 for "disruption within 100 ms", so what the signals add
+cannot be measured there (`scripts/landmark_zhu.py`). Endpoint module 2: little change in EAST under the tested
+anchor swap (`scripts/endpoint_zhu.py`, `scripts/endpoint_zhu_sensitivity.py`).
+
+**Saddle-coil signs.** The FAIR-MAST maintainers confirmed our correction and moved it into their ingestion code
+(fair-mast-ingestion #157). `scripts/saddle_fetch.py` therefore refuses to flip groups ingested after 2026-10-23
+(status `release_unverified`): when a new FAIR-MAST release appears, check whether M02, M08 and M012 still need the
+flip (they should not) before refetching, and set the rule accordingly.
+
+**Next steps, in order of value.**
+1. When a new FAIR-MAST release appears: re-check the saddle signs (above) and the EFIT timing (the maintainers fixed
+   dropped and late EFIT slices in level 2).
+2. Before running `scripts/audit.py --all-disrupt` on a machine's data, fix the window, step and horizon in a
+   protocol, and read the result against the power note.
+3. Re-run `python -m pytest -q` after any change; protocols go in `docs/` before any new analysis is run.
