@@ -2335,3 +2335,10 @@ released). fair-mast main: last commit 2026-10-28; PR #249 (UTC documentation) o
   2026-10-23; later groups get status `release_unverified` and no corrected feature until the release is checked.
   Existing data (ingested 23-29 September 2026) are unaffected. Test added.
 
+
+## 2026-11-24 - Planted leaks, investigation 2: E on the duration family flags at about the clean-data rate
+
+E only, family L_D, seeds 101-200 (specified before running): fired 4/100 (Wilson 1.6% to 9.8%), mean Delta +0.0026
+(SD 0.029), against 2/100 on clean data (0.6% to 7.0%). No evidence of a duration-specific contrast; the 3/20 in the
+registered table fits an unexpected-flag rate of a few percent at about 40 cases and 80 controls. The registered
+table stays FAILED.
