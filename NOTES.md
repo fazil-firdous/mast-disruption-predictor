@@ -2296,3 +2296,33 @@ before the run; early stopping and strength 1 chosen after v2 and the power stud
   `docs/TOOLKIT.md` (every validation with its outcome, failures included), `examples/` tables; 24 tests pass.
 - Honest scope: v3 passed on synthetic data where the precursor is strong enough to be seen (power study); it is a
   software validation, not evidence about any machine, and the earlier failures stay on record.
+
+## 2026-11-24 - Landmark module on the public Zhu disruptive records: in EAST and DIII-D the recording schedule alone tells when the disruption comes
+
+`scripts/landmark_zhu.py`, protocol `docs/preregistration_landmark_zhu.md` (2496809; code 1ac18e3; both before the
+run). Conditional on an eventual disruption, file-relative; decisions every 20 ms, positive if the disruption is
+10-100 ms ahead; same learner with early stopping; Brier gains with shots resampled.
+- **EAST (primary):** clock + schedule reaches decision AUC **1.000**; adding the 12 signals changes the Brier score by
+  -0.00046 (-0.00063 to -0.00032): no improvement shown. The signals do carry information beyond the clock alone
+  (+0.0095; AUC 0.954), but all of it is already in the schedule.
+- **DIII-D:** clock + schedule 0.995; signals over it -0.00004 (-0.00016 to +0.00007).
+- **C-Mod:** different: near-uniform cadence, the schedule adds little (0.790 -> 0.828), signals over clock + schedule
+  +0.016 (-0.014 to +0.043), unresolved at 152 test shots.
+- Reading: in the stored EAST and DIII-D files, the density of stored slices encodes the time to disruption almost
+  perfectly inside disrupted records, so within-record evaluations on these files cannot measure what the signals add.
+  A ceiling, not "no information". This extends the timing audit (between disrupted and non-disrupted records) to
+  within disrupted records, and is the first real-data use of the validated landmark primary.
+
+## 2026-11-24 - FAIR-MAST answers (issue #247) and a fixed timestamp bug (#248)
+
+- Saddle-sign correction confirmed by the maintainers: every sample of M02, M08 and M012 multiplied by -1 for shots
+  24782-30473, from comparing raw and analysed signals. Exactly our correction (docs/preregistration_saddle_correction.md).
+  Per-shot variation (e.g. shot 27000) not investigated by them. No confirmed coil geometry beyond names and order:
+  same assumption as ours.
+- "(dirty)" provenance suffix: an uncommitted bug fix, fair-mast-ingestion#162. The dates span one ingestion run.
+- EFIT in level 2: native times only in level 1 (efm); vloop_static/dynamic from esm. Known problem: some EFIT slices
+  dropped or held one grid step late; fixed in the next release. Stale or missing EFIT values, not future ones: it can
+  weaken EFIT-based features, not leak. Our no-EFIT ablation (docs/preregistration_no_efit.md) bounds the dependence;
+  re-check when the release appears.
+- #248 (one hour late `timestamp` for 278 shots in l2_shots.parquet, fixed): no effect, our code does not use that
+  column (checked: no use in src/ or scripts/).
