@@ -30,6 +30,10 @@ FIELD = "b_field_tor_probe_saddle_field"
 MIRNOV = "b_field_pol_probe_cc_field"
 FLIP = ("M02", "M08", "M012")  # documented sign reversal (FAIR-MAST level 2, changes from source)
 FLIP_FROM, FLIP_TO = 24782, 30473
+# fair-mast-ingestion #157 (merged 2026-10-23) publishes these channels already multiplied by -1 in this range. Data
+# ingested before that are reversed and get our flip; data ingested later may be corrected at the source, so they are
+# refused for the flip range until the release is checked (a double flip would silently undo the correction).
+SOURCE_FIX_MERGED = "2026-10-23"
 MIN_BINS = 20  # fewer common bins give no correlation
 GIVE_UP_AFTER = 20
 TABLES = ("lm", "channels", "shots", "summary_sample", "channel_bins")
@@ -49,6 +53,12 @@ def signs_for(shot_id, labels):
     """+1 or -1 per channel: -1 for the documented reversed channels inside the documented shot range."""
     flip = FLIP_FROM <= int(shot_id) <= FLIP_TO
     return np.array([-1.0 if flip and label in FLIP else 1.0 for label in labels])
+
+
+def release_state(ingested_at):
+    """'reversed' if the group was ingested before the source fix, else 'unverified'."""
+    day = str(ingested_at or "")[:10]
+    return "reversed" if len(day) == 10 and day < SOURCE_FIX_MERGED else "unverified"
 
 
 def channel_bins(t_fast, field, t_grid, signs):
@@ -122,6 +132,9 @@ def shot_result(shot_id, open_group=programme_signals.open_group, sample=False):
     if FIELD not in mag:
         out["shots"] = pd.DataFrame([{**row, "status": "no_saddle"}])
         return out, "no_saddle"
+    if FLIP_FROM <= int(shot_id) <= FLIP_TO and release_state(row["mag_ingested_at"]) != "reversed":
+        out["shots"] = pd.DataFrame([{**row, "status": "release_unverified"}])
+        return out, "release_unverified"
     arr = mag[FIELD]
     labels = labels_of(arr)
     t_fast = np.asarray(mag["time_saddle"].values, dtype=float)
@@ -180,7 +193,7 @@ def fetch(ids, sample=(), workers=8, open_group=programme_signals.open_group, sa
     report = {"task": "saddle_fetch", "created": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
               "shots_requested": len(ids), "seconds": round(time.time() - start),
               **{s: sum(v == s for v in status.values()) for s in ("ok", "no_saddle", "absent", "unreachable", "odd",
-                                                                   "not_started")}}
+                                                                   "not_started", "release_unverified")}}
     return tables, report
 
 

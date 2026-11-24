@@ -2326,3 +2326,18 @@ run). Conditional on an eventual disruption, file-relative; decisions every 20 m
   re-check when the release appears.
 - #248 (one hour late `timestamp` for 278 shots in l2_shots.parquet, fixed): no effect, our code does not use that
   column (checked: no use in src/ or scripts/).
+
+## 2026-11-24 - FAIR-MAST ingestion repository: the saddle fix moves to the source; guard against a double flip
+
+Read from ukaea/fair-mast-ingestion (public): #157 "Fixing Saddle Coils" (merged 2026-10-23) changes the level-2
+mapping so that M02, M08 and M012 are published multiplied by -1 for shots 24782-30473 (ASM_SAD source), with the
+comment that UDA's analysis kept a flip after the wiring was repaired around 24782; for 11708-24781 the XMB source
+now flips the same three channels because the coils were wired backwards then. #155 (merged 2026-10-23) masks flux
+loop CC04 as NaN for shots 25366-30473 "after an unexplained flip" (we do not use CC04: checked). #162 (merged
+2026-11-24) is the "(dirty)" bug fix: a missing first signal dropped the units attribute. Open branches include a
+float32 time-resampling fix and "do not round native grids to 12 decimals" (relevant to the timing audits; not
+released). fair-mast main: last commit 2026-10-28; PR #249 (UTC documentation) open.
+- Consequence: when a release built after #157 appears, applying our flip again would undo the correction. Guard
+  added to `scripts/saddle_fetch.py`: for shots in 24782-30473 the flip is applied only to groups ingested before
+  2026-10-23; later groups get status `release_unverified` and no corrected feature until the release is checked.
+  Existing data (ingested 23-29 September 2026) are unaffected. Test added.

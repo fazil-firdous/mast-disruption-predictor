@@ -142,7 +142,7 @@ def collect(run_id, say=print):
                 if f"{name}.parquet" in names:
                     tables[name].append(pd.read_parquet(io.BytesIO(archive.read(names[f"{name}.parquet"]))))
             manifests.append(json.loads(archive.read(names["manifest.json"])))
-    keys = ("shots_requested", "ok", "no_saddle", "absent", "unreachable", "odd", "not_started")
+    keys = ("shots_requested", "ok", "no_saddle", "absent", "unreachable", "odd", "not_started", "release_unverified")
     m = {k: sum(x.get(k, 0) for x in manifests) for k in keys}
     m["parts_collected"] = len(manifests)
     m["created"] = sorted(x.get("created", "") for x in manifests)
