@@ -153,6 +153,8 @@ A plain-English tour of the repo. Read the files in the order below.
 | `docs/TOOLKIT.md` | audit toolkit, user guide | Input format, both modes, how to read each number, power, every validation with its outcome (failures included). |
 | `scripts/landmark_zhu.py` | landmark module, real data | `docs/preregistration_landmark_zhu.md`: within the disrupted records of the public Zhu files, Brier gain of the signals over clock + recording schedule for next-100 ms risk (EAST primary), plus schedule over clock and signals over clock. Writes `sampling_audit/landmark_zhu.txt`; Telegram in parts. |
 | `tests/test_landmark_zhu.py` | done | Disruption time from time_until_disrupt; end-to-end on a synthetic file. |
+| `scripts/schedule_vs_lead.py` | landmark module, diagnostic | Diagnostic 1 of `docs/preregistration_landmark_zhu.md`: gap between stored slices by time before the disruption (disrupted) or record end (non-disrupted), per-record bands, cohort flow, one worked EAST record. No model. |
+| `tests/test_schedule_vs_lead.py` | done | End-to-end on a synthetic file. |
 | `examples/example_mixed.csv`, `examples/example_all_disruptive.csv` | audit toolkit | Small synthetic input tables showing the expected format (the second has a `prog_*` column). |
 | `tests/test_audit.py` | done | Window labels, no float noise in constant timing features, matched concordance by hand, mixed mode end to end, the demo flags the clock. |
 | `scripts/planted_leaks_all.py` | audit toolkit, validation | `docs/preregistration_planted_leaks_all.md`: the first all-disruptive mode (sampling and clock-matched flags) on four synthetic families. Result 7/8, FAILED on A_W. |
