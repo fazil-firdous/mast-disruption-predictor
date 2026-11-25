@@ -2369,3 +2369,30 @@ signals 0.00117 / 0.00043 / 0.14943; elapsed time + signals 0.01696 / 0.02147 / 
 decimals: EAST 0.6355 / 0.9999 / 0.9990 / 0.9536; DIII-D 0.6552 / 0.9950 / 0.9969 / 0.9489; C-Mod 0.7902 / 0.8283 /
 0.8977 / 0.8958. The pooled AUC compares decisions across records; in C-Mod only 37 test records have decisions of
 both kinds.
+
+## 2026-11-25 - Endpoint module 2 rerun with four decimals (identical result)
+
+EAST C_E 0.9938, C_M 0.9906, Delta +0.0032 (+0.0001 to +0.0066): the range just excludes 0, the size is a tenth of the
+0.03 line, so the registered reading (no material dependence) stands; not equivalence. DIII-D +0.0086 (+0.0036 to
++0.0142); C-Mod +0.0363 (+0.0246 to +0.0485). Other lines unchanged.
+
+## 2026-11-25 - Anchor check and record-held-out stopping (post-result sensitivity)
+
+`scripts/anchor_check.py`: time + time_until_disrupt is constant within every disrupted record (largest spread 0.0000
+ms EAST and DIII-D, 0.0002 ms C-Mod; no non-finite values). T equals the last stored slice within 1 us in 100% of EAST
+(4,508) and DIII-D (1,244) records; in C-Mod in 73.0% (975 records), within 10 ms in 100%, largest 5.000 ms (one 5 ms
+slice: in about a quarter of C-Mod records T lies one slice after the last stored slice).
+
+`scripts/landmark_zhu.py --record-stopping` (early stopping on 10% held-out training records instead of random
+decisions; post-result sensitivity; the registered run stays the result):
+- EAST: signals over clock + timing -0.00037 (-0.00051 to -0.00024); timing over clock +0.0258; signals over clock
+  +0.0090. Same conclusions as registered.
+- DIII-D: signals over clock + timing -0.00024 (-0.00042 to -0.00010), now resolved below 0 (registered: unresolved);
+  timing over clock +0.0347; signals over clock +0.0125.
+- C-Mod: signals over clock + timing **+0.034 (+0.014 to +0.054), resolved above 0** (registered: +0.016, -0.014 to
+  +0.043, unresolved); signals over clock +0.043 (+0.023 to +0.062). The clock + timing + signals and clock + signals
+  fits gave identical test predictions (both stopped at 40 iterations), i.e. the timing features were not used. So in
+  C-Mod the conclusion depends on how training is stopped; only 37 test records have decisions of both kinds, and the
+  pooled comparison rests mostly on comparisons across records.
+- Chosen iterations ranged from 15 to 200; under the registered random-decision stopping, validation decisions shared
+  records with training decisions.

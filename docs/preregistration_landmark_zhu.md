@@ -97,3 +97,9 @@ and the iteration with the lowest log loss on the held-out records is used for t
 registered. Reported with the same gains; a post-result sensitivity, the registered run stays the result.
 (c) Reporting only: the endpoint module prints C_E, C_M and Delta to four decimals.
 Figure conventions of diagnostic 1: a gap is assigned to the later of its two slices, and percentiles weight slices.
+
+Diagnostic 2 and sensitivity results (2026-11-25): T is constant within every record; it equals the last stored slice
+within 1 us in all EAST and DIII-D records and in 73.0% of C-Mod records (all within 10 ms; largest 5 ms). With
+record-held-out stopping: EAST -0.00037 (-0.00051 to -0.00024), DIII-D -0.00024 (-0.00042 to -0.00010), C-Mod +0.034
+(+0.014 to +0.054) for the signals over clock + timing. The registered result stands; in C-Mod the conclusion depends
+on the stopping rule.
