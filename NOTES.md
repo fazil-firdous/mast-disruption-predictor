@@ -2342,3 +2342,20 @@ E only, family L_D, seeds 101-200 (specified before running): fired 4/100 (Wilso
 (SD 0.029), against 2/100 on clean data (0.6% to 7.0%). No evidence of a duration-specific contrast; the 3/20 in the
 registered table fits an unexpected-flag rate of a few percent at about 40 cases and 80 controls. The registered
 table stays FAILED.
+
+## 2026-11-25 - Why the schedule gives the lead: dense sampling starts about 300 ms (EAST) and 100 ms (DIII-D) before the disruption
+
+`scripts/schedule_vs_lead.py` (diagnostic 1 of the landmark module, specified before computing; no model).
+- **EAST:** disrupted records are stored every 10 ms from about 250-300 ms before t_d to the end, every 100 ms before
+  that; non-disrupted records every 100 ms throughout. In a 300 ms window the slice count therefore rises step by step
+  as a decision approaches t_d (worked record 55234: 3 slices at 253 ms before t_d, then 4, 6, 8, ... 24 at 13 ms), so
+  the count alone encodes the lead.
+- **DIII-D:** 2 ms in the last 100 ms of disrupted records, 25 ms before; non-disrupted 25 ms throughout. The dense
+  part coincides with the 10-100 ms positive band.
+- **C-Mod:** 5 ms everywhere, but disrupted records are short: 158 of 195 test records span under 400 ms from first
+  slice to t_d (only 15% have slices 500-1000 ms before t_d, against all non-disrupted records up to 500 ms), so only 37
+  have decisions of both kinds; its within-record result rests on few records.
+- The dense part starts far earlier than a short pre-disruption increase would; it reaches back to the start of the
+  landmark windows used here, which reconciles the near-perfect within-record timing baseline with the time stamps.
+- Cohort flow: EAST 503 test disrupted records, 468 with at least one decision (35 too short for a 300 ms window
+  before the last decision), 462 with both kinds; DIII-D 249 / 234 / 230; C-Mod 195 / 152 / 37.
