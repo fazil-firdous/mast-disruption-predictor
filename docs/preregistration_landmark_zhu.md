@@ -76,3 +76,12 @@ module's test cases; (4) one worked EAST test record: its time stamps in the las
 span the slices in its window, the age of the last slice, the largest gap and the label. Also recorded: the early
 stopping in the landmark models drew its 10% validation decisions at random from training decisions, so validation
 decisions share shots with training decisions; this affects when training stops, not the test shots.
+
+Diagnostic 1 result (2026-11-25): in EAST disrupted records the stored gap is 10 ms from about 250-300 ms before t_d to
+the end and 100 ms earlier (per-record median: 10 ms in 0-100 and 100-300 ms, 100 ms in 300-1000 ms); non-disrupted
+records are 100 ms throughout. In DIII-D disrupted records the gap is 2 ms in the last 100 ms and 25 ms earlier;
+non-disrupted records 25 ms throughout. C-Mod is 5 ms everywhere, but its disrupted records are short (158 of 195 test
+records span less than 400 ms from first slice to t_d; 37 have decisions of both kinds). Worked EAST record (55234):
+dense slices start 250 ms before t_d, so the number of slices in a 300 ms window rises step by step (3, 4, 6, ... 24)
+as the decision approaches t_d: the count encodes the lead. Cohort flow: EAST 503 test disrupted records, 468 with a
+decision (35 too short), 462 with both kinds; DIII-D 249, 234, 230; C-Mod 195, 152, 37.
