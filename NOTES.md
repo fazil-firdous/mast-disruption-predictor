@@ -2369,3 +2369,9 @@ signals 0.00117 / 0.00043 / 0.14943; elapsed time + signals 0.01696 / 0.02147 / 
 decimals: EAST 0.6355 / 0.9999 / 0.9990 / 0.9536; DIII-D 0.6552 / 0.9950 / 0.9969 / 0.9489; C-Mod 0.7902 / 0.8283 /
 0.8977 / 0.8958. The pooled AUC compares decisions across records; in C-Mod only 37 test records have decisions of
 both kinds.
+
+## 2026-11-25 - Endpoint module 2 rerun with four decimals (identical result)
+
+EAST C_E 0.9938, C_M 0.9906, Delta +0.0032 (+0.0001 to +0.0066): the range just excludes 0, the size is a tenth of the
+0.03 line, so the registered reading (no material dependence) stands; not equivalence. DIII-D +0.0086 (+0.0036 to
++0.0142); C-Mod +0.0363 (+0.0246 to +0.0485). Other lines unchanged.
