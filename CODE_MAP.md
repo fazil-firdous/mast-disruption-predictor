@@ -155,6 +155,7 @@ A plain-English tour of the repo. Read the files in the order below.
 | `tests/test_landmark_zhu.py` | done | Disruption time from time_until_disrupt; end-to-end on a synthetic file. |
 | `scripts/schedule_vs_lead.py` | landmark module, diagnostic | Diagnostic 1 of `docs/preregistration_landmark_zhu.md`: gap between stored slices by time before the disruption (disrupted) or record end (non-disrupted), per-record bands, cohort flow, one worked EAST record. No model. |
 | `tests/test_schedule_vs_lead.py` | done | End-to-end on a synthetic file. |
+| `scripts/anchor_check.py` | landmark module, diagnostic | Diagnostic 2: within-record spread of time + time_until_disrupt and T minus the last slice, record by record. No model. |
 | `examples/example_mixed.csv`, `examples/example_all_disruptive.csv` | audit toolkit | Small synthetic input tables showing the expected format (the second has a `prog_*` column). |
 | `tests/test_audit.py` | done | Window labels, no float noise in constant timing features, matched concordance by hand, mixed mode end to end, the demo flags the clock. |
 | `scripts/planted_leaks_all.py` | audit toolkit, validation | `docs/preregistration_planted_leaks_all.md`: the first all-disruptive mode (sampling and clock-matched flags) on four synthetic families. Result 7/8, FAILED on A_W. |

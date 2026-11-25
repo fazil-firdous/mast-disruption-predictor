@@ -2359,3 +2359,13 @@ table stays FAILED.
   landmark windows used here, which reconciles the near-perfect within-record timing baseline with the time stamps.
 - Cohort flow: EAST 503 test disrupted records, 468 with at least one decision (35 too short for a 300 ms window
   before the last decision), 462 with both kinds; DIII-D 249 / 234 / 230; C-Mod 195 / 152 / 37.
+
+## 2026-11-25 - Landmark module on Zhu files: absolute Brier losses (rerun, identical gains)
+
+Rerun with absolute losses printed (gains identical to the first run). Brier loss on test decisions, EAST / DIII-D /
+C-Mod: constant at the test positive share (0.0274 / 0.0367 / 0.4758, a descriptive oracle reference) 0.02665 /
+0.03535 / 0.24942; elapsed time 0.02647 / 0.03492 / 0.17272; + timing 0.00070 / 0.00039 / 0.16569; + timing +
+signals 0.00117 / 0.00043 / 0.14943; elapsed time + signals 0.01696 / 0.02147 / 0.14948. Pooled decision AUC to four
+decimals: EAST 0.6355 / 0.9999 / 0.9990 / 0.9536; DIII-D 0.6552 / 0.9950 / 0.9969 / 0.9489; C-Mod 0.7902 / 0.8283 /
+0.8977 / 0.8958. The pooled AUC compares decisions across records; in C-Mod only 37 test records have decisions of
+both kinds.

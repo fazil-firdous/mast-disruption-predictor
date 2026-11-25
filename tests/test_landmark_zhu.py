@@ -39,3 +39,18 @@ def test_run_end_to_end(tmp_path):
     out = lz.run(str(tmp_path), n_boot=100)
     assert "== C-Mod" in out and "schedule over clock" in out and "signals over clock alone" in out
     assert "t_d minus last slice, median 40.0 ms" in out
+
+
+def test_record_stopping_sensitivity_runs(tmp_path):
+    f = zhu_like()
+    d = tmp_path / "20ja072_fig4_data"
+    d.mkdir()
+    scipy.io.savemat(d / "C_Mod_for_nn.mat", {c: f[c].to_numpy() for c in f.columns})
+    out = lz.run(str(tmp_path), n_boot=50, record_stopping=True)
+    assert "iterations chosen on held-out training records" in out
+
+
+def test_anchor_check():
+    from scripts import anchor_check as ac
+    spread, gap, missing = ac.per_record(zhu_like(n=10))
+    assert len(gap) == 5 and np.allclose(gap, 0.040) and spread.max() < 1e-9 and missing.sum() == 0

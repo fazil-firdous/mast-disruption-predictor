@@ -85,3 +85,15 @@ records span less than 400 ms from first slice to t_d; 37 have decisions of both
 dense slices start 250 ms before t_d, so the number of slices in a 300 ms window rises step by step (3, 4, 6, ... 24)
 as the decision approaches t_d: the count encodes the lead. Cohort flow: EAST 503 test disrupted records, 468 with a
 decision (35 too short), 462 with both kinds; DIII-D 249, 234, 230; C-Mod 195, 152, 37.
+
+### Diagnostic 2 and a sensitivity (2026-11-25, after the results; specified before computing)
+
+(a) Anchor, record by record (`scripts/anchor_check.py`): the within-record spread of time + time_until_disrupt
+(max - min), and the signed difference between T and the last stored slice, with the share of records within 1 us,
+1 ms and 10 ms; disrupted records with non-finite time_until_disrupt slices. (b) Early stopping on held-out training
+RECORDS (`scripts/landmark_zhu.py --record-stopping`): for each of the four models, 10% of the training records
+(seed 42) are held out, the learner is fitted on the rest with up to 200 iterations without internal early stopping,
+and the iteration with the lowest log loss on the held-out records is used for the test decisions; everything else as
+registered. Reported with the same gains; a post-result sensitivity, the registered run stays the result.
+(c) Reporting only: the endpoint module prints C_E, C_M and Delta to four decimals.
+Figure conventions of diagnostic 1: a gap is assigned to the later of its two slices, and percentiles weight slices.

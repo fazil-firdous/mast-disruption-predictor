@@ -156,8 +156,8 @@ def machine_lines(name, b, primary=False):
     controls_ok = int(mask.any(axis=0).sum())
     lines = [f"== {name}: test {len(b['cases']):,} cases, {len(b['controls']):,} controls; cases with an eligible control "
              f"{cases_ok:,}; controls ever eligible {controls_ok:,}; eligible combinations {int(mask.sum()):,}",
-             f"  {'PRIMARY ' if primary else ''}C_E {concordance(w_e, mask):.3f}, C_M {concordance(w_m, mask):.3f}; "
-             f"Delta = C_E - C_M {d[0]:+.3f} ({d[1]:+.3f} to {d[2]:+.3f}). Reading: {reading(d)}.",
+             f"  {'PRIMARY ' if primary else ''}C_E {concordance(w_e, mask):.4f}, C_M {concordance(w_m, mask):.4f}; "
+             f"Delta = C_E - C_M {d[0]:+.4f} ({d[1]:+.4f} to {d[2]:+.4f}). Reading: {reading(d)}.",
              f"  usual shot-level AUC of the frozen model (controls at E): {sa.fmt(auc)}",
              f"  separation L_E - L_M: median {np.median(sep):.0f} ms (quartiles {np.percentile(sep, 25):.0f} to "
              f"{np.percentile(sep, 75):.0f}); within 40 ms {np.mean(np.abs(sep) < 40):.0%}",
