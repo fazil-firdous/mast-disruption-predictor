@@ -61,3 +61,18 @@ clock alone). DIII-D the same (clock 0.655, clock + schedule 0.995; signals over
 +0.00007). C-Mod differs: the schedule adds little (0.790 -> 0.828; gain +0.0070, +0.0013 to +0.0119); signals over
 clock + schedule +0.016 (-0.014 to +0.043), not resolved with 152 test shots and 1,490 decisions. Every disrupted
 record ends at its disruption (median gap 0.0 ms).
+
+### Diagnostic 1 (2026-11-25, after the result; descriptive, specified before it is computed)
+
+The published account of these files describes a sampling increase shortly before disruptions, yet the timing
+features separated decisions 10-100 ms ahead from earlier ones almost perfectly. To reconcile the two from the
+original time stamps, without any model: (1) for disrupted and non-disrupted records of each machine, the gap between
+consecutive slices as a function of time before the record's disruption time (disrupted) or last slice (non-disrupted),
+in lead bins 0-10, 10-20, 20-40, 40-60, 60-100, 100-150, 150-200, 200-300, 300-500, 500-1000, 1000-2000 and
+2000-5000 ms: slices, median gap and 10th/90th percentiles, and the share of records with a slice in the bin; (2) per
+disrupted record, the median gap in 0-100, 100-300 and 300-1000 ms before t_d; (3) the cohort flow of the landmark
+analysis (test disrupted records; with at least one decision; with decisions of both kinds) against the endpoint
+module's test cases; (4) one worked EAST test record: its time stamps in the last 400 ms, and for each decision in that
+span the slices in its window, the age of the last slice, the largest gap and the label. Also recorded: the early
+stopping in the landmark models drew its 10% validation decisions at random from training decisions, so validation
+decisions share shots with training decisions; this affects when training stops, not the test shots.
