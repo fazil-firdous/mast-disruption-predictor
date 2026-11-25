@@ -83,7 +83,10 @@ def lines_for(name, r, primary=False):
         verdict = ("improves next-100 ms risk" if g[1] > 0 else "no improvement shown (not shown absent)")
         tag = label if (primary or not label.startswith("PRIMARY")) else label.replace("PRIMARY: ", "")
         out.append(f"  {tag}: Brier gain {g[0]:+.5f} ({g[1]:+.5f} to {g[2]:+.5f}) -> {verdict}")
-    out.append("  decision AUC: " + ", ".join(f"{m} {sa.auc(p, r['y']):.3f}" for m, p in r["preds"].items()))
+    out.append("  decision AUC: " + ", ".join(f"{m} {sa.auc(p, r['y']):.4f}" for m, p in r["preds"].items()))
+    base = r["y"].mean()
+    out.append(f"  Brier loss: constant (test positive share {base:.4f}) {np.mean((base - r['y']) ** 2):.5f}; " +
+               ", ".join(f"{m} {np.mean((p - r['y']) ** 2):.5f}" for m, p in r["preds"].items()))
     out.append(f"  calibration: observed {r['y'].mean():.4f}; mean predicted " +
                ", ".join(f"{m} {p.mean():.4f}" for m, p in r["preds"].items()))
     return out
