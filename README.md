@@ -8,6 +8,8 @@ Machine learning that watches a MAST tokamak plasma pulse as it unfolds and trie
 
 **Paper:** F. Firdous, *What disruption labels reward: how 11,471 MAST plasmas ended, and what predictors learn from each label set* (2026), [doi:10.5281/zenodo.24081241](https://doi.org/10.5281/zenodo.24081241). ORCID [0009-0007-1270-5525](https://orcid.org/0009-0007-1270-5525).
 
+**Audit toolkit release:** `v1.0-audit-2026-11-26`, archived at [doi:10.5281/zenodo.24551312](https://doi.org/10.5281/zenodo.24551312): checks for clock, recording-schedule and evaluation-window effects in disruption prediction (`scripts/audit.py`, guide in `docs/TOOLKIT.md`).
+
 **Dataset:** F. Firdous, *MAST events and twins: how 11,471 MAST discharges ended, events named by operators, and same-programme shot pairs* (2026), [doi:10.5281/zenodo.24133737](https://doi.org/10.5281/zenodo.24133737): how every shot ended, the events operators named, the same-programme twin pairs and a standalone twin-test scorer (CC BY-SA 4.0).
 
 ## How it works
