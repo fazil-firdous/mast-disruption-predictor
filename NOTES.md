@@ -2405,3 +2405,17 @@ every 10 ms: floating-point residues in the differences of time stamps vary with
 rounded to 1 us, S1 is 0.500 in every family without a sampling effect and 1.000 with it (20/20); C1 (occupancy) is
 0.500 / 1.000 either way; C2 0.500 / 1.000 (the synthetic sampling effect spans whole records). The C-Mod S1 of
 0.526 on the public files may therefore be partly this artefact; the public-file rerun with quantised spacing is next.
+
+## 2026-11-26 - Between-class checks on the public files: the C-Mod S1 of 0.526 was a float artefact
+
+`scripts/between_class_extras.py` (specified before computing; no model; all records in each file).
+- **C-Mod:** S1 with the spacing rounded to 1 us is **0.500 (0.500-0.500)**; the earlier 0.526 came from floating-point
+  residues in time differences (the same artefact shown on synthetic data). C1 0.527 (0.507-0.545) uses 5 ms step
+  boundaries, which C-Mod's sub-microsecond offsets affect (left unevaluated in the table).
+- **EAST:** S1 0.999 (0.999-1.000) rounded or not; C1 0.999; per shot-number tenth, S1 minimum 0.996 and C1 minimum
+  0.992 (smallest bin 220 disrupted / 773 not). Like for like on records of at least 600 ms: S1 0.999, C2 0.469
+  (0.461-0.477).
+- **DIII-D:** S1 1.000; C1 0.998; per-bin minimum S1 0.999, C1 0.988 (smallest bin 78 / 691). Records >= 600 ms: S1
+  1.000, C2 0.528 (0.513-0.542).
+- Counts: EAST 14,347 records (4,508 disrupted), DIII-D 8,608 (1,244), C-Mod 4,510 (975); S1 needs two slices before
+  the cut (EAST 4,479 / 9,824 records).
