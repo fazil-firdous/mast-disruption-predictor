@@ -56,3 +56,11 @@ That any published model used this, or that any reported performance is inflated
 ## Changes after the first result
 
 (none yet)
+
+## Addendum (2026-11-26, after the results; specified before computing; descriptive)
+
+Requested checks of the between-class timing statistics, no model (`scripts/between_class_extras.py`): S1 and C1 on all
+records with record counts; S1 with the spacing rounded to 1 us (C-Mod's stored times carry sub-microsecond
+offsets; float residues in differences); S1 and C2 on the same cohort (records of at least 600 ms); the minimum and mean within-bin AUC of S1 and C1
+over ten equal-count shot-number bins, with the smallest bin's class counts. Also S1, C1 and C2 on the synthetic
+planted-leak families (seeds 1-20), to show how they behave where the truth is known.

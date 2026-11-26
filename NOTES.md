@@ -2396,3 +2396,12 @@ decisions; post-result sensitivity; the registered run stays the result):
   pooled comparison rests mostly on comparisons across records.
 - Chosen iterations ranged from 15 to 200; under the registered random-decision stopping, validation decisions shared
   records with training decisions.
+
+## 2026-11-26 - Between-class timing statistics: a float artefact in S1 on uniform sampling
+
+`scripts/between_class_extras.py --synthetic` (specified before computing): on the synthetic planted-leak families,
+S1 (median spacing) gave AUC 0.514 on clean data and 0.402 on the duration family although every record is sampled
+every 10 ms: floating-point residues in the differences of time stamps vary with the time values. With the spacing
+rounded to 1 us, S1 is 0.500 in every family without a sampling effect and 1.000 with it (20/20); C1 (occupancy) is
+0.500 / 1.000 either way; C2 0.500 / 1.000 (the synthetic sampling effect spans whole records). The C-Mod S1 of
+0.526 on the public files may therefore be partly this artefact; the public-file rerun with quantised spacing is next.

@@ -1,0 +1,6 @@
+S1, C1, C2 on the synthetic planted-leak families (docs/preregistration_planted_leaks.md generator, strength 0.5, seeds 1-20). Flag line 0.80 for S1 and C1.
+
+  L0: S1 median 0.514, >= 0.80 in 0/20; C1 median 0.500, >= 0.80 in 0/20; C2 median 0.500; S1 spacing quantised to 1 us: median 0.500, >= 0.80 in 0/20
+  L_T: S1 median 1.000, >= 0.80 in 20/20; C1 median 1.000, >= 0.80 in 20/20; C2 median 1.000; S1 spacing quantised to 1 us: median 1.000, >= 0.80 in 20/20
+  L_D: S1 median 0.402, >= 0.80 in 0/20; C1 median 0.500, >= 0.80 in 0/20; C2 median 0.500; S1 spacing quantised to 1 us: median 0.500, >= 0.80 in 0/20
+  L_E: S1 median 0.514, >= 0.80 in 0/20; C1 median 0.500, >= 0.80 in 0/20; C2 median 0.500; S1 spacing quantised to 1 us: median 0.500, >= 0.80 in 0/20
